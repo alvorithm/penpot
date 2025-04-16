@@ -18,6 +18,8 @@
    [app.main.ui.components.color-bullet :refer [color-bullet]]
    [app.main.ui.ds.foundations.assets.icon :refer [icon*]]
    [app.main.ui.ds.foundations.utilities.token.token-status :refer [token-status-icon*]]
+   [app.main.ui.workspace.tokens.changes :as wtch]
+   [app.main.ui.workspace.tokens.token :as wtt]
    [app.util.dom :as dom]
    [app.util.i18n :refer [tr]]
    [cuerdas.core :as str]
@@ -240,17 +242,15 @@
            (dom/stop-propagation event)
            (when (and can-edit? (not (seq errors)) on-click)
              (on-click event))))
-
-        ;; FIXME: missing deps
         on-hover
         (mf/use-fn
-         (mf/deps selected-shapes is-viewer? active-theme-tokens token half-applied? no-valid-value ref-not-in-active-set)
-         (fn [event]
-           (let [node  (dom/get-current-target event)
+         (mf/deps  selected-shapes is-viewer? active-theme-tokens token half-applied? no-valid-value ref-not-in-active-set)
+         (fn []
+           (let [node  (dom/get-element "test-tooltip-pill")
                  theme-token (get active-theme-tokens (:name token))
                  title (generate-tooltip is-viewer? (first selected-shapes) theme-token token
                                          half-applied? no-valid-value ref-not-in-active-set)]
-             (dom/set-attribute! node "title" title))))]
+             (dom/set-html! node title))))]
 
     [:button {:class (stl/css-case
                       :token-pill true
@@ -266,8 +266,11 @@
                       :token-pill-invalid-applied-viewer (and is-viewer?
                                                               (and full-applied? errors?)))
               :type "button"
+              :on-focus on-hover
+
               :on-click on-click
               :on-mouse-enter on-hover
+
               :on-context-menu on-context-menu}
      (cond
        errors?

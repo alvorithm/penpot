@@ -20,6 +20,7 @@
    [app.main.ui.dashboard.pin-button :refer [pin-button*]]
    [app.main.ui.dashboard.project-menu :refer [project-menu*]]
    [app.main.ui.ds.product.empty-placeholder :refer [empty-placeholder*]]
+   [app.main.ui.ds.tooltip.tooltip :as too]
    [app.main.ui.hooks :as hooks]
    [app.main.ui.icons :as i]
    [app.util.dom :as dom]
@@ -44,6 +45,15 @@
 (def ^:private menu-icon
   (i/icon-xref :menu (stl/css :menu-icon)))
 
+(mf/defc test-component*
+  {::mf/props :obj}
+  []
+  [:> too/tooltip* {:id "test-tooltip"
+                    :placement "bottom"
+                    :content (mf/html [:span {:style {:border "1px solid blue"}}
+                                       "esto es un tooltip"])}
+   [:h1 {:style {:border "1px solid red"}} "Test component     "]])
+
 (mf/defc header*
   {::mf/wrap [mf/memo]
    ::mf/props :obj
@@ -52,12 +62,20 @@
   (let [on-click (mf/use-fn #(st/emit! (dd/create-project)))]
     [:header {:class (stl/css :dashboard-header) :data-testid "dashboard-header"}
      [:div#dashboard-projects-title {:class (stl/css :dashboard-title)}
+      [:> test-component*]
       [:h1 (tr "dashboard.projects-title")]]
      (when can-edit
-       [:button {:class (stl/css :btn-secondary :btn-small)
-                 :on-click on-click
-                 :data-testid "new-project-button"}
-        (tr "dashboard.new-project")])]))
+       
+       [:> too/tooltip* {:id "new-project-tooltip"
+                         :placement "bottom"
+                         :content (mf/html [:div {:style {:border "1px solid blue"}}
+                                            "esto es un tooltip muy muy largo"
+                                            [:div "que no deberia caber en una sola linea"]])}
+        [:button {:class (stl/css :btn-secondary :btn-small)
+                  :on-click on-click
+                  :data-testid "new-project-button"}
+         (tr "dashboard.new-project")]]
+       )]))
 
 (mf/defc team-hero*
   {::mf/wrap [mf/memo]
