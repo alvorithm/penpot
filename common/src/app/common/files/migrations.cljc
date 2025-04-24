@@ -1281,8 +1281,8 @@
             (d/update-when container :objects update-vals update-object))]
 
     (-> data
-        (update :pages-index update-vals update-container)
-        (update :components update-vals update-container))))
+        (update :pages-index d/update-vals update-container)
+        (d/update-when :components d/update-vals update-container))))
 
 (defmethod migrate-data "0003-fix-root-shape"
   [data _]
