@@ -16,6 +16,7 @@ const TILE_SIZE_MULTIPLIER: i32 = 2;
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum SurfaceId {
     Target,
+    Cache,
     Current,
     Fills,
     Strokes,
@@ -26,7 +27,10 @@ pub enum SurfaceId {
 
 pub struct Surfaces {
     // is the final destination surface, the one that it is represented in the canvas element.
-    target: skia::Surface,
+    // TODO pub
+    pub target: skia::Surface,
+    // TODO cache and pub
+    pub cache: skia::Surface,
     // keeps the current render
     current: skia::Surface,
     // keeps the current shape's fills
@@ -52,6 +56,7 @@ impl Surfaces {
         (width, height): (i32, i32),
         sampling_options: skia::SamplingOptions,
         tile_dims: skia::ISize,
+        cache_dims: skia::ISize,
     ) -> Self {
         let extra_tile_dims = skia::ISize::new(
             tile_dims.width * TILE_SIZE_MULTIPLIER,
@@ -60,6 +65,7 @@ impl Surfaces {
         let margins = skia::ISize::new(extra_tile_dims.width / 4, extra_tile_dims.height / 4);
 
         let mut target = gpu_state.create_target_surface(width, height);
+        let cache = target.new_surface_with_dimensions(cache_dims).unwrap();
         let current = target.new_surface_with_dimensions(extra_tile_dims).unwrap();
         let drop_shadows = target.new_surface_with_dimensions(extra_tile_dims).unwrap();
         let inner_shadows = target.new_surface_with_dimensions(extra_tile_dims).unwrap();
@@ -70,6 +76,7 @@ impl Surfaces {
         let tiles = TileTextureCache::new();
         Surfaces {
             target,
+            cache,
             current,
             drop_shadows,
             inner_shadows,
@@ -82,8 +89,8 @@ impl Surfaces {
         }
     }
 
-    pub fn resize(&mut self, gpu_state: &mut GpuState, new_width: i32, new_height: i32) {
-        self.reset_from_target(gpu_state.create_target_surface(new_width, new_height));
+    pub fn resize(&mut self, gpu_state: &mut GpuState, new_width: i32, new_height: i32, cache_dims: skia::ISize) {
+        self.reset_from_target(gpu_state.create_target_surface(new_width, new_height), cache_dims);
     }
 
     pub fn base64_snapshot(&mut self, id: SurfaceId) -> String {
@@ -155,6 +162,7 @@ impl Surfaces {
     fn get_mut(&mut self, id: SurfaceId) -> &mut skia::Surface {
         match id {
             SurfaceId::Target => &mut self.target,
+            SurfaceId::Cache => &mut self.cache,
             SurfaceId::Current => &mut self.current,
             SurfaceId::DropShadows => &mut self.drop_shadows,
             SurfaceId::InnerShadows => &mut self.inner_shadows,
@@ -164,10 +172,17 @@ impl Surfaces {
         }
     }
 
-    fn reset_from_target(&mut self, target: skia::Surface) {
+    // STILL NEEDED?
+    pub fn store_cache(&mut self) {
+        self.target.draw(self.cache.canvas(), (0.0, 0.0), self.sampling_options, Some(&skia::Paint::default()));
+
+    }
+
+    fn reset_from_target(&mut self, target: skia::Surface, cache_dims: skia::ISize) {
         let dim = (target.width(), target.height());
         self.target = target;
         self.debug = self.target.new_surface_with_dimensions(dim).unwrap();
+        self.cache = self.target.new_surface_with_dimensions(cache_dims).unwrap();
         // The rest are tile size surfaces
     }
 
@@ -222,7 +237,7 @@ impl Surfaces {
         self.tiles.visit(tile);
     }
 
-    pub fn cache_current_tile_texture(&mut self, tile: Tile) {
+    pub fn cache_current_tile_texture(&mut self, tile: Tile, tile_rect: skia::Rect) {
         let snapshot = self.current.image_snapshot();
         let rect = IRect::from_xywh(
             self.margins.width,
@@ -233,7 +248,10 @@ impl Surfaces {
 
         let mut context = self.current.direct_context();
         if let Some(snapshot) = snapshot.make_subset(&mut context, &rect) {
-            self.tiles.add(tile, snapshot);
+            self.tiles.add(tile, snapshot.clone());
+            println!("----- {:?}", tile_rect);
+            println!("rect {:?}", rect);
+            self.cache.canvas().draw_image_rect(&snapshot.clone(), None, tile_rect, &skia::Paint::default());
         }
     }
 
