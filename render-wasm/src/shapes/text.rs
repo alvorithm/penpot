@@ -4,8 +4,11 @@ use crate::{
 };
 use skia_safe::{
     self as skia,
+    paint::Paint,
     textlayout::{FontCollection, ParagraphBuilder, ParagraphStyle},
 };
+
+use crate::shapes::Shape;
 
 use super::FontFamily;
 use crate::utils::uuid_from_u32;
@@ -47,32 +50,91 @@ impl TextContent {
         self.paragraphs.push(paragraph);
     }
 
-    pub fn to_paragraphs(&self, fonts: &FontCollection) -> Vec<skia::textlayout::Paragraph> {
-        self.paragraphs
+    pub fn to_paragraphs(&self, fonts: &FontCollection) -> Vec<Vec<skia::textlayout::Paragraph>> {
+        let mut paragraph_group = Vec::new();
+        let paragraphs = self
+            .paragraphs
             .iter()
             .map(|p| {
                 let paragraph_style = p.paragraph_to_style();
                 let mut builder = ParagraphBuilder::new(&paragraph_style, fonts);
                 for leaf in &p.children {
-                    let text_style = leaf.to_style(&p);
+                    let text_style = leaf.to_style(p);
                     let text = leaf.apply_text_transform(p.text_transform);
-
                     builder.push_style(&text_style);
                     builder.add_text(&text);
                     builder.pop();
                 }
                 builder.build()
             })
+            .collect();
+        paragraph_group.push(paragraphs);
+        paragraph_group
+    }
+
+    pub fn to_stroke_paragraphs(
+        &self,
+        fonts: &FontCollection,
+        shape: &Shape,
+    ) -> Vec<Vec<skia::textlayout::Paragraph>> {
+        let mut paragraph_group = Vec::new();
+        let stroke_paints = shape.get_paragraph_stroke_paint();
+        for stroke_paint in stroke_paints {
+            let mut stroke_paragraphs = Vec::new();
+            for paragraph in &self.paragraphs {
+                let paragraph_style = paragraph.paragraph_to_style();
+                let mut builder = ParagraphBuilder::new(&paragraph_style, fonts);
+
+                for leaf in &paragraph.children {
+                    let stroke_style = leaf.to_stroke_style(paragraph, &stroke_paint);
+                    let text: String = leaf.apply_text_transform(paragraph.text_transform);
+                    builder.push_style(&stroke_style);
+                    builder.add_text(&text);
+                    // builder.pop();
+                    let p = builder.build();
+                    stroke_paragraphs.push(p);
+                }
+            }
+            paragraph_group.push(stroke_paragraphs);
+        }
+        paragraph_group
+    }
+
+    pub fn get_skia_paragraphs(
+        &self,
+        fonts: &FontCollection,
+    ) -> Vec<Vec<skia::textlayout::Paragraph>> {
+        self.to_paragraphs(fonts)
+            .into_iter()
+            .map(|group| {
+                group
+                    .into_iter()
+                    .map(|mut paragraph| {
+                        paragraph.layout(self.width());
+                        paragraph
+                    })
+                    .collect()
+            })
             .collect()
     }
 
-    pub fn to_skia_paragraphs(&self, fonts: &FontCollection) -> Vec<skia::textlayout::Paragraph> {
-        let mut paragraphs = Vec::new();
-        for mut skia_paragraph in self.to_paragraphs(fonts) {
-            skia_paragraph.layout(self.width());
-            paragraphs.push(skia_paragraph);
-        }
-        paragraphs
+    pub fn get_skia_stroke_paragraphs(
+        &self,
+        fonts: &FontCollection,
+        shape: &Shape,
+    ) -> Vec<Vec<skia::textlayout::Paragraph>> {
+        self.to_stroke_paragraphs(fonts, shape)
+            .into_iter()
+            .map(|group| {
+                group
+                    .into_iter()
+                    .map(|mut paragraph| {
+                        paragraph.layout(self.width());
+                        paragraph
+                    })
+                    .collect()
+            })
+            .collect()
     }
 }
 
@@ -216,12 +278,23 @@ impl TextLeaf {
             3 => skia::textlayout::TextDecoration::OVERLINE,
             _ => skia::textlayout::TextDecoration::NO_DECORATION,
         });
+
         style.set_font_families(&[
             self.serialized_font_family(),
             default_font(),
             DEFAULT_EMOJI_FONT.to_string(),
         ]);
 
+        style
+    }
+
+    pub fn to_stroke_style(
+        &self,
+        paragraph: &Paragraph,
+        stroke_paint: &Paint,
+    ) -> skia::textlayout::TextStyle {
+        let mut style = self.to_style(paragraph);
+        style.set_foreground_paint(stroke_paint);
         style
     }
 

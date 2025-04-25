@@ -1,4 +1,4 @@
-use skia_safe::{self as skia};
+use skia_safe::{self as skia, paint::Paint};
 
 use crate::render::BlendMode;
 use crate::uuid::Uuid;
@@ -810,6 +810,69 @@ impl Shape {
 
     pub fn has_fills(&self) -> bool {
         !self.fills.is_empty()
+    }
+
+    pub fn get_text_stroke_paint(&self, stroke: &Stroke) -> Vec<Paint> {
+        let mut paints = Vec::new();
+
+        match stroke.kind {
+            StrokeKind::InnerStroke => {
+                let mut clear_paint = skia::Paint::default();
+                clear_paint.set_blend_mode(skia::BlendMode::Clear);
+                clear_paint.set_anti_alias(true);
+                paints.push(clear_paint);
+
+                let mut paint = skia::Paint::default();
+                paint.set_style(skia::PaintStyle::Stroke);
+                paint.set_stroke_width(stroke.width * 2.0);
+                paint.set_blend_mode(skia::BlendMode::DstOver);
+                paint.set_color(match &stroke.fill {
+                    Fill::Solid(color) => *color,
+                    _ => Color::BLACK,
+                });
+                paints.push(paint);
+            }
+            StrokeKind::CenterStroke => {
+                let mut paint = skia::Paint::default();
+                paint.set_style(skia::PaintStyle::Stroke);
+                paint.set_stroke_width(stroke.width);
+                paint.set_color(match &stroke.fill {
+                    Fill::Solid(color) => *color,
+                    _ => Color::BLACK,
+                });
+                paints.push(paint);
+            }
+            StrokeKind::OuterStroke => {
+                let mut paint = skia::Paint::default();
+                paint.set_style(skia::PaintStyle::Stroke);
+                paint.set_blend_mode(skia::BlendMode::SrcOver);
+                paint.set_anti_alias(true);
+                paint.set_stroke_width(stroke.width * 2.0);
+                paint.set_color(match &stroke.fill {
+                    Fill::Solid(color) => *color,
+                    _ => Color::BLACK,
+                });
+                paints.push(paint);
+
+                let mut clear_paint = skia::Paint::default();
+                clear_paint.set_blend_mode(skia::BlendMode::Clear);
+                clear_paint.set_anti_alias(true);
+                paints.push(clear_paint);
+            }
+        }
+
+        paints
+    }
+
+    pub fn get_paragraph_stroke_paint(&self) -> Vec<Paint> {
+        let mut paints = Vec::new();
+
+        for stroke in self.strokes().rev() {
+            let stroke_paint = self.get_text_stroke_paint(&stroke);
+            paints.extend(stroke_paint);
+        }
+
+        paints
     }
 }
 

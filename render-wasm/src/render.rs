@@ -367,16 +367,29 @@ impl RenderState {
                     }
                 }
             }
+
             Type::Text(text_content) => {
                 self.surfaces.apply_mut(&[SurfaceId::Fills], |s| {
                     s.canvas().concat(&matrix);
                 });
 
-                let paragraphs = text_content.to_skia_paragraphs(&self.fonts.font_collection());
+                let paragraphs = text_content.get_skia_paragraphs(&self.fonts.font_collection());
+
+                let stroke_paragraphs =
+                    text_content.get_skia_stroke_paragraphs(&self.fonts.font_collection(), &shape);
 
                 shadows::render_text_drop_shadows(self, &shape, &paragraphs, antialias);
+                shadows::render_text_drop_shadows(self, &shape, &stroke_paragraphs, antialias);
                 text::render(self, &shape, &paragraphs, None, None);
+                text::render(
+                    self,
+                    &shape,
+                    &stroke_paragraphs,
+                    Some(SurfaceId::Strokes),
+                    None,
+                );
                 shadows::render_text_inner_shadows(self, &shape, &paragraphs, antialias);
+                shadows::render_text_inner_shadows(self, &shape, &stroke_paragraphs, antialias);
             }
             _ => {
                 self.surfaces.apply_mut(
