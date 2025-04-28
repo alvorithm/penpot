@@ -463,6 +463,7 @@ impl RenderState {
         // TODO - render from cache
         self.surfaces.target.canvas().save();
         let navigate_zoom = self.viewbox.zoom / self.cached_viewbox.zoom;
+        println!("self.viewbox {:?}", self.viewbox);
         let navigate_x =
             self.cached_viewbox.zoom * (self.viewbox.pan_x - self.cached_viewbox.pan_x);
         let navigate_y =
@@ -478,9 +479,26 @@ impl RenderState {
         ));
 
         self.surfaces.target.canvas().clear(self.background_color);
+
+        // x = (ancho viewbox - ancho cache) / 2
+        // y = (alto viewbox - alto cache) / 2
+        // x += viewbox.pan_x % 512
+        // y += viewbox.pan_y % 512
+
+        let mut x = (self.surfaces.cache.width() as f32) / 2.;
+        let mut y = (self.surfaces.cache.height() as f32) / 2.;
+        // let mut x = 0.;
+        // let mut y = 0.;
+        // x -= self.surfaces.cache.width() as f32 / 2.;
+        // x += self.viewbox.pan_x % tiles::TILE_SIZE;
+        // y -= self.surfaces.cache.height() as f32 / 2.;
+        // y += self.viewbox.pan_y % tiles::TILE_SIZE;
+        // x += self.viewbox.width as f32 / 2.;
+        // y += self.viewbox.height as f32 / 2.;
         self.surfaces.cache.draw(
             self.surfaces.target.canvas(),
-            (0.0, 0.0),
+            // (0, 0),
+            (x, y),
             self.sampling_options,
             Some(&skia::Paint::default()),
         );
@@ -511,12 +529,12 @@ impl RenderState {
         let offset_y = self.viewbox.area.top * scale;
 
         // Trying to cache also the extra tiles
-        // self.surfaces.resize_cache(get_cache_size(self.viewbox));
-        // self.surfaces.cache.canvas().clear(skia::Color::BLUE);
-        // self.surfaces.cache.canvas().translate((
-        //   -  (isx as f32 * tiles::TILE_SIZE),
-        //   -  (isy as f32 * tiles::TILE_SIZE),
-        // ));
+        self.surfaces.resize_cache(get_cache_size(self.viewbox));
+        self.surfaces.cache.canvas().clear(skia::Color::BLUE).reset_matrix();
+        self.surfaces.cache.canvas().translate((
+            (VIEWPORT_INTEREST_AREA_THRESHOLD as f32 * tiles::TILE_SIZE),
+            (VIEWPORT_INTEREST_AREA_THRESHOLD as f32 * tiles::TILE_SIZE),
+        ));
 
         // Then we get the real amount of tiles rendered for the current viewbox.
         let (sx, sy, ex, ey) = tiles::get_tiles_for_viewbox(self.viewbox);
@@ -871,7 +889,7 @@ impl RenderState {
         // Not needed, cache_current_tile_texture is doing this
         // self.surfaces.store_cache();
         self.cached_viewbox = self.viewbox.clone();
-        // debug::console_debug_surface(self, SurfaceId::Cache);
+        debug::console_debug_surface(self, SurfaceId::Cache);
         if self.options.is_debug_visible() {
             debug::render(self);
         }
