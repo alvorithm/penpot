@@ -835,6 +835,7 @@
 
 (defn resize-viewbox
   [width height]
+  (println "lllllllllllllresize-viewbox" width height)
   (h/call wasm/internal-module "_resize_viewbox" width height))
 
 (defn- debug-flags

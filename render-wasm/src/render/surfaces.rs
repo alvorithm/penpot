@@ -56,7 +56,6 @@ impl Surfaces {
         (width, height): (i32, i32),
         sampling_options: skia::SamplingOptions,
         tile_dims: skia::ISize,
-        cache_dims: skia::ISize,
     ) -> Self {
         let extra_tile_dims = skia::ISize::new(
             tile_dims.width * TILE_SIZE_MULTIPLIER,
@@ -65,7 +64,7 @@ impl Surfaces {
         let margins = skia::ISize::new(extra_tile_dims.width / 4, extra_tile_dims.height / 4);
 
         let mut target = gpu_state.create_target_surface(width, height);
-        let cache = target.new_surface_with_dimensions(cache_dims).unwrap();
+        let cache = target.new_surface_with_dimensions((width, height)).unwrap();
         let current = target.new_surface_with_dimensions(extra_tile_dims).unwrap();
         let drop_shadows = target.new_surface_with_dimensions(extra_tile_dims).unwrap();
         let inner_shadows = target.new_surface_with_dimensions(extra_tile_dims).unwrap();
@@ -89,8 +88,8 @@ impl Surfaces {
         }
     }
 
-    pub fn resize(&mut self, gpu_state: &mut GpuState, new_width: i32, new_height: i32, cache_dims: skia::ISize) {
-        self.reset_from_target(gpu_state.create_target_surface(new_width, new_height), cache_dims);
+    pub fn resize(&mut self, gpu_state: &mut GpuState, new_width: i32, new_height: i32) {
+        self.reset_from_target(gpu_state.create_target_surface(new_width, new_height));
     }
 
     pub fn base64_snapshot(&mut self, id: SurfaceId) -> String {
@@ -174,16 +173,23 @@ impl Surfaces {
 
     // STILL NEEDED?
     pub fn store_cache(&mut self) {
-        self.target.draw(self.cache.canvas(), (0.0, 0.0), self.sampling_options, Some(&skia::Paint::default()));
-
+        self.target.draw(
+            self.cache.canvas(),
+            (0.0, 0.0),
+            self.sampling_options,
+            Some(&skia::Paint::default()),
+        );
     }
 
-    fn reset_from_target(&mut self, target: skia::Surface, cache_dims: skia::ISize) {
+    fn reset_from_target(&mut self, target: skia::Surface) {
         let dim = (target.width(), target.height());
         self.target = target;
         self.debug = self.target.new_surface_with_dimensions(dim).unwrap();
-        self.cache = self.target.new_surface_with_dimensions(cache_dims).unwrap();
         // The rest are tile size surfaces
+    }
+
+    pub fn resize_cache(&mut self, cache_dims: skia::ISize) {
+        self.cache = self.target.new_surface_with_dimensions(cache_dims).unwrap();
     }
 
     pub fn draw_rect_to(&mut self, id: SurfaceId, shape: &Shape, paint: &Paint) {
@@ -249,9 +255,12 @@ impl Surfaces {
         let mut context = self.current.direct_context();
         if let Some(snapshot) = snapshot.make_subset(&mut context, &rect) {
             self.tiles.add(tile, snapshot.clone());
-            println!("----- {:?}", tile_rect);
-            println!("rect {:?}", rect);
-            self.cache.canvas().draw_image_rect(&snapshot.clone(), None, tile_rect, &skia::Paint::default());
+            self.cache.canvas().draw_image_rect(
+                &snapshot.clone(),
+                None,
+                tile_rect,
+                &skia::Paint::default(),
+            );
         }
     }
 
