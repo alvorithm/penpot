@@ -4,14 +4,14 @@
 ;;
 ;; Copyright (c) KALEIDOS INC
 
-(ns app.libs.render
+(ns lib.svg-render
   (:require
    [app.common.uuid :as uuid]
    [app.main.render :as r]
    [beicon.v2.core :as rx]
    [promesa.core :as p]))
 
-(defn render-page-export
+(defn render-page
   [file ^string page-id]
 
   ;; Better to expose the api as a promise to be consumed from JS
@@ -23,6 +23,3 @@
        (->> (r/render-page data)
             (rx/take 1)
             (rx/subs! resolve reject))))))
-
-(defn exports []
-  #js {:renderPage render-page-export})

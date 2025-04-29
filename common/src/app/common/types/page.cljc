@@ -70,7 +70,7 @@
 (def valid-guide?
   (sm/lazy-validator schema:guide))
 
-(def check-page!
+(def check-page
   (sm/check-fn schema:page))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -82,8 +82,7 @@
 (def root uuid/zero)
 
 (def empty-page-data
-  {:options {}
-   :objects {root
+  {:objects {root
              (cts/setup-shape {:id root
                                :type :frame
                                :parent-id root

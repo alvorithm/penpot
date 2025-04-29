@@ -5,6 +5,8 @@
 ;; Copyright (c) KALEIDOS INC
 
 (ns app.common.files.builder
+  "Internal implementation of file builder. Mainly used as base impl
+  for penpot library"
   (:require
    [app.common.data :as d]
    [app.common.data.macros :as dm]
@@ -136,10 +138,11 @@
 
 (defn add-page
   [file data]
-  (dm/assert! (nil? (:current-component-id file)))
-  (let [page-id (or (:id data) (uuid/next))
-        page (-> (ctp/make-empty-page {:id page-id :name "Page 1"})
-                 (d/deep-merge data))]
+  ;; FIXME: revisit assert
+  (assert (nil? (:current-component-id file)))
+  (let [page-id  (or (:id data) (uuid/next))
+        page     (-> (ctp/make-empty-page {:id page-id :name "Page 1"})
+                     (d/deep-merge data))]
     (-> file
         (commit-change
          {:type :add-page

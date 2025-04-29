@@ -4,15 +4,18 @@
 ;;
 ;; Copyright (c) KALEIDOS INC
 
-(ns app.libs.file-builder
+(ns lib.file-builder
   (:require
+   [app.common.data.macros :as dm]
    [app.common.data :as d]
    [app.common.features :as cfeat]
    [app.common.files.builder :as fb]
    [app.common.media :as cm]
    [app.common.types.components-list :as ctkl]
    [app.common.uuid :as uuid]
-   [app.util.json :as json]
+   [app.common.json :as json]
+   ;; [app.util.json :as json]
+   [app.util.object :as obj]
    [app.util.webapi :as wapi]
    [app.util.zip :as uz]
    [app.worker.export :as e]
@@ -51,7 +54,8 @@
    (let [markup
          (->> (vals media)
               (reduce e/collect-media {})
-              (json/encode))]
+              #_(json/encode)
+              )]
      (rx/of (vector (str file-id "/media.json") markup)))
 
    (->> (rx/from (vals media))
@@ -139,7 +143,6 @@
 
 (deftype File [^:mutable file]
   Object
-
   (addPage [_ name]
     (set! file (fb/add-page file {:name name}))
     (str (:current-page-id file)))
@@ -273,9 +276,22 @@
                  (resolve export-blob)))
              reject))))))
 
-(defn create-file-export [^string name]
-  (binding [cfeat/*current* cfeat/default-features]
-    (File. (fb/create-file name))))
+(defn create-file
+  [^string name]
+  (let [state* (volatile! (fb/create-file name))]
+    (obj/reify {:name "File"}
+      :addPage
+      (fn [params]
+        (let [params (json/->clj params)]
+          (vswap! state* fb/add-page params)
+          (dm/str (::fb/current-page-id @state*))))
 
-(defn exports []
-  #js {:createFile    create-file-export})
+      :asMap
+      (fn []
+        (json/->js @state*)))))
+
+
+
+
+  ;; (binding [cfeat/*current* cfeat/default-features]
+  ;;   (File. (fb/create-file name))))
