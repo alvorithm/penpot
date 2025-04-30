@@ -253,20 +253,17 @@
 
 (defn add-media
   [media]
-  (dm/assert!
-   "expected valid media object"
-   (ctf/check-media-object! media))
+  (let [media (ctf/check-media-object media)]
+    (ptk/reify ::add-media
+      ev/Event
+      (-data [_] media)
 
-  (ptk/reify ::add-media
-    ev/Event
-    (-data [_] media)
-
-    ptk/WatchEvent
-    (watch [it _ _]
-      (let [obj     (select-keys media [:id :name :width :height :mtype])
-            changes (-> (pcb/empty-changes it)
-                        (pcb/add-media obj))]
-        (rx/of (dch/commit-changes changes))))))
+      ptk/WatchEvent
+      (watch [it _ _]
+        (let [obj     (select-keys media [:id :name :width :height :mtype])
+              changes (-> (pcb/empty-changes it)
+                          (pcb/add-media obj))]
+          (rx/of (dch/commit-changes changes)))))))
 
 (defn rename-media
   [id new-name]

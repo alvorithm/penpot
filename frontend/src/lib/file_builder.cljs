@@ -8,13 +8,15 @@
   (:require
    [app.common.data.macros :as dm]
    [app.common.data :as d]
+   [app.common.schema :as sm]
    [app.common.features :as cfeat]
    [app.common.files.builder :as fb]
    [app.common.media :as cm]
+   [app.common.types.file :as types.file]
+   [app.common.types.page :as types.page]
    [app.common.types.components-list :as ctkl]
    [app.common.uuid :as uuid]
    [app.common.json :as json]
-   ;; [app.util.json :as json]
    [app.util.object :as obj]
    [app.util.webapi :as wapi]
    [app.util.zip :as uz]
@@ -276,22 +278,85 @@
                  (resolve export-blob)))
              reject))))))
 
-(defn create-file
-  [^string name]
-  (let [state* (volatile! (fb/create-file name))]
+(def Exception
+  (obj/class
+   :name "Exception"
+   :extends js/Error
+   :constructor
+   (fn [this type code hint cause]
+     (.call js/Error this hint)
+     (set! (.-name this) (str "Exception: " hint))
+     (set! (.-type this) type)
+     (set! (.-code this) code)
+     (set! (.-hint this) hint)
+
+     (when (exists? js/Error.captureStackTrace)
+       (.captureStackTrace js/Error this))
+
+    (obj/add-properties!
+     this
+     {:name "cause"
+      :enumerable true
+      :this false
+      :get (fn [] cause)}
+     {:name "data"
+      :enumerable true
+      :this false
+      :get (fn []
+             (let [data (ex-data cause)]
+               (when-let [explain (::sm/explain data)]
+                 (json/->js (sm/simplify explain)))))}))))
+
+(defn- handle-exception
+  [cause]
+  (let [data (ex-data cause)]
+    (throw (new Exception
+                (d/name (get data :type :unknown))
+                (d/name (get data :code :unknown))
+                (or (get data :hint) (ex-message cause))
+                cause))))
+
+(defn- default-uuid
+  [v]
+  (or v (uuid/next)))
+
+(def ^:private decode-file
+  (sm/decoder types.file/schema:file sm/json-transformer))
+
+(def ^:private decode-page
+  (sm/decoder types.page/schema:page sm/json-transformer))
+
+(defn- create-file*
+  [file]
+  (let [state* (volatile! file)]
     (obj/reify {:name "File"}
+      :id
+      {:get #(dm/str (:id @state*))}
+
       :addPage
       (fn [params]
-        (let [params (json/->clj params)]
-          (vswap! state* fb/add-page params)
-          (dm/str (::fb/current-page-id @state*))))
+        (try
+          (let [params (-> params
+                           (json/->clj)
+                           (decode-page)
+                           (update :id default-uuid))]
+            (vswap! state* fb/add-page params)
+            (dm/str (::fb/current-page-id @state*)))
+          (catch :default cause
+            (handle-exception cause))))
 
-      :asMap
+
+      :toMap
       (fn []
-        (json/->js @state*)))))
+        (-> @state*
+            (d/without-qualified)
+            (json/->js))))))
 
-
-
-
-  ;; (binding [cfeat/*current* cfeat/default-features]
-  ;;   (File. (fb/create-file name))))
+(defn create-file
+  [params]
+  (try
+    (let [params (-> params json/->clj decode-file)
+          file   (fb/create-file params)]
+      (create-file* file))
+    (catch :default cause
+      (handle-exception cause))))

@@ -8,9 +8,11 @@
   "Internal implementation of file builder. Mainly used as base impl
   for penpot library"
   (:require
+   [app.common.features :as cfeat]
    [app.common.data :as d]
    [app.common.data.macros :as dm]
    [app.common.exceptions :as ex]
+   [app.common.files.migrations :as fmig]
    [app.common.files.changes :as ch]
    [app.common.geom.point :as gpt]
    [app.common.geom.shapes :as gsh]
@@ -59,7 +61,7 @@
 
      (cond-> file
        (and valid? (or (not add-container?) (some? (:component-id change)) (some? (:page-id change))))
-       (-> (update :changes conjv change)
+       (-> (update ::changes conjv change)
            (update :data ch/process-changes [change] false))
 
        (not valid?)
@@ -113,7 +115,7 @@
     (d/unique-name name (or unames #{}))))
 
 (defn clear-names [file]
-  (dissoc file :unames))
+  (dissoc file ::unames))
 
 (defn- check-name
   "Given a tag returns its layer name"
@@ -129,43 +131,46 @@
 ;; PUBLIC API
 
 (defn create-file
-  ([name]
-   (create-file (uuid/next) name))
-
-  ([id name]
-   (-> (ctf/make-file {:id id :name name :create-page false})
-       (assoc :changes [])))) ;; We keep the changes so we can send them to the backend
+  [params]
+  (let [params (-> params
+                   (assoc :features cfeat/default-features)
+                   (assoc :migrations fmig/available-migrations))]
+    (ctf/make-file params :create-page false)))
 
 (defn add-page
-  [file data]
-  ;; FIXME: revisit assert
-  (assert (nil? (:current-component-id file)))
-  (let [page-id  (or (:id data) (uuid/next))
-        page     (-> (ctp/make-empty-page {:id page-id :name "Page 1"})
-                     (d/deep-merge data))]
+  [file params]
+
+  (when-not (nil? (::current-component-id file))
+    (ex/raise :type :validation
+              :code :invalid-state
+              :hint "expected no component creation in progress"))
+
+  (let [page   (-> (ctp/make-empty-page params)
+                   (ctp/check-page))
+        change {:type :add-page
+                :page page}]
+
     (-> file
-        (commit-change
-         {:type :add-page
-          :page page})
+        (commit-change change)
 
         ;; Current page being edited
-        (assoc :current-page-id page-id)
+        (assoc ::current-page-id (:id page))
 
         ;; Current frame-id
-        (assoc :current-frame-id root-id)
+        (assoc ::current-frame-id root-id)
 
         ;; Current parent stack we'll be nesting
-        (assoc :parent-stack [root-id])
+        (assoc ::parent-stack [root-id])
 
         ;; Last object id added
-        (assoc :last-id nil))))
+        (assoc ::last-id nil))))
 
 (defn close-page [file]
   (dm/assert! (nil? (:current-component-id file)))
   (-> file
-      (dissoc :current-page-id)
-      (dissoc :parent-stack)
-      (dissoc :last-id)
+      (dissoc ::current-page-id)
+      (dissoc ::parent-stack)
+      (dissoc ::last-id)
       (clear-names)))
 
 (defn add-artboard [file data]

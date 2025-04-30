@@ -90,10 +90,12 @@
                                :name "Root Frame"})}})
 
 (defn make-empty-page
-  [{:keys [id name]}]
+  [{:keys [id name background]}]
   (-> empty-page-data
       (assoc :id (or id (uuid/next)))
-      (assoc :name (or name "Page 1"))))
+      (assoc :name (d/nilv name "Page 1"))
+      (cond-> background
+        (assoc :background background))))
 
 (defn get-frame-flow
   [flows frame-id]
