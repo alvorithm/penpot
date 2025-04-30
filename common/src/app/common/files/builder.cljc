@@ -23,6 +23,7 @@
    [app.common.types.components-list :as ctkl]
    [app.common.types.container :as ctn]
    [app.common.types.file :as ctf]
+   [app.common.types.color :as ctc]
    [app.common.types.page :as ctp]
    [app.common.types.pages-list :as ctpl]
    [app.common.types.shape :as cts]
@@ -32,6 +33,16 @@
 (def ^:private root-id uuid/zero)
 (def ^:private conjv (fnil conj []))
 (def ^:private conjs (fnil conj #{}))
+
+(defn- default-uuid
+  [v]
+  (or v (uuid/next)))
+
+(defn- track-used-name
+  [file name]
+  (let [container-id (or (::current-component-id file)
+                         (::current-page-id file))]
+    (update-in file [::unames container-id] conjs name)))
 
 (defn- commit-change
   ([file change]
@@ -77,18 +88,25 @@
   (-> (lookup-objects file)
       (get shape-id)))
 
-(defn- commit-shape [file obj]
-  (let [parent-id (-> file :parent-stack peek)
-        change {:type :add-obj
-                :id (:id obj)
-                :ignore-touched true
-                :obj obj
-                :parent-id parent-id}
+(defn- commit-shape
+  [file shape]
+  (let [parent-id
+        (-> file ::parent-stack peek)
 
-        fail-on-spec? (or (= :group (:type obj))
-                          (= :frame (:type obj)))]
+        change
+        {:type :add-obj
+         :id (:id shape)
+         :ignore-touched true
+         :obj shape
+         :parent-id parent-id}
 
-    (commit-change file change {:add-container? true :fail-on-spec? fail-on-spec?})))
+        fail-on-spec?
+        (or (= :group (:type shape))
+            (= :frame (:type shape)))]
+
+    (-> file
+        (commit-change change {:add-container? true :fail-on-spec? fail-on-spec?})
+        (track-used-name (:name shape)))))
 
 (defn- generate-name
   [type data]
@@ -100,13 +118,6 @@
                         :else (str tag))))
     (str/capital (d/name type))))
 
-(defn- add-name
-  [file name]
-  (let [container-id (or (:current-component-id file)
-                         (:current-page-id file))]
-    (-> file
-        (update-in [:unames container-id] conjs name))))
-
 (defn- unique-name
   [name file]
   (let [container-id (or (:current-component-id file)
@@ -117,7 +128,7 @@
 (defn clear-names [file]
   (dissoc file ::unames))
 
-(defn- check-name
+(defn- assign-name
   "Given a tag returns its layer name"
   [data file type]
 
@@ -173,34 +184,45 @@
       (dissoc ::last-id)
       (clear-names)))
 
-(defn add-artboard [file data]
-  (let [obj (-> (cts/setup-shape (assoc data :type :frame))
-                (check-name file :frame))]
-    (-> file
-        (commit-shape obj)
-        (assoc :current-frame-id (:id obj))
-        (assoc :last-id (:id obj))
-        (add-name (:name obj))
-        (update :parent-stack conjv (:id obj)))))
+(defn add-artboard
+  [file data]
+  (let [{:keys [id] :as shape}
+        (-> data
+            (update :id default-uuid)
+            (assoc :frame-id (:current-frame-id file))
+            (assoc :type :frame)
+            (assign-name file :frame)
+            (cts/setup-shape)
+            (cts/check-shape!))]
 
-(defn close-artboard [file]
-  (let [parent-id (-> file :parent-stack peek)
-        parent (lookup-shape file parent-id)
-        current-frame-id (or (:frame-id parent)
-                             root-id)]
     (-> file
-        (assoc :current-frame-id current-frame-id)
-        (update :parent-stack pop))))
+        (commit-shape shape)
+        (update ::parent-stack conjv id)
+        (assoc ::current-frame-id id)
+        (assoc ::last-id id))))
 
-(defn add-group [file data]
-  (let [frame-id (:current-frame-id file)
-        obj      (-> (cts/setup-shape (assoc data :type :group :frame-id frame-id))
-                     (check-name file :group))]
+(defn close-artboard
+  [file]
+  (let [parent-id (-> file ::parent-stack peek)
+        parent    (lookup-shape file parent-id)]
     (-> file
-        (commit-shape obj)
-        (assoc :last-id (:id obj))
-        (add-name (:name obj))
-        (update :parent-stack conjv (:id obj)))))
+        (assoc ::current-frame-id (or (:frame-id parent) root-id))
+        (update ::parent-stack pop))))
+
+(defn add-group
+  [file params]
+  (let [{:keys [id] :as shape}
+        (-> params
+            (update :id default-uuid)
+            (assoc :frame-id (:current-frame-id file))
+            (assoc :type :group)
+            (assign-name file :group)
+            (cts/setup-shape)
+            (cts/check-shape!))]
+    (-> file
+        (commit-shape shape)
+        (assoc ::last-id id)
+        (update ::parent-stack conjv id))))
 
 (defn close-group [file]
   (let [group-id (-> file :parent-stack peek)
@@ -253,14 +275,14 @@
     (-> file
         (update :parent-stack pop))))
 
-(defn add-bool [file data]
+(defn add-bool [file params]
   (let [frame-id (:current-frame-id file)
-        obj      (-> (cts/setup-shape (assoc data :type :bool :frame-id frame-id))
-                     (check-name file :bool))]
+        obj      (-> (cts/setup-shape (assoc params :type :bool :frame-id frame-id))
+                     (assign-name file :bool))]
     (-> file
         (commit-shape obj)
         (assoc :last-id (:id obj))
-        (add-name (:name obj))
+        (track-used-name (:name obj))
         (update :parent-stack conjv (:id obj)))))
 
 (defn close-bool [file]
@@ -300,28 +322,28 @@
         (update :parent-stack pop))))
 
 (defn create-shape
-  [file type data]
-  (let [obj (-> (assoc data :type type)
+  [file type params]
+  (let [obj (-> (assoc params :type type)
                 (update :svg-attrs csvg/attrs->props)
                 (cts/setup-shape)
-                (check-name file :type))]
+                (assign-name file :type))]
 
     (-> file
         (commit-shape obj)
-        (assoc :last-id (:id obj))
-        (add-name (:name obj)))))
+        (assoc ::last-id (:id obj))
+        (track-used-name (:name obj)))))
 
-(defn create-rect [file data]
-  (create-shape file :rect data))
+(defn create-rect [file params]
+  (create-shape file :rect params))
 
-(defn create-circle [file data]
-  (create-shape file :circle data))
+(defn create-circle [file params]
+  (create-shape file :circle params))
 
-(defn create-path [file data]
-  (create-shape file :path data))
+(defn create-path [file params]
+  (create-shape file :path params))
 
 (defn- clean-text-content
-  "Clean the content data so it doesn't break the validation"
+  "Clean the content params so it doesn't break the validation"
   [content]
   (letfn [(update-fill [fill]
             (d/update-in-when fill [:fill-color-gradient :type] keyword))]
@@ -330,31 +352,31 @@
        (d/update-when node :fills #(mapv update-fill %)))
      content)))
 
-(defn create-text [file data]
-  (let [data (d/update-when data :content clean-text-content)]
-    (create-shape file :text data)))
+(defn create-text [file params]
+  (let [params (d/update-when params :content clean-text-content)]
+    (create-shape file :text params)))
 
-(defn create-image [file data]
-  (create-shape file :image data))
+(defn create-image [file params]
+  (create-shape file :image params))
 
 (declare close-svg-raw)
 
-(defn create-svg-raw [file data]
+(defn create-svg-raw [file params]
   (let [file (as-> file $
-               (create-shape $ :svg-raw data)
+               (create-shape $ :svg-raw params)
                (update $ :parent-stack conjv (:last-id $)))
 
         create-child
         (fn [file child]
           (-> file
-              (create-svg-raw (assoc data
+              (create-svg-raw (assoc params
                                      :id (uuid/next)
                                      :content child))
               (close-svg-raw)))]
 
     ;; First :content is the the shape attribute, the other content is the
     ;; XML children
-    (reduce create-child file (dm/get-in data [:content :content]))))
+    (reduce create-child file (dm/get-in params [:content :content]))))
 
 (defn close-svg-raw [file]
   (-> file
@@ -443,18 +465,20 @@
           :operations
           [{:type :set :attr :interactions :val interactions :ignore-touched true}]})))))
 
-(defn generate-changes
-  [file]
-  (:changes file))
+;; (defn generate-changes
+;;   [file]
+;;   (:changes file))
 
 (defn add-library-color
   [file color]
-  (let [id (or (:id color) (uuid/next))]
+  (let [color  (-> color
+                   (update :id default-uuid)
+                   (ctc/check-library-color color))
+        change {:type :add-color
+                :color color}]
     (-> file
-        (commit-change
-         {:type :add-color
-          :color (assoc color :id id)})
-        (assoc :last-id id))))
+        (commit-change change)
+        (assoc ::last-id (:id color)))))
 
 (defn update-library-color
   [file color]
@@ -509,16 +533,16 @@
           :id id}))))
 
 (defn start-component
-  ([file data]
-   (start-component file data :frame))
+  ([file params]
+   (start-component file params :frame))
 
-  ([file data root-type]
-   (let [name               (:name data)
-         path               (:path data)
-         main-instance-id   (:main-instance-id data)
-         main-instance-page (:main-instance-page data)
+  ([file params root-type]
+   (let [name               (:name params)
+         path               (:path params)
+         main-instance-id   (:main-instance-id params)
+         main-instance-page (:main-instance-page params)
 
-         obj-id             (or (:id data) (uuid/next))]
+         obj-id             (or (:id params) (uuid/next))]
 
      (-> file
          (commit-change

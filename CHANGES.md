@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## 2.8.0 (Unreleased)
+
+### :boom: Breaking changes & Deprecations
+
+**Breaking changes on penpot library:**
+
+- Change the signature of `addPage` method: it now accept object (as a
+  single argument) where you can pass `id`, `name` and `background`
+  props (instead of prev positional arguments)
+- Rename `createRect` method to `addRect`
+- Rename `createCircle` method to `addCircle`
+- Rename `createPath` method to `addPath`
+- Rename `createText` method to `addText`
+
+
 ## 2.7.0 (Unreleased)
 
 ### :rocket: Epics and highlights

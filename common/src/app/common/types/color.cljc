@@ -108,6 +108,12 @@
     [:image {:optional true} [:maybe schema:image-color]]]
    [::sm/contains-any {:strict true} [:color :gradient :image]]])
 
+;; Same as color but with :id prop required
+(def schema:library-color
+  [:and
+   (sm/required-keys schema:color-attrs [:id])
+   [::sm/contains-any {:strict true} [:color :gradient :image]]])
+
 (sm/register! ::rgb-color type:rgb-color)
 (sm/register! ::color schema:color)
 (sm/register! ::gradient schema:gradient)
@@ -119,10 +125,13 @@
   (sm/lazy-validator schema:color))
 
 (def check-color
-  (sm/check-fn schema:color :hint "expected valid color struct"))
+  (sm/check-fn schema:color :hint "expected valid color"))
+
+(def check-library-color
+  (sm/check-fn schema:library-color :hint "expected valid library color"))
 
 (def check-recent-color
-  (sm/check-fn schema:recent-color))
+  (sm/check-fn schema:recent-color :hint "expected valid recent color"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; HELPERS

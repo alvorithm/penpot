@@ -293,30 +293,28 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn update-shape-flags
-  [ids {:keys [blocked hidden undo-group] :as flags}]
-  (dm/assert!
-   "expected valid coll of uuids"
-   (every? uuid? ids))
+  [ids flags]
+  (assert (every? uuid? ids)
+          "expected valid coll of uuids")
 
-  (dm/assert!
-   "expected valid shape-attrs value for `flags`"
-   (cts/check-shape-attrs! flags))
+  (let [{:keys [blocked hidden undo-group]}
+        (cts/check-shape-generic-attrs flags)]
 
-  (ptk/reify ::update-shape-flags
-    ptk/WatchEvent
-    (watch [_ state _]
-      (let [update-fn
-            (fn [obj]
-              (cond-> obj
-                (boolean? blocked) (assoc :blocked blocked)
-                (boolean? hidden) (assoc :hidden hidden)))
-            objects (dsh/lookup-page-objects state)
-            ;; We have change only the hidden behaviour, to hide only the
-            ;; selected shape, block behaviour remains the same.
-            ids     (if (boolean? blocked)
-                      (into ids (->> ids (mapcat #(cfh/get-children-ids objects %))))
-                      ids)]
-        (rx/of (update-shapes ids update-fn {:attrs #{:blocked :hidden} :undo-group undo-group}))))))
+    (ptk/reify ::update-shape-flags
+      ptk/WatchEvent
+      (watch [_ state _]
+        (let [update-fn
+              (fn [obj]
+                (cond-> obj
+                  (boolean? blocked) (assoc :blocked blocked)
+                  (boolean? hidden) (assoc :hidden hidden)))
+              objects (dsh/lookup-page-objects state)
+              ;; We have change only the hidden behaviour, to hide only the
+              ;; selected shape, block behaviour remains the same.
+              ids     (if (boolean? blocked)
+                        (into ids (->> ids (mapcat #(cfh/get-children-ids objects %))))
+                        ids)]
+          (rx/of (update-shapes ids update-fn {:attrs #{:blocked :hidden} :undo-group undo-group})))))))
 
 (defn toggle-visibility-selected
   []

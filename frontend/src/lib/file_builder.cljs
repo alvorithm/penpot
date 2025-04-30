@@ -14,6 +14,8 @@
    [app.common.media :as cm]
    [app.common.types.file :as types.file]
    [app.common.types.page :as types.page]
+   [app.common.types.shape :as types.shape]
+   [app.common.types.color :as types.color]
    [app.common.types.components-list :as ctkl]
    [app.common.uuid :as uuid]
    [app.common.json :as json]
@@ -326,6 +328,18 @@
 (def ^:private decode-page
   (sm/decoder types.page/schema:page sm/json-transformer))
 
+(def ^:private decode-shape
+  (sm/decoder types.shape/schema:shape-attrs sm/json-transformer))
+
+(def ^:private decode-library-color
+  (sm/decoder types.color/schema:color sm/json-transformer))
+
+(defn- decode-params
+  [params]
+  (if (obj/plain-object? params)
+    (json/->js params)
+    params))
+
 (defn- create-file*
   [file]
   (let [state* (volatile! file)]
@@ -337,14 +351,131 @@
       (fn [params]
         (try
           (let [params (-> params
-                           (json/->clj)
-                           (decode-page)
-                           (update :id default-uuid))]
+                           (decode-params)
+                           (decode-page))]
             (vswap! state* fb/add-page params)
             (dm/str (::fb/current-page-id @state*)))
           (catch :default cause
             (handle-exception cause))))
 
+      :closePage
+      (fn []
+        (vswap! state* fb/close-page))
+
+      :addArtboard
+      (fn [params]
+        (try
+          (let [params (-> params
+                           (json/->clj)
+                           (assoc :type :frame)
+                           (update :id default-uuid)
+                           (decode-shape))]
+            (vswap! state* fb/add-artboard params)
+            (dm/str (::fb/current-page-id @state*)))
+          (catch :default cause
+            (handle-exception cause))))
+
+      :closeArtboard
+      (fn []
+        (vswap! state* fb/close-artboard))
+
+      :addGroup
+      (fn [params]
+        (try
+          (let [params (-> params
+                           (json/->clj)
+                           (assoc :type :group)
+                           (update :id default-uuid)
+                           (decode-shape))]
+            (vswap! state* fb/add-group params)
+            (dm/str (::fb/current-page-id @state*)))
+          (catch :default cause
+            (handle-exception cause))))
+
+      :closeGroup
+      (fn []
+        (vswap! state* fb/close-group))
+
+      :addBool
+      (fn [params]
+        (try
+          (let [params (-> params
+                           (json/->clj)
+                           (assoc :type :bool)
+                           (update :id default-uuid)
+                           (decode-shape))]
+            (vswap! state* fb/add-bool params)
+            (dm/str (::fb/current-page-id @state*)))
+          (catch :default cause
+            (handle-exception cause))))
+
+      :closeBool
+      (fn []
+        (vswap! state* fb/close-bool))
+
+      :addRect
+      (fn [params]
+        (try
+          (let [params (-> params
+                           (json/->clj)
+                           (assoc :type :rect)
+                           (update :id default-uuid)
+                           (decode-shape))]
+            (vswap! state* fb/create-rect params)
+            (dm/str (::fb/current-page-id @state*)))
+          (catch :default cause
+            (handle-exception cause))))
+
+      :addCircle
+      (fn [params]
+        (try
+          (let [params (-> params
+                           (json/->clj)
+                           (assoc :type :circle)
+                           (update :id default-uuid)
+                           (decode-shape))]
+            (vswap! state* fb/create-circle params)
+            (dm/str (::fb/current-page-id @state*)))
+          (catch :default cause
+            (handle-exception cause))))
+
+      :addPath
+      (fn [params]
+        (try
+          (let [params (-> params
+                           (json/->clj)
+                           (assoc :type :path)
+                           (update :id default-uuid)
+                           (decode-shape))]
+            (vswap! state* fb/create-path params)
+            (dm/str (::fb/current-page-id @state*)))
+          (catch :default cause
+            (handle-exception cause))))
+
+      :addText
+      (fn [params]
+        (try
+          (let [params (-> params
+                           (json/->clj)
+                           (assoc :type :text)
+                           (update :id default-uuid)
+                           (decode-shape))]
+            (vswap! state* fb/create-text params)
+            (dm/str (::fb/current-page-id @state*)))
+          (catch :default cause
+            (handle-exception cause))))
+
+      :addLibraryColor
+      (fn [params]
+        (try
+          (let [params (-> params
+                           (json/->clj)
+                           (decode-library-color)
+                           (d/without-nils))]
+            (vswap! state* fb/add-library-color params)
+            (dm/str (::fb/last-id @state*)))
+          (catch :default cause
+            (handle-exception cause))))
 
       :toMap
       (fn []

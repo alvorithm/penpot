@@ -93,6 +93,14 @@
      (when (some? obj)
        (js* "Object.entries(~{}).reduce((a, [k,v]) => (v == null ? a : (a[k]=v, a)), {}) " obj))))
 
+#?(:cljs
+   (defn plain-object?
+     ^boolean
+     [o]
+     (and (some? o)
+          (identical? (.getPrototypeOf js/Object o)
+                      (.-prototype js/Object)))))
+
 ;; EXPERIMENTAL: unsafe, does not checks and not validates the input,
 ;; should be improved over time, for now it works for define a class
 ;; extending js/Error that is more than enought for a first, quick and

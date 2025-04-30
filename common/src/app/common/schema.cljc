@@ -111,12 +111,16 @@
   (malli.error/error-value exp {:malli.error/mask-valid-values '...}))
 
 (defn optional-keys
-  [schema]
-  (mu/optional-keys schema default-options))
+  ([schema]
+   (mu/optional-keys schema nil default-options))
+  ([schema keys]
+   (mu/optional-keys schema keys default-options)))
 
 (defn required-keys
-  [schema]
-  (mu/required-keys schema default-options))
+  ([schema]
+   (mu/required-keys schema nil default-options))
+  ([schema keys]
+   (mu/required-keys schema keys default-options)))
 
 (defn transformer
   [& transformers]
