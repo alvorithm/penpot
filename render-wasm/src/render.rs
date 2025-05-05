@@ -485,12 +485,14 @@ impl RenderState {
 
         let navigate_zoom = self.viewbox.zoom / self.cached_viewbox.zoom; // 1 == 1
         let navigate_x =
-            (self.viewbox.pan_x - self.cached_viewbox.pan_x);
+            (self.viewbox.pan_x / self.viewbox.zoom) % tiles::TILE_SIZE;
         let navigate_y =
-            (self.viewbox.pan_y - self.cached_viewbox.pan_y);
+            (self.viewbox.pan_y / self.viewbox.zoom) % tiles::TILE_SIZE;
+
+        // let start_tile_x = (self.viewbox.area.left * scale / tiles::TILE_SIZE).floor() * tiles::TILE_SIZE;
+        // let start_tile_y = (self.viewbox.area.top * scale / tiles::TILE_SIZE).floor() * tiles::TILE_SIZE;
 
         println!("navigate_zoom: {navigate_zoom}, navigate_xy: {navigate_x}, {navigate_y}");
-
 
         self.surfaces
             .target
@@ -498,8 +500,8 @@ impl RenderState {
             .scale((navigate_zoom, navigate_zoom));
 
         self.surfaces.target.canvas().translate((
-            self.viewbox.pan_x * self.options.dpr(),
-            self.viewbox.pan_y * self.options.dpr(),
+            navigate_x * self.viewbox.zoom,
+            navigate_y * self.viewbox.zoom,
         ));
 
         println!("local_to_device {:?}", self.surfaces.target.canvas().local_to_device_as_3x3());
