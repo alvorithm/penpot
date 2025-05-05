@@ -54,6 +54,9 @@
     :app.main.data.websocket/send-message
     :app.main.data.workspace.selection/change-hover-state})
 
+;; FIXME: REMOVE!!! Set wasm-viewbox by default.
+(dbg/enable! :wasm-viewbox)
+
 (defn enable!
   [option]
   (dbg/enable! option)

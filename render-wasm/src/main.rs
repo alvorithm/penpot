@@ -50,6 +50,20 @@ macro_rules! with_current_shape {
     };
 }
 
+#[no_mangle]
+pub extern "C" fn set_displacement(x: i32, y: i32) {
+    with_state!(state, {
+        state.render_state().set_displacement(x, y);
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn draw_cache(value: bool) {
+    with_state!(state, {
+        state.render_state().draw_cache = value;
+    });
+}
+
 /// This is called from JS after the WebGL context has been created.
 #[no_mangle]
 pub extern "C" fn init(width: i32, height: i32) {
@@ -136,7 +150,7 @@ pub extern "C" fn resize_viewbox(width: i32, height: i32) {
 pub extern "C" fn set_view(zoom: f32, x: f32, y: f32) {
     with_state!(state, {
         let render_state = state.render_state();
-        let zoom_changed = zoom != render_state.viewbox.zoom;
+        let zoom_changed = true; // zoom != render_state.viewbox.zoom;
         render_state.viewbox.set_all(zoom, x, y);
         if zoom_changed {
             with_state!(state, {

@@ -42,7 +42,7 @@ pub struct Surfaces {
     // used fo rendering over shadows.
     inner_shadows: skia::Surface,
     // for drawing debug info.
-    debug: skia::Surface,
+    pub debug: skia::Surface,
     // for drawing tiles.
     tiles: TileTextureCache,
     sampling_options: skia::SamplingOptions,
@@ -243,7 +243,7 @@ impl Surfaces {
         self.tiles.visit(tile);
     }
 
-    pub fn cache_current_tile_texture(&mut self, tile: Tile, tile_rect: skia::Rect) {
+    pub fn cache_current_tile_texture(&mut self, tile: Tile, tile_rect: skia::Rect, draw_cache: bool) {
         let snapshot = self.current.image_snapshot();
         let rect = IRect::from_xywh(
             self.margins.width,
@@ -255,12 +255,15 @@ impl Surfaces {
         let mut context = self.current.direct_context();
         if let Some(snapshot) = snapshot.make_subset(&mut context, &rect) {
             self.tiles.add(tile, snapshot.clone());
-            self.cache.canvas().draw_image_rect(
+
+            if draw_cache {
+                self.cache.canvas().draw_image_rect(
                 &snapshot.clone(),
                 None,
                 tile_rect,
                 &skia::Paint::default(),
-            );
+                );
+            }
         }
     }
 
@@ -274,9 +277,12 @@ impl Surfaces {
 
     pub fn draw_cached_tile_surface(&mut self, tile: Tile, rect: skia::Rect) {
         let image = self.tiles.get(tile).unwrap();
+        let mut paint = skia::Paint::default();
+        paint.set_alpha(127);
+
         self.target
             .canvas()
-            .draw_image_rect(&image, None, rect, &skia::Paint::default());
+            .draw_image_rect(&image, None, rect, &paint);
     }
 
     pub fn remove_cached_tiles(&mut self) {
