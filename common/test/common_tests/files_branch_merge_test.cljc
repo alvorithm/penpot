@@ -358,6 +358,41 @@
       (t/is (= "renamed" (ctob/get-name (ctob/get-set (:tokens-lib data') sid))))
       (t/is (some? (ctob/get-token (:tokens-lib data') sid tid))))))
 
+(t/deftest compute-changes-token-set-order
+  (let [a (uuid/next) b (uuid/next) c (uuid/next)
+        base-lib   (-> (ctob/make-tokens-lib)
+                       (ctob/add-set (ctob/make-token-set {:id a :name "a"}))
+                       (ctob/add-set (ctob/make-token-set {:id b :name "b"}))
+                       (ctob/add-set (ctob/make-token-set {:id c :name "c"})))
+        ;; branch reorders to c, a, b
+        branch-lib (ctob/move-set base-lib ["c"] ["c"] ["a"] false)
+        {:keys [changes unsupported]} (bm/compute-changes (with-tokens base-lib)
+                                                          (with-tokens base-lib)
+                                                          (with-tokens branch-lib))]
+    (t/is (empty? unsupported))
+    (t/is (seq (filter #(= :move-token-set (:type %)) changes)))
+    ;; round-trip: main ends up in branch's set order
+    (let [data' (cfc/process-changes {:tokens-lib base-lib} changes)
+          order (mapv ctob/get-name (ctob/get-sets (:tokens-lib data')))]
+      (t/is (= ["c" "a" "b"] order)))))
+
+(t/deftest compute-changes-token-active-sets
+  (let [sid (uuid/next)
+        tid (uuid/next)
+        base-lib   (token-lib sid tid "#ff0000")
+        ;; branch toggles the "core" set active in the hidden theme
+        branch-lib (ctob/toggle-set-in-theme base-lib ctob/hidden-theme-id "core")
+        {:keys [changes unsupported]} (bm/compute-changes (with-tokens base-lib)
+                                                          (with-tokens base-lib)
+                                                          (with-tokens branch-lib))
+        ch (first (filter #(= :set-token-theme (:type %)) changes))
+        hidden-sets (fn [lib] (set (:sets (ctob/get-theme lib ctob/hidden-theme-id))))]
+    (t/is (empty? unsupported))
+    (t/is (= ctob/hidden-theme-id (:id ch)))
+    ;; round-trip: main's hidden theme active sets match the branch
+    (let [data' (cfc/process-changes {:tokens-lib base-lib} changes)]
+      (t/is (= (hidden-sets branch-lib) (hidden-sets (:tokens-lib data')))))))
+
 (t/deftest compute-changes-token-active-themes
   (let [thid (uuid/next)
         base-lib   (-> (ctob/make-tokens-lib)

@@ -18,7 +18,8 @@
   branch as `ours`; `:main->branch` (update from main) swaps them."
   (:require
    [app.common.types.tokens-lib :as ctob]
-   [clojure.set :as set]))
+   [clojure.set :as set]
+   [clojure.string :as str]))
 
 (defn- entity-label
   [kind v]
@@ -239,9 +240,25 @@
   (if lib (set (ctob/get-active-theme-paths lib)) #{}))
 
 (defn- lib-hidden-sets
-  "The hidden theme's active sets (active-set toggles) — not yet merged."
+  "The hidden theme's active sets (active-set toggles)."
   [lib]
   (some-> lib (ctob/get-theme ctob/hidden-theme-id) :sets set))
+
+(defn- hidden-theme-map
+  "The hidden theme as a plain map (for :set-token-theme)."
+  [lib]
+  (some->> (when lib (ctob/get-theme lib ctob/hidden-theme-id)) (into {})))
+
+(defn- set-order-by-id
+  "Set ids in their stored order, filtered to `ids`."
+  [lib ids]
+  (filterv ids (lib-set-order lib)))
+
+(defn- set-name->path
+  "Split a token-set name into its path vector (sets are referenced by
+  path, separator \"/\")."
+  [name]
+  (str/split name #"/"))
 
 (defn- diff-tokens
   [base theirs ours]
@@ -322,8 +339,8 @@
 ;; pages (add/remove/rename) and tokens are not yet supported and cause
 ;; the merge to refuse rather than silently drop changes.
 (def ^:private mergeable-kinds
-  #{:color :typography :media :shape :token :token-set :token-set-rename :token-theme
-    :token-active-themes :page :component})
+  #{:color :typography :media :shape :token :token-set :token-set-rename :token-set-order
+    :token-theme :token-active-themes :token-active-sets :page :component})
 
 (defn unsupported-kinds
   "Set of change kinds present in `changes` that `compute-changes`
@@ -545,6 +562,37 @@
              (= op mp) []
              (= (get resolutions :active-themes) :branch) [{:type :set-active-token-themes :theme-paths op}]
              :else []))
+
+         ;; active sets (hidden theme): bring branch's hidden theme
+         active-sets-changes
+         (let [bs (lib-hidden-sets bl) ms (lib-hidden-sets ml) os (lib-hidden-sets ol)
+               take! (fn [] (if-let [h (hidden-theme-map ol)]
+                              [{:type :set-token-theme :id ctob/hidden-theme-id :attrs h}]
+                              []))]
+           (cond
+             (= os bs) []
+             (= ms bs) (take!)
+             (= os ms) []
+             (= (get resolutions :active-sets) :branch) (take!)
+             :else []))
+
+         ;; set order: reorder main's common sets to branch's order using
+         ;; "move nᵢ before nᵢ₊₁" right-to-left. Emitted after renames so set
+         ;; names are settled.
+         set-order-changes
+         (let [bo (set-order-by-id bl common-sets)
+               mo (set-order-by-id ml common-sets)
+               oo (set-order-by-id ol common-sets)]
+           (if (and (not= oo bo)
+                    (or (= mo bo) (= (get resolutions :order) :branch)))
+             (let [names (mapv #(ctob/get-name (ctob/get-set ol %)) oo)]
+               (vec (for [i (range (- (count names) 2) -1 -1)]
+                      {:type :move-token-set
+                       :from-path (set-name->path (nth names i))
+                       :to-path (set-name->path (nth names i))
+                       :before-path (set-name->path (nth names (inc i)))
+                       :before-group false})))
+             []))
          ;; sets deleted from the branch are dropped wholesale; skip their per-token diff
          deleted-set-ids (into #{} (filter (fn [sid]
                                              (and (contains? (lib-set-ids bl) sid)
@@ -572,5 +620,6 @@
      {:unsupported unsupported
       :changes     (vec (concat page-presence shapes page-meta-changes components
                                 colors typos media
-                                set-presence set-rename-changes token-vals themes
-                                active-changes))})))
+                                set-presence set-rename-changes set-order-changes
+                                token-vals themes
+                                active-changes active-sets-changes))})))
