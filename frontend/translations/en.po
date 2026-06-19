@@ -6595,6 +6595,42 @@ msgstr "Deleted"
 msgid "workspace.branches.status.modified"
 msgstr "Modified"
 
+msgid "workspace.branches.conflicts.all-branch"
+msgstr "Use branch for all"
+
+msgid "workspace.branches.conflicts.all-main"
+msgstr "Use main for all"
+
+msgid "workspace.branches.conflicts.apply"
+msgstr "Apply and merge"
+
+msgid "workspace.branches.conflicts.chosen-branch"
+msgstr "branch"
+
+msgid "workspace.branches.conflicts.chosen-main"
+msgstr "main"
+
+msgid "workspace.branches.conflicts.empty"
+msgstr "No conflicts to resolve"
+
+msgid "workspace.branches.conflicts.progress"
+msgstr "%s of %s resolved"
+
+msgid "workspace.branches.conflicts.resolve"
+msgstr "Resolve conflicts"
+
+msgid "workspace.branches.conflicts.subtitle"
+msgstr "Merge %s into main"
+
+msgid "workspace.branches.conflicts.title"
+msgstr "Resolve conflicts"
+
+msgid "workspace.branches.conflicts.use-branch"
+msgstr "Use branch"
+
+msgid "workspace.branches.conflicts.use-main"
+msgstr "Use main"
+
 msgid "workspace.branches.create.derive-from"
 msgstr "Derive from"
 
@@ -6637,6 +6673,21 @@ msgstr "No branches yet"
 msgid "workspace.branches.loading"
 msgstr "Loading branches…"
 
+msgid "workspace.branches.merge.action"
+msgstr "Merge into main"
+
+msgid "workspace.branches.merge.conflicts"
+msgstr "This branch has conflicts that must be resolved before merging"
+
+msgid "workspace.branches.merge.error"
+msgstr "Could not merge the branch"
+
+msgid "workspace.branches.merge.success"
+msgstr "Branch merged into main"
+
+msgid "workspace.branches.merge.unsupported"
+msgstr "This branch changes elements that can't be merged automatically yet (components, pages or tokens)"
+
 msgid "workspace.branches.new"
 msgstr "New"
 
@@ -6645,6 +6696,21 @@ msgstr "Search branch…"
 
 msgid "workspace.branches.tab"
 msgstr "Branches"
+
+msgid "workspace.branches.update"
+msgstr "Update from main"
+
+msgid "workspace.branches.update.conflicts"
+msgstr "main has conflicting changes; resolve them when merging"
+
+msgid "workspace.branches.update.error"
+msgstr "Could not update the branch"
+
+msgid "workspace.branches.update.success"
+msgstr "Branch updated from main"
+
+msgid "workspace.branches.update.unsupported"
+msgstr "main changed elements that can't be brought in automatically yet (components, pages or token structure)"
 
 #: src/app/main/data/workspace/clipboard.cljs:1175
 msgid "workspace.clipboard.copying"

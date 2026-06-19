@@ -41,6 +41,7 @@
 (declare handle-file-change)
 (declare handle-file-deleted)
 (declare handle-file-restored)
+(declare handle-file-merged)
 (declare handle-library-change)
 (declare handle-pointer-send)
 (declare handle-export-update)
@@ -133,6 +134,7 @@
     :file-change            (handle-file-change msg)
     :file-deleted           (handle-file-deleted msg)
     :file-restored          (handle-file-restored msg)
+    :file-merged            (handle-file-merged msg)
     :library-change         (handle-library-change msg)
     :notification           (dc/handle-notification msg)
     :team-role-change       (handle-change-team-role msg)
@@ -308,6 +310,16 @@
         (when (and (= file-id curr-file-id)
                    (not= vern curr-vern))
           (rx/of (ptk/event ::dw/reload-current-file)))))))
+
+(defn handle-file-merged
+  "A branch was merged into this file (main). Reload the current file so
+  the merged changes appear for everyone with main open."
+  [{:keys [file-id] :as _msg}]
+  (ptk/reify ::handle-file-merged
+    ptk/WatchEvent
+    (watch [_ state _]
+      (when (= file-id (:current-file-id state))
+        (rx/of (ptk/event ::dw/reload-current-file))))))
 
 (def ^:private schema:handle-library-change
   [:map {:title "handle-library-change"}

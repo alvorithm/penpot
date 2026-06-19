@@ -31,12 +31,16 @@
   (l/derived :workspace-branch-diff st/state))
 
 (def ^:private kind->icon
-  {:shape      i/board
-   :component  i/component
-   :color      i/picker
-   :typography i/text
-   :media      i/img
-   :page       i/document})
+  {:shape               i/board
+   :component           i/component
+   :color               i/picker
+   :typography          i/text
+   :media               i/img
+   :page                i/document
+   :token               i/tokens
+   :token-set           i/tokens
+   :token-theme         i/tokens
+   :token-active-themes i/tokens})
 
 (def ^:private status->label
   {:added    "workspace.branches.status.added"
@@ -151,7 +155,14 @@
          (mf/deps entry)
          (fn [event]
            (dom/stop-propagation event)
-           (modal/show! :branch-compare {:branch entry})))]
+           (modal/show! :branch-compare {:branch entry})))
+
+        on-update
+        (mf/use-fn
+         (mf/deps entry)
+         (fn [event]
+           (dom/stop-propagation event)
+           (st/emit! (dwb/update-branch-from-main (:id entry)))))]
 
     [:li {:class (stl/css :branch-entry)
           :role "button"
@@ -172,6 +183,12 @@
       [:span {:class (stl/css :count-behind)}
        [:> i/icon* {:icon-id i/arrow-down :size "s"}]
        (dm/str behind)]]
+
+     (when (pos? behind)
+       [:> icon-button* {:variant "ghost"
+                         :icon i/status-update
+                         :aria-label (tr "workspace.branches.update")
+                         :on-click on-update}])
 
      [:> icon-button* {:variant "ghost"
                        :icon i/switch
@@ -299,7 +316,11 @@
                    (nth items selected))
 
         on-close  (mf/use-fn #(st/emit! (modal/hide)))
-        on-select (mf/use-fn #(st/emit! (dwb/select-diff-change %)))]
+        on-select (mf/use-fn #(st/emit! (dwb/select-diff-change %)))
+        on-merge   (mf/use-fn (mf/deps branch)
+                              #(st/emit! (dwb/merge-branch (:id branch))))
+        on-resolve (mf/use-fn (mf/deps branch)
+                              #(modal/show! :branch-conflicts {:branch branch}))]
 
     (mf/with-effect [(:id branch)]
       (st/emit! (dwb/fetch-branch-diff (:id branch))))
@@ -357,4 +378,127 @@
                                       :selected selected
                                       :on-select on-select}])]
          [:div {:class (stl/css :compare-detail)}
-          [:> branch-compare-detail* {:item sel-item}]]])]]))
+          [:> branch-compare-detail* {:item sel-item}]]])
+
+      (when (= status :loaded)
+        (let [conflicts? (pos? (long (or (:conflicts stats) 0)))
+              total      (long (+ (or (:added stats) 0)
+                                  (or (:modified stats) 0)
+                                  (or (:deleted stats) 0)))]
+          [:div {:class (stl/css :compare-footer)}
+           (if conflicts?
+             [:> button* {:variant "primary"
+                          :icon i/triangle-alert
+                          :on-click on-resolve}
+              (tr "workspace.branches.conflicts.resolve")]
+             [:> button* {:variant "primary"
+                          :icon i/git-merge
+                          :disabled (zero? total)
+                          :on-click on-merge}
+              (tr "workspace.branches.merge.action")])]))]]))
+
+;; --- Resolve conflicts dialog
+
+(mf/defc branch-conflict-item*
+  {::mf/private true}
+  [{:keys [conflict index selected resolution on-select]}]
+  (let [on-click (mf/use-fn (mf/deps index on-select) #(on-select index))]
+    [:li {:class (stl/css-case :compare-item true
+                               :is-selected (= index selected))
+          :role "button"
+          :on-click on-click}
+     [:> i/icon* {:icon-id (get kind->icon (:kind conflict) i/git-branch)}]
+     [:span {:class (stl/css :compare-item-label)} (:label conflict)]
+     (cond
+       (= resolution :main)
+       [:span {:class (stl/css :resolution-badge :resolved-main)} (tr "workspace.branches.conflicts.chosen-main")]
+       (= resolution :branch)
+       [:span {:class (stl/css :resolution-badge :resolved-branch)} (tr "workspace.branches.conflicts.chosen-branch")]
+       :else
+       [:span {:class (stl/css :resolution-badge :resolved-pending)}
+        [:> i/icon* {:icon-id i/triangle-alert :size "s"}]])]))
+
+(mf/defc branch-conflicts-dialog*
+  {::mf/register modal/components
+   ::mf/register-as :branch-conflicts}
+  [{:keys [branch]}]
+  (let [{:keys [diff selected resolutions]} (mf/deref branch-diff)
+
+        conflicts   (:conflicts diff)
+        resolutions (or resolutions {})
+        total       (count conflicts)
+        resolved    (count (filterv #(contains? #{:main :branch} (get resolutions (:id %))) conflicts))
+        all-done?   (and (pos? total) (= resolved total))
+
+        sel-idx     (min (or selected 0) (max 0 (dec total)))
+        sel         (when (seq conflicts) (nth conflicts sel-idx))
+        sel-res     (when sel (get resolutions (:id sel)))
+
+        on-close      (mf/use-fn #(st/emit! (modal/hide)))
+        on-select     (mf/use-fn #(st/emit! (dwb/select-diff-change %)))
+        on-all-main   (mf/use-fn #(st/emit! (dwb/set-all-resolutions :main)))
+        on-all-branch (mf/use-fn #(st/emit! (dwb/set-all-resolutions :branch)))
+        on-use-main   (mf/use-fn (mf/deps sel)
+                                 #(when sel (st/emit! (dwb/set-conflict-resolution (:id sel) :main))))
+        on-use-branch (mf/use-fn (mf/deps sel)
+                                 #(when sel (st/emit! (dwb/set-conflict-resolution (:id sel) :branch))))
+        on-apply      (mf/use-fn (mf/deps branch resolutions)
+                                 #(st/emit! (dwb/merge-branch (:id branch) resolutions)))]
+
+    (mf/with-effect [(:id branch)]
+      (st/emit! (dwb/fetch-branch-diff (:id branch))))
+
+    [:div {:class (stl/css :compare-overlay)}
+     [:div {:class (stl/css :compare-container)}
+      [:div {:class (stl/css :compare-header)}
+       [:div {:class (stl/css :compare-title-group)}
+        [:> i/icon* {:icon-id i/triangle-alert}]
+        [:div
+         [:h2 {:class (stl/css :modal-title)} (tr "workspace.branches.conflicts.title")]
+         [:span {:class (stl/css :compare-subtitle)}
+          (tr "workspace.branches.conflicts.subtitle" (:name branch))]]]
+       [:span {:class (stl/css :conflicts-progress)}
+        (tr "workspace.branches.conflicts.progress" (str resolved) (str total))]
+       [:> icon-button* {:variant "ghost"
+                         :icon i/close
+                         :aria-label (tr "labels.close")
+                         :on-click on-close}]]
+
+      [:div {:class (stl/css :bulk-actions)}
+       [:> button* {:variant "ghost" :icon i/git-branch :on-click on-all-main}
+        (tr "workspace.branches.conflicts.all-main")]
+       [:> button* {:variant "ghost" :icon i/git-branch :on-click on-all-branch}
+        (tr "workspace.branches.conflicts.all-branch")]]
+
+      (if (empty? conflicts)
+        [:div {:class (stl/css :compare-empty)}
+         [:> empty-state* {:icon i/git-merge
+                           :text (tr "workspace.branches.conflicts.empty")}]]
+
+        [:div {:class (stl/css :compare-body)}
+         [:ul {:class (stl/css :compare-list)}
+          (for [[idx c] (map-indexed vector conflicts)]
+            [:> branch-conflict-item* {:key idx
+                                       :conflict c
+                                       :index idx
+                                       :selected sel-idx
+                                       :resolution (get resolutions (:id c))
+                                       :on-select on-select}])]
+
+         [:div {:class (stl/css :compare-detail)}
+          [:> branch-compare-detail* {:item sel}]
+          [:div {:class (stl/css :choice-buttons)}
+           [:> button* {:variant (if (= sel-res :main) "primary" "secondary")
+                        :on-click on-use-main}
+            (tr "workspace.branches.conflicts.use-main")]
+           [:> button* {:variant (if (= sel-res :branch) "primary" "secondary")
+                        :on-click on-use-branch}
+            (tr "workspace.branches.conflicts.use-branch")]]]])
+
+      [:div {:class (stl/css :compare-footer)}
+       [:> button* {:variant "ghost" :on-click on-close} (tr "labels.cancel")]
+       [:> button* {:variant "primary"
+                    :icon i/git-merge
+                    :disabled (not all-done?)
+                    :on-click on-apply}
+        (tr "workspace.branches.conflicts.apply")]]]]))

@@ -17,6 +17,7 @@
   Direction `:branch->main` (merge/compare) treats main as `theirs` and
   branch as `ours`; `:main->branch` (update from main) swaps them."
   (:require
+   [app.common.types.tokens-lib :as ctob]
    [clojure.set :as set]))
 
 (defn- entity-label
@@ -48,11 +49,11 @@
   main, and conflicts are entities both sides diverged on.
 
   `ctx`: `{:kind <keyword> :page-id <optional uuid>}`."
-  [base theirs ours {:keys [kind page-id]}]
-  (let [ids (set/union (set (keys base)) (set (keys theirs)) (set (keys ours)))
+  [base theirs ours {:keys [kind] :as ctx}]
+  (let [extras (dissoc ctx :kind)
+        ids (set/union (set (keys base)) (set (keys theirs)) (set (keys ours)))
         mk  (fn [status extra]
-              (cond-> (assoc extra :kind kind :status status)
-                (some? page-id) (assoc :page-id page-id)))]
+              (merge extra extras {:kind kind :status status}))]
     (reduce
      (fn [acc id]
        (let [b (get base id)
@@ -145,6 +146,62 @@
                         common-ids)]
     (merge-results (cons page-diff obj-diffs))))
 
+;; --- Tokens ---
+;;
+;; Token *values* (tokens within an existing set) are mergeable (kind
+;; :token -> :set-token). Structural token changes (adding/renaming sets,
+;; themes, active-theme/active-set toggles) are surfaced with
+;; non-mergeable kinds (:token-set, :token-theme, :token-active-themes)
+;; so the merge refuses them rather than dropping them silently — a full
+;; structural token merge is a later step.
+
+(defn- lib-set-meta
+  [lib]
+  (if lib
+    (into {} (map (fn [s] [(ctob/get-id s) {:name (ctob/get-name s)
+                                            :description (ctob/get-description s)}]))
+          (ctob/get-sets lib))
+    {}))
+
+(defn- lib-set-ids
+  [lib]
+  (if lib (into #{} (map ctob/get-id) (ctob/get-sets lib)) #{}))
+
+(defn- lib-tokens-by-id
+  "token-id -> token (plain map) for a single set."
+  [lib set-id]
+  (if (and lib (ctob/get-set lib set-id))
+    (into {} (map (fn [t] [(:id t) (into {} t)])) (vals (ctob/get-tokens lib set-id)))
+    {}))
+
+(defn- lib-themes
+  [lib]
+  (if lib (into {} (map (fn [t] [(:id t) (into {} t)])) (ctob/get-themes lib)) {}))
+
+(defn- lib-active
+  [lib]
+  (if lib (set (ctob/get-active-theme-paths lib)) #{}))
+
+(defn- diff-tokens
+  [base theirs ours]
+  (let [bl (:tokens-lib base) tl (:tokens-lib theirs) ol (:tokens-lib ours)
+        set-diff    (three-way-entities (lib-set-meta bl) (lib-set-meta tl) (lib-set-meta ol)
+                                        {:kind :token-set})
+        theme-diff  (three-way-entities (lib-themes bl) (lib-themes tl) (lib-themes ol)
+                                        {:kind :token-theme})
+        active-diff (three-way-entities {:active (lib-active bl)}
+                                        {:active (lib-active tl)}
+                                        {:active (lib-active ol)}
+                                        {:kind :token-active-themes})
+        set-ids     (set/union (lib-set-ids bl) (lib-set-ids tl) (lib-set-ids ol))
+        token-diffs (map (fn [sid]
+                           (three-way-entities (lib-tokens-by-id bl sid)
+                                               (lib-tokens-by-id tl sid)
+                                               (lib-tokens-by-id ol sid)
+                                               {:kind :token :set-id sid}))
+                         set-ids)]
+    (merge-results (concat [set-diff theme-diff active-diff] token-diffs))))
+
 (defn compute-merge
   "Compute the three-way diff between the merge `base`, `main` and
   `branch` file `:data`. Returns:
@@ -165,7 +222,8 @@
                                       {:kind :component})
                   (three-way-entities (:media base) (:media theirs) (:media ours)
                                       {:kind :media})
-                  (diff-pages base theirs ours)]
+                  (diff-pages base theirs ours)
+                  (diff-tokens base theirs ours)]
         {:keys [changes conflicts]} (merge-results results)]
     {:changes   changes
      :conflicts conflicts
@@ -173,3 +231,190 @@
                  :modified  (count (filterv #(= :modified (:status %)) changes))
                  :deleted   (count (filterv #(= :deleted (:status %)) changes))
                  :conflicts (count conflicts)}}))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; MERGE -> CHANGES (Phase 3, no-conflict path)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Kinds `compute-changes` can translate into change ops. Components,
+;; pages (add/remove/rename) and tokens are not yet supported and cause
+;; the merge to refuse rather than silently drop changes.
+(def ^:private mergeable-kinds #{:color :typography :media :shape :token})
+
+(defn unsupported-kinds
+  "Set of change kinds present in `changes` that `compute-changes`
+  cannot translate yet."
+  [changes]
+  (into #{} (comp (map :kind) (remove mergeable-kinds)) changes))
+
+(defn- flat-changes
+  "Emit add/mod/del change maps for one flat id->value collection.
+
+  Clean (non-conflicting) changes are always emitted. Conflicting
+  entities are emitted only when `resolutions` selects `:branch` for that
+  id (taking the branch side); `:main` (or absent) leaves main untouched.
+  The caller is responsible for refusing the merge while conflicts remain
+  unresolved."
+  [base theirs ours resolutions add-fn mod-fn del-fn]
+  (reduce
+   (fn [acc id]
+     (let [b (get base id) t (get theirs id) o (get ours id)
+           in-b? (contains? base id)
+           in-t? (contains? theirs id)
+           in-o? (contains? ours id)
+           res   (get resolutions id)]
+       (cond
+         ;; present in all three
+         (and in-b? in-o? in-t?)
+         (cond (= o b) acc                          ; branch didn't touch
+               (= t b) (conj acc (mod-fn id o))     ; main didn't touch, branch did
+               (= o t) acc                          ; both reached same value
+               (= res :branch) (conj acc (mod-fn id o)) ; modify/modify -> branch
+               :else acc)
+
+         ;; deleted in branch, still in main
+         (and in-b? (not in-o?) in-t?)
+         (cond (= b t) (conj acc (del-fn id))       ; clean delete
+               (= res :branch) (conj acc (del-fn id)) ; delete/modify -> branch (delete)
+               :else acc)
+
+         ;; deleted in main, still in branch
+         (and in-b? in-o? (not in-t?))
+         (cond (= b o) acc                          ; clean (already gone in main)
+               (= res :branch) (conj acc (add-fn id o)) ; modify/delete -> keep branch
+               :else acc)
+
+         ;; new in branch only
+         (and (not in-b?) in-o? (not in-t?))
+         (conj acc (add-fn id o))
+
+         ;; added on both sides with different values (add/add)
+         (and (not in-b?) in-o? in-t? (not= o t))
+         (cond (= res :branch) (conj acc (mod-fn id o)) :else acc)
+
+         :else acc)))
+   []
+   (set/union (set (keys base)) (set (keys theirs)) (set (keys ours)))))
+
+(defn- index-of
+  [coll x]
+  (first (keep-indexed (fn [i v] (when (= v x) i)) coll)))
+
+(defn- shape-set-ops
+  "`:set` operations for the attrs that differ between the main and branch
+  shape, excluding `:shapes` (children membership/order is driven by the
+  add/del object changes instead)."
+  [t o]
+  (->> (shallow-attr-diff t o)
+       (into [] (comp (remove (fn [[k _]] (= k :shapes)))
+                      (map (fn [[k {:keys [branch]}]] {:type :set :attr k :val branch}))))))
+
+(defn- page-shape-changes
+  [base theirs ours resolutions page-id]
+  (let [bo (get-in base [:pages-index page-id :objects] {})
+        to (get-in theirs [:pages-index page-id :objects] {})
+        oo (get-in ours [:pages-index page-id :objects] {})
+
+        ;; modifications + deletions (additions handled below, ordered)
+        mod-del
+        (->> (flat-changes bo to oo resolutions
+                           (fn [_ _] nil)
+                           (fn [id o]
+                             (let [ops (shape-set-ops (get to id) o)]
+                               (when (seq ops)
+                                 {:type :mod-obj :page-id page-id :id id :operations ops})))
+                           (fn [id]
+                             {:type :del-obj :page-id page-id :id id :ignore-touched true}))
+             (filterv some?))
+
+        ;; additions: present in branch, absent from base and main
+        added-set (into #{} (filter (fn [id]
+                                      (and (contains? oo id)
+                                           (not (contains? bo id))
+                                           (not (contains? to id)))))
+                        (keys oo))
+
+        ;; topological order so a newly-added parent is created before its
+        ;; newly-added children
+        ordered
+        (loop [pending (vec added-set) done #{} out []]
+          (if (empty? pending)
+            out
+            (let [ready (filterv (fn [id]
+                                   (let [p (:parent-id (get oo id))]
+                                     (or (not (contains? added-set p))
+                                         (contains? done p))))
+                                 pending)
+                  ready (if (seq ready) ready (subvec pending 0 1))]
+              (recur (filterv (complement (set ready)) pending)
+                     (into done ready)
+                     (into out ready)))))
+
+        add-changes
+        (mapv (fn [id]
+                (let [o      (get oo id)
+                      parent (:parent-id o)
+                      index  (index-of (get-in oo [parent :shapes]) id)]
+                  {:type :add-obj
+                   :page-id page-id
+                   :id id
+                   :obj (dissoc o :shapes)
+                   :parent-id parent
+                   :frame-id (:frame-id o)
+                   :index index
+                   :ignore-touched true}))
+              ordered)]
+    (into mod-del add-changes)))
+
+(defn compute-changes
+  "Translate the branch→main merge into a vector of raw change maps
+  applicable to main via `app.common.files.changes/process-changes`.
+
+  Clean changes are always included. Conflicting entities are included
+  only for those `resolutions` selects `:branch` (the caller must ensure
+  no conflict remains unresolved before applying).
+
+  Returns `{:changes [..] :unsupported #{kinds..}}`. When `:unsupported`
+  is non-empty the caller must refuse the merge (translation for those
+  kinds — components, pages, tokens — is not implemented yet)."
+  ([base main branch]
+   (compute-changes base main branch {}))
+  ([base main branch resolutions]
+   (let [merge       (compute-merge base main branch :branch->main)
+         unsupported (unsupported-kinds (concat (:changes merge) (:conflicts merge)))
+
+         colors (flat-changes (:colors base) (:colors main) (:colors branch) resolutions
+                              (fn [_ o] {:type :add-color :color o})
+                              (fn [_ o] {:type :mod-color :color o})
+                              (fn [id] {:type :del-color :id id}))
+
+         typos  (flat-changes (:typographies base) (:typographies main) (:typographies branch) resolutions
+                              (fn [_ o] {:type :add-typography :typography o})
+                              (fn [_ o] {:type :mod-typography :typography o})
+                              (fn [id] {:type :del-typography :id id}))
+
+         media  (flat-changes (:media base) (:media main) (:media branch) resolutions
+                              (fn [_ o] {:type :add-media :object o})
+                              (fn [_ o] {:type :mod-media :object o})
+                              (fn [id] {:type :del-media :id id}))
+
+         common-pages (set/intersection (set (keys (:pages-index main)))
+                                        (set (keys (:pages-index branch))))
+         shapes (into [] (mapcat #(page-shape-changes base main branch resolutions %)) common-pages)
+
+         set-ids (set/union (lib-set-ids (:tokens-lib base))
+                            (lib-set-ids (:tokens-lib main))
+                            (lib-set-ids (:tokens-lib branch)))
+         tokens  (into []
+                       (mapcat (fn [sid]
+                                 (flat-changes (lib-tokens-by-id (:tokens-lib base) sid)
+                                               (lib-tokens-by-id (:tokens-lib main) sid)
+                                               (lib-tokens-by-id (:tokens-lib branch) sid)
+                                               resolutions
+                                               (fn [tid t] {:type :set-token :set-id sid :token-id tid :attrs t})
+                                               (fn [tid t] {:type :set-token :set-id sid :token-id tid :attrs t})
+                                               (fn [tid] {:type :set-token :set-id sid :token-id tid :attrs nil}))))
+                       set-ids)]
+
+     {:unsupported unsupported
+      :changes     (vec (concat colors typos media shapes tokens))})))

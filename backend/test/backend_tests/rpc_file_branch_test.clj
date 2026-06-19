@@ -6,6 +6,8 @@
 
 (ns backend-tests.rpc-file-branch-test
   (:require
+   [app.common.features :as cfeat]
+   [app.common.uuid :as uuid]
    [app.config :as cf]
    [app.rpc :as-alias rpc]
    [backend-tests.helpers :as th]
@@ -80,7 +82,109 @@
           (t/is (nil? (:error out)))
           (t/is (map? stats))
           ;; base == main == branch at fork -> nothing to merge, no conflicts
-          (t/is (= 0 (:conflicts stats))))))))
+          (t/is (= 0 (:conflicts stats)))))
+
+      (t/testing "merge branch into main (clean, no-op)"
+        (let [out (th/command! {::th/type :merge-file-branch
+                                ::rpc/profile-id (:id profile)
+                                :branch-id @branch-meta-id})]
+          (t/is (nil? (:error out)))
+          (t/is (= :merged (-> out :result :status))))
+        (let [[row] (th/db-query :file-branch {:id @branch-meta-id})]
+          (t/is (= "merged" (:status row))))))))
+
+(t/deftest merge-applies-branch-changes
+  (with-redefs [cf/flags (conj cf/flags :branching)]
+    (let [profile (th/create-profile* 1 {:is-active true})
+          proj-id (:default-project-id profile)
+          file    (th/create-file* 1 {:profile-id (:id profile)
+                                      :project-id proj-id
+                                      :is-shared false})
+
+          create  (:result (th/command! {::th/type :create-file-branch
+                                         ::rpc/profile-id (:id profile)
+                                         :file-id (:id file)
+                                         :name "feature-colors"}))
+          branch-file-id (:branch-file-id create)
+          branch-id      (:id create)
+
+          color-id (uuid/random)
+          color    {:id color-id :name "Brand" :color "#ff0000" :opacity 1}]
+
+      (t/testing "add a color on the branch"
+        (let [bf  (th/db-get :file {:id branch-file-id})
+              out (th/command! {::th/type :update-file
+                                ::rpc/profile-id (:id profile)
+                                :id branch-file-id
+                                :session-id (uuid/random)
+                                :revn (:revn bf)
+                                :vern (:vern bf)
+                                :features cfeat/supported-features
+                                :changes [{:type :add-color :color color}]})]
+          (t/is (nil? (:error out)))))
+
+      (t/testing "merge brings the new color into main"
+        (let [out (th/command! {::th/type :merge-file-branch
+                                ::rpc/profile-id (:id profile)
+                                :branch-id branch-id})]
+          (t/is (nil? (:error out)))
+          (t/is (= :merged (-> out :result :status))))
+
+        (let [out    (th/command! {::th/type :get-file
+                                   ::rpc/profile-id (:id profile)
+                                   :id (:id file)})
+              colors (-> out :result :data :colors)]
+          (t/is (nil? (:error out)))
+          (t/is (contains? colors color-id))
+          (t/is (= "Brand" (get-in colors [color-id :name]))))))))
+
+(t/deftest update-branch-pulls-main-changes
+  (with-redefs [cf/flags (conj cf/flags :branching)]
+    (let [profile (th/create-profile* 1 {:is-active true})
+          proj-id (:default-project-id profile)
+          file    (th/create-file* 1 {:profile-id (:id profile)
+                                      :project-id proj-id
+                                      :is-shared false})
+
+          create  (:result (th/command! {::th/type :create-file-branch
+                                         ::rpc/profile-id (:id profile)
+                                         :file-id (:id file)
+                                         :name "long-lived"}))
+          branch-file-id (:branch-file-id create)
+          branch-id      (:id create)
+
+          color-id (uuid/random)
+          color    {:id color-id :name "MainColor" :color "#00ff00" :opacity 1}]
+
+      (t/testing "add a color on main (after the branch was created)"
+        (let [mf  (th/db-get :file {:id (:id file)})
+              out (th/command! {::th/type :update-file
+                                ::rpc/profile-id (:id profile)
+                                :id (:id file)
+                                :session-id (uuid/random)
+                                :revn (:revn mf)
+                                :vern (:vern mf)
+                                :features cfeat/supported-features
+                                :changes [{:type :add-color :color color}]})]
+          (t/is (nil? (:error out)))))
+
+      (t/testing "update the branch from main"
+        (let [out (th/command! {::th/type :update-branch-from-main
+                                ::rpc/profile-id (:id profile)
+                                :branch-id branch-id})]
+          (t/is (nil? (:error out)))
+          (t/is (= :updated (-> out :result :status))))
+
+        (let [out    (th/command! {::th/type :get-file
+                                   ::rpc/profile-id (:id profile)
+                                   :id branch-file-id})
+              colors (-> out :result :data :colors)]
+          (t/is (contains? colors color-id)))
+
+        ;; merge base repositioned to the current state of main
+        (let [[row] (th/db-query :file-branch {:id branch-id})
+              mf    (th/db-get :file {:id (:id file)})]
+          (t/is (= (:revn mf) (:base-revn row))))))))
 
 (t/deftest branching-disabled-raises
   (let [profile (th/create-profile* 1 {:is-active true})

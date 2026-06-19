@@ -8,9 +8,9 @@
   "Data layer for file branching (Phase 1: create + list). Mirrors the
   patterns in `app.main.data.workspace.versions`."
   (:require
-   [app.common.uuid :as uuid]
    [app.main.data.common :as dcm]
    [app.main.data.event :as ev]
+   [app.main.data.modal :as modal]
    [app.main.data.notifications :as ntf]
    [app.main.data.persistence :as dwp]
    [app.main.repo :as rp]
@@ -125,3 +125,72 @@
     ptk/UpdateEvent
     (update [_ state]
       (assoc-in state [:workspace-branch-diff :selected] selected))))
+
+(defn update-branch-from-main
+  "Bring main's changes into the branch (reverse of merge). Surfaces
+  conflicts / unsupported kinds as notifications."
+  [branch-id]
+  (assert (uuid? branch-id) "expected valid uuid for `branch-id`")
+  (ptk/reify ::update-branch-from-main
+    ptk/WatchEvent
+    (watch [_ _ _]
+      (rx/concat
+       (rx/of (ev/event {::ev/name "update-branch-from-main"}))
+       (->> (rp/cmd! :update-branch-from-main {:branch-id branch-id})
+            (rx/mapcat
+             (fn [{:keys [status]}]
+               (case status
+                 :updated     (rx/of (ntf/success (tr "workspace.branches.update.success"))
+                                     (fetch-branches))
+                 :conflicts   (rx/of (ntf/warn (tr "workspace.branches.update.conflicts")))
+                 :unsupported (rx/of (ntf/warn (tr "workspace.branches.update.unsupported")))
+                 (rx/of (ntf/error (tr "workspace.branches.update.error"))))))
+            (rx/catch (fn [_]
+                        (rx/of (ntf/error (tr "workspace.branches.update.error"))))))))))
+
+(defn set-conflict-resolution
+  "Choose `:main` or `:branch` for a single conflicting entity (by id)."
+  [id choice]
+  (ptk/reify ::set-conflict-resolution
+    ptk/UpdateEvent
+    (update [_ state]
+      (assoc-in state [:workspace-branch-diff :resolutions id] choice))))
+
+(defn set-all-resolutions
+  "Bulk-resolve every current conflict to `:main` or `:branch`."
+  [choice]
+  (ptk/reify ::set-all-resolutions
+    ptk/UpdateEvent
+    (update [_ state]
+      (let [conflicts (get-in state [:workspace-branch-diff :diff :conflicts])
+            res       (into {} (map (fn [c] [(:id c) choice])) conflicts)]
+        (assoc-in state [:workspace-branch-diff :resolutions] res)))))
+
+(defn merge-branch
+  "Merge a branch into main. On success the branch is marked merged and
+  open clients reload main via the `:file-merged` msgbus event. Conflicts
+  and not-yet-supported change kinds surface as notifications.
+
+  `resolutions` is an optional `{entity-id (:main|:branch)}` map used to
+  resolve conflicts before integrating."
+  ([branch-id] (merge-branch branch-id nil))
+  ([branch-id resolutions]
+   (assert (uuid? branch-id) "expected valid uuid for `branch-id`")
+   (ptk/reify ::merge-branch
+     ptk/WatchEvent
+     (watch [_ _ _]
+       (rx/concat
+        (rx/of (ev/event {::ev/name "merge-branch"}))
+        (->> (rp/cmd! :merge-file-branch (cond-> {:branch-id branch-id}
+                                           (seq resolutions) (assoc :resolutions resolutions)))
+             (rx/mapcat
+              (fn [{:keys [status]}]
+                (case status
+                  :merged      (rx/of (modal/hide)
+                                      (ntf/success (tr "workspace.branches.merge.success"))
+                                      (fetch-branches))
+                  :conflicts   (rx/of (ntf/warn (tr "workspace.branches.merge.conflicts")))
+                  :unsupported (rx/of (ntf/warn (tr "workspace.branches.merge.unsupported")))
+                  (rx/of (ntf/error (tr "workspace.branches.merge.error"))))))
+             (rx/catch (fn [_]
+                         (rx/of (ntf/error (tr "workspace.branches.merge.error")))))))))))
