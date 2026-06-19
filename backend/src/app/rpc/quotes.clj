@@ -472,6 +472,69 @@
       (generic-check!)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; QUOTE: BRANCHES-PER-FILE
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def ^:private schema:branches-per-file
+  [:map
+   [::profile-id ::sm/uuid]
+   [::project-id ::sm/uuid]
+   [::team-id ::sm/uuid]
+   [::file-id ::sm/uuid]])
+
+(def ^:private valid-branches-per-file-quote?
+  (sm/lazy-validator schema:branches-per-file))
+
+(def ^:private sql:get-branches-per-file
+  "SELECT count(*) AS total
+     FROM file_branch AS fb
+    WHERE fb.source_file_id = ?
+      AND fb.deleted_at IS NULL
+      AND fb.status <> 'merged'")
+
+(defmethod check-quote ::branches-per-file
+  [{:keys [::profile-id ::file-id ::team-id ::project-id ::target] :as quote}]
+  (assert (valid-branches-per-file-quote? quote) "invalid quote parameters")
+  (-> quote
+      (assoc ::default (cf/get :quotes-branches-per-file Integer/MAX_VALUE))
+      (assoc ::quote-sql [sql:get-quotes-4 target file-id profile-id project-id
+                          profile-id team-id profile-id profile-id])
+      (assoc ::count-sql [sql:get-branches-per-file file-id])
+      (generic-check!)))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; QUOTE: BRANCHES-PER-TEAM
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def ^:private schema:branches-per-team
+  [:map
+   [::profile-id ::sm/uuid]
+   [::team-id ::sm/uuid]])
+
+(def ^:private valid-branches-per-team-quote?
+  (sm/lazy-validator schema:branches-per-team))
+
+(def ^:private sql:get-branches-per-team
+  "SELECT count(*) AS total
+     FROM file_branch AS fb
+     JOIN file AS f ON (f.id = fb.source_file_id)
+     JOIN project AS p ON (p.id = f.project_id)
+    WHERE p.team_id = ?
+      AND fb.deleted_at IS NULL
+      AND fb.status <> 'merged'")
+
+(defmethod check-quote ::branches-per-team
+  [{:keys [::profile-id ::team-id ::target] :as quote}]
+  (assert (valid-branches-per-team-quote? quote) "invalid quote parameters")
+  (-> quote
+      (assoc ::default (cf/get :quotes-branches-per-team Integer/MAX_VALUE))
+      (assoc ::quote-sql [sql:get-quotes-2 target team-id profile-id profile-id])
+      (assoc ::count-sql [sql:get-branches-per-team team-id])
+      (generic-check!)))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; QUOTE: TEAM-ACCESS-REQUESTS-PER-TEAM
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

@@ -266,6 +266,7 @@
                                         and ft.deleted_at is null)
     where f.project_id = ?
       and f.deleted_at is null
+      and f.is_branch is false
     order by f.modified_at desc")
 
 (defn get-project-files
@@ -742,6 +743,7 @@
       where p.team_id = ?
         and p.deleted_at is null
         and f.deleted_at is null
+        and f.is_branch is false
      window w as (partition by f.project_id order by f.modified_at desc)
       order by f.modified_at desc
    )

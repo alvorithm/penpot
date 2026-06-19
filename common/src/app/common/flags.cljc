@@ -170,7 +170,11 @@
     :mcp
     :background-blur
     :available-viewer-wasm
-    :stroke-path})
+    :stroke-path
+
+    ;; Enables file branching: isolated file copies ("branches") that
+    ;; can be merged back to their source file. Disabled by default.
+    :branching})
 
 (def all-flags
   (set/union email login varia))
