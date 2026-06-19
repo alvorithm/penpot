@@ -208,13 +208,71 @@
           tok   (ctob/get-token (:tokens-lib data') sid tid)]
       (t/is (= "#0000ff" (:value tok))))))
 
-(t/deftest compute-changes-token-set-add-is-unsupported
+(t/deftest compute-changes-token-set-add
   (let [sid  (uuid/next)
         tid  (uuid/next)
         sid2 (uuid/next)
+        tid2 (uuid/next)
         base-lib   (token-lib sid tid "#ff0000")
-        branch-lib (ctob/add-set base-lib (ctob/make-token-set {:id sid2 :name "extra"}))
+        branch-lib (-> base-lib
+                       (ctob/add-set (ctob/make-token-set {:id sid2 :name "extra"}))
+                       (ctob/add-token sid2 (ctob/make-token {:id tid2
+                                                              :name "color.secondary"
+                                                              :type :color
+                                                              :value "#00ff00"})))
+        {:keys [changes unsupported]} (bm/compute-changes (with-tokens base-lib)
+                                                          (with-tokens base-lib)
+                                                          (with-tokens branch-lib))
+        by-type (group-by :type changes)]
+    (t/is (empty? unsupported))
+    (t/is (some #(= sid2 (:id %)) (:set-token-set by-type)))
+    (t/is (some #(= tid2 (:token-id %)) (:set-token by-type)))
+    ;; round-trip: the new set and its token exist in main afterwards
+    (let [data' (cfc/process-changes {:tokens-lib base-lib} changes)]
+      (t/is (some? (ctob/get-set (:tokens-lib data') sid2)))
+      (t/is (some? (ctob/get-token (:tokens-lib data') sid2 tid2))))))
+
+(t/deftest compute-changes-token-set-delete
+  (let [sid  (uuid/next)
+        tid  (uuid/next)
+        sid2 (uuid/next)
+        tid2 (uuid/next)
+        base-lib   (-> (token-lib sid tid "#ff0000")
+                       (ctob/add-set (ctob/make-token-set {:id sid2 :name "extra"}))
+                       (ctob/add-token sid2 (ctob/make-token {:id tid2 :name "color.x"
+                                                              :type :color :value "#00ff00"})))
+        branch-lib (ctob/delete-set base-lib sid2)
+        {:keys [changes unsupported]} (bm/compute-changes (with-tokens base-lib)
+                                                          (with-tokens base-lib)
+                                                          (with-tokens branch-lib))
+        del (filter #(and (= :set-token-set (:type %)) (nil? (:attrs %))) changes)]
+    (t/is (empty? unsupported))
+    (t/is (= sid2 (:id (first del))))
+    (let [data' (cfc/process-changes {:tokens-lib base-lib} changes)]
+      (t/is (nil? (ctob/get-set (:tokens-lib data') sid2))))))
+
+(t/deftest compute-changes-token-theme-add
+  (let [sid  (uuid/next)
+        tid  (uuid/next)
+        thid (uuid/next)
+        base-lib   (token-lib sid tid "#ff0000")
+        branch-lib (ctob/add-theme base-lib (ctob/make-token-theme {:id thid :name "Dark" :group ""}))
+        {:keys [changes unsupported]} (bm/compute-changes (with-tokens base-lib)
+                                                          (with-tokens base-lib)
+                                                          (with-tokens branch-lib))
+        thm (filter #(= :set-token-theme (:type %)) changes)]
+    (t/is (empty? unsupported))
+    (t/is (= thid (:id (first thm))))
+    (let [data' (cfc/process-changes {:tokens-lib base-lib} changes)]
+      (t/is (some? (ctob/get-theme (:tokens-lib data') thid))))))
+
+(t/deftest compute-changes-token-set-rename-is-unsupported
+  (let [sid  (uuid/next)
+        tid  (uuid/next)
+        base-lib   (token-lib sid tid "#ff0000")
+        branch-lib (ctob/update-set base-lib sid (fn [s] (ctob/make-token-set {:id (ctob/get-id s)
+                                                                               :name "renamed"})))
         {:keys [unsupported]} (bm/compute-changes (with-tokens base-lib)
                                                   (with-tokens base-lib)
                                                   (with-tokens branch-lib))]
-    (t/is (contains? unsupported :token-set))))
+    (t/is (contains? unsupported :token-set-rename))))

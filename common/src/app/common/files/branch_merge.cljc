@@ -29,17 +29,20 @@
 (defn- shallow-attr-diff
   "Map of attr -> {:main v :branch v} for the keys whose values differ
   between the `theirs` and `ours` entity maps. Powers the
-  \"property changes\" detail in the compare view."
+  \"property changes\" detail in the compare view. Returns `{}` for
+  non-map entities (e.g. order/name tuples)."
   [theirs ours]
-  (let [ks (set/union (set (keys theirs)) (set (keys ours)))]
-    (reduce (fn [acc k]
-              (let [tv (get theirs k)
-                    ov (get ours k)]
-                (if (= tv ov)
-                  acc
-                  (assoc acc k {:main tv :branch ov}))))
-            {}
-            ks)))
+  (if (and (map? theirs) (map? ours))
+    (let [ks (set/union (set (keys theirs)) (set (keys ours)))]
+      (reduce (fn [acc k]
+                (let [tv (get theirs k)
+                      ov (get ours k)]
+                  (if (= tv ov)
+                    acc
+                    (assoc acc k {:main tv :branch ov}))))
+              {}
+              ks))
+    {}))
 
 (defn three-way-entities
   "Diff one indexed entity collection (id->value) across base/theirs/ours.
@@ -155,17 +158,28 @@
 ;; so the merge refuses them rather than dropping them silently — a full
 ;; structural token merge is a later step.
 
-(defn- lib-set-meta
-  [lib]
-  (if lib
-    (into {} (map (fn [s] [(ctob/get-id s) {:name (ctob/get-name s)
-                                            :description (ctob/get-description s)}]))
-          (ctob/get-sets lib))
-    {}))
-
 (defn- lib-set-ids
   [lib]
   (if lib (into #{} (map ctob/get-id) (ctob/get-sets lib)) #{}))
+
+(defn- lib-set-order
+  [lib]
+  (if lib (mapv ctob/get-id (ctob/get-sets lib)) []))
+
+(defn- lib-set-meta
+  "set-id -> [name description] for each set."
+  [lib]
+  (if lib
+    (into {} (map (fn [s] [(ctob/get-id s) [(ctob/get-name s) (ctob/get-description s)]]))
+          (ctob/get-sets lib))
+    {}))
+
+(defn- set-add-attrs
+  "Metadata-only attrs to (re)create a set; its tokens are added by the
+  per-token pass so unchanged tokens are preserved."
+  [lib set-id]
+  (let [s (ctob/get-set lib set-id)]
+    {:id set-id :name (ctob/get-name s) :description (ctob/get-description s)}))
 
 (defn- lib-tokens-by-id
   "token-id -> token (plain map) for a single set."
@@ -175,32 +189,61 @@
     {}))
 
 (defn- lib-themes
+  "theme-id -> theme (plain map), excluding the internal hidden theme."
   [lib]
-  (if lib (into {} (map (fn [t] [(:id t) (into {} t)])) (ctob/get-themes lib)) {}))
+  (if lib
+    (into {} (comp (remove #(= (:id %) ctob/hidden-theme-id))
+                   (map (fn [t] [(:id t) (into {} t)])))
+          (ctob/get-themes lib))
+    {}))
 
-(defn- lib-active
+(defn- lib-active-state
+  "Active-theme paths + the hidden theme's active sets, as one comparable
+  value. Changes here mean active-theme / active-set toggles, which are
+  not merged yet (surfaced as :token-active-themes)."
   [lib]
-  (if lib (set (ctob/get-active-theme-paths lib)) #{}))
+  {:paths (if lib (set (ctob/get-active-theme-paths lib)) #{})
+   :hidden-sets (some-> lib (ctob/get-theme ctob/hidden-theme-id) :sets set)})
+
+(defn- present-map
+  [ids]
+  (zipmap ids (repeat true)))
 
 (defn- diff-tokens
   [base theirs ours]
   (let [bl (:tokens-lib base) tl (:tokens-lib theirs) ol (:tokens-lib ours)
-        set-diff    (three-way-entities (lib-set-meta bl) (lib-set-meta tl) (lib-set-meta ol)
-                                        {:kind :token-set})
-        theme-diff  (three-way-entities (lib-themes bl) (lib-themes tl) (lib-themes ol)
-                                        {:kind :token-theme})
-        active-diff (three-way-entities {:active (lib-active bl)}
-                                        {:active (lib-active tl)}
-                                        {:active (lib-active ol)}
-                                        {:kind :token-active-themes})
-        set-ids     (set/union (lib-set-ids bl) (lib-set-ids tl) (lib-set-ids ol))
-        token-diffs (map (fn [sid]
-                           (three-way-entities (lib-tokens-by-id bl sid)
-                                               (lib-tokens-by-id tl sid)
-                                               (lib-tokens-by-id ol sid)
-                                               {:kind :token :set-id sid}))
-                         set-ids)]
-    (merge-results (concat [set-diff theme-diff active-diff] token-diffs))))
+        bids (lib-set-ids bl) tids (lib-set-ids tl) oids (lib-set-ids ol)
+        common (set/intersection bids tids oids)
+
+        ;; set add/delete (mergeable: :token-set)
+        presence (three-way-entities (present-map bids) (present-map tids) (present-map oids)
+                                     {:kind :token-set})
+        ;; set rename/description on common sets (NOT yet mergeable)
+        rename   (three-way-entities (select-keys (lib-set-meta bl) common)
+                                     (select-keys (lib-set-meta tl) common)
+                                     (select-keys (lib-set-meta ol) common)
+                                     {:kind :token-set-rename})
+        ;; set order on common sets (NOT yet mergeable)
+        order-of (fn [lib] (filterv common (lib-set-order lib)))
+        order    (three-way-entities {:order (order-of bl)} {:order (order-of tl)} {:order (order-of ol)}
+                                     {:kind :token-set-order})
+        ;; themes, excluding hidden (mergeable: :token-theme)
+        themes   (three-way-entities (lib-themes bl) (lib-themes tl) (lib-themes ol)
+                                     {:kind :token-theme})
+        ;; active themes / active sets (NOT yet mergeable)
+        active   (three-way-entities {:active (lib-active-state bl)}
+                                     {:active (lib-active-state tl)}
+                                     {:active (lib-active-state ol)}
+                                     {:kind :token-active-themes})
+        ;; per-token values (mergeable: :token)
+        set-ids  (set/union bids tids oids)
+        tokens   (map (fn [sid]
+                        (three-way-entities (lib-tokens-by-id bl sid)
+                                            (lib-tokens-by-id tl sid)
+                                            (lib-tokens-by-id ol sid)
+                                            {:kind :token :set-id sid}))
+                      set-ids)]
+    (merge-results (concat [presence rename order themes active] tokens))))
 
 (defn compute-merge
   "Compute the three-way diff between the merge `base`, `main` and
@@ -239,7 +282,7 @@
 ;; Kinds `compute-changes` can translate into change ops. Components,
 ;; pages (add/remove/rename) and tokens are not yet supported and cause
 ;; the merge to refuse rather than silently drop changes.
-(def ^:private mergeable-kinds #{:color :typography :media :shape :token})
+(def ^:private mergeable-kinds #{:color :typography :media :shape :token :token-set :token-theme})
 
 (defn unsupported-kinds
   "Set of change kinds present in `changes` that `compute-changes`
@@ -402,19 +445,42 @@
                                         (set (keys (:pages-index branch))))
          shapes (into [] (mapcat #(page-shape-changes base main branch resolutions %)) common-pages)
 
-         set-ids (set/union (lib-set-ids (:tokens-lib base))
-                            (lib-set-ids (:tokens-lib main))
-                            (lib-set-ids (:tokens-lib branch)))
-         tokens  (into []
-                       (mapcat (fn [sid]
-                                 (flat-changes (lib-tokens-by-id (:tokens-lib base) sid)
-                                               (lib-tokens-by-id (:tokens-lib main) sid)
-                                               (lib-tokens-by-id (:tokens-lib branch) sid)
-                                               resolutions
-                                               (fn [tid t] {:type :set-token :set-id sid :token-id tid :attrs t})
-                                               (fn [tid t] {:type :set-token :set-id sid :token-id tid :attrs t})
-                                               (fn [tid] {:type :set-token :set-id sid :token-id tid :attrs nil}))))
-                       set-ids)]
+         bl (:tokens-lib base) ml (:tokens-lib main) ol (:tokens-lib branch)
+         set-ids (set/union (lib-set-ids bl) (lib-set-ids ml) (lib-set-ids ol))
+
+         ;; set add (create empty set, tokens added by the per-token pass) / delete
+         set-presence (->> (flat-changes (present-map (lib-set-ids bl))
+                                         (present-map (lib-set-ids ml))
+                                         (present-map (lib-set-ids ol))
+                                         resolutions
+                                         (fn [sid _] {:type :set-token-set :id sid :attrs (set-add-attrs ol sid)})
+                                         (fn [_ _] nil)
+                                         (fn [sid] {:type :set-token-set :id sid :attrs nil}))
+                           (filterv some?))
+         ;; sets deleted from the branch are dropped wholesale; skip their per-token diff
+         deleted-set-ids (into #{} (filter (fn [sid]
+                                             (and (contains? (lib-set-ids bl) sid)
+                                                  (contains? (lib-set-ids ml) sid)
+                                                  (not (contains? (lib-set-ids ol) sid)))))
+                               set-ids)
+
+         token-vals (into []
+                          (comp (remove deleted-set-ids)
+                                (mapcat (fn [sid]
+                                          (flat-changes (lib-tokens-by-id bl sid)
+                                                        (lib-tokens-by-id ml sid)
+                                                        (lib-tokens-by-id ol sid)
+                                                        resolutions
+                                                        (fn [tid t] {:type :set-token :set-id sid :token-id tid :attrs t})
+                                                        (fn [tid t] {:type :set-token :set-id sid :token-id tid :attrs t})
+                                                        (fn [tid] {:type :set-token :set-id sid :token-id tid :attrs nil})))))
+                          set-ids)
+
+         themes (flat-changes (lib-themes bl) (lib-themes ml) (lib-themes ol) resolutions
+                              (fn [tid t] {:type :set-token-theme :id tid :attrs t})
+                              (fn [tid t] {:type :set-token-theme :id tid :attrs t})
+                              (fn [tid] {:type :set-token-theme :id tid :attrs nil}))]
 
      {:unsupported unsupported
-      :changes     (vec (concat colors typos media shapes tokens))})))
+      :changes     (vec (concat colors typos media shapes
+                                set-presence token-vals themes))})))

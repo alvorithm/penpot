@@ -39,6 +39,8 @@
    :page                i/document
    :token               i/tokens
    :token-set           i/tokens
+   :token-set-rename    i/tokens
+   :token-set-order     i/tokens
    :token-theme         i/tokens
    :token-active-themes i/tokens})
 
