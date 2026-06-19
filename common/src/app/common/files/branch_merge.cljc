@@ -200,6 +200,23 @@
   (let [s (ctob/get-set lib set-id)]
     {:id set-id :name (ctob/get-name s) :description (ctob/get-description s)}))
 
+(defn- set-rename-attrs
+  "Attrs to rename a set: take branch's name/description but keep MAIN's
+  tokens — emitted before the per-token pass, which then layers branch's
+  token edits on top. `:set-token-set`/`update-set` relocates the set and
+  updates theme references for the new name."
+  [main-lib branch-lib set-id]
+  (let [bs (ctob/get-set branch-lib set-id)]
+    {:id set-id
+     :name (ctob/get-name bs)
+     :description (ctob/get-description bs)
+     :tokens (ctob/get-tokens main-lib set-id)}))
+
+(defn- set-meta-of
+  [lib set-id]
+  (let [s (ctob/get-set lib set-id)]
+    [(ctob/get-name s) (ctob/get-description s)]))
+
 (defn- lib-tokens-by-id
   "token-id -> token (plain map) for a single set."
   [lib set-id]
@@ -216,13 +233,15 @@
           (ctob/get-themes lib))
     {}))
 
-(defn- lib-active-state
-  "Active-theme paths + the hidden theme's active sets, as one comparable
-  value. Changes here mean active-theme / active-set toggles, which are
-  not merged yet (surfaced as :token-active-themes)."
+(defn- lib-active-paths
+  "Active theme paths (mergeable via :set-active-token-themes)."
   [lib]
-  {:paths (if lib (set (ctob/get-active-theme-paths lib)) #{})
-   :hidden-sets (some-> lib (ctob/get-theme ctob/hidden-theme-id) :sets set)})
+  (if lib (set (ctob/get-active-theme-paths lib)) #{}))
+
+(defn- lib-hidden-sets
+  "The hidden theme's active sets (active-set toggles) — not yet merged."
+  [lib]
+  (some-> lib (ctob/get-theme ctob/hidden-theme-id) :sets set))
 
 (defn- diff-tokens
   [base theirs ours]
@@ -245,11 +264,16 @@
         ;; themes, excluding hidden (mergeable: :token-theme)
         themes   (three-way-entities (lib-themes bl) (lib-themes tl) (lib-themes ol)
                                      {:kind :token-theme})
-        ;; active themes / active sets (NOT yet mergeable)
-        active   (three-way-entities {:active (lib-active-state bl)}
-                                     {:active (lib-active-state tl)}
-                                     {:active (lib-active-state ol)}
-                                     {:kind :token-active-themes})
+        ;; active theme paths (mergeable: :token-active-themes)
+        active-paths (three-way-entities {:active-themes (lib-active-paths bl)}
+                                         {:active-themes (lib-active-paths tl)}
+                                         {:active-themes (lib-active-paths ol)}
+                                         {:kind :token-active-themes})
+        ;; active-set toggles (hidden theme) — NOT yet mergeable
+        active-sets (three-way-entities {:active-sets (lib-hidden-sets bl)}
+                                        {:active-sets (lib-hidden-sets tl)}
+                                        {:active-sets (lib-hidden-sets ol)}
+                                        {:kind :token-active-sets})
         ;; per-token values (mergeable: :token)
         set-ids  (set/union bids tids oids)
         tokens   (map (fn [sid]
@@ -258,7 +282,7 @@
                                             (lib-tokens-by-id ol sid)
                                             {:kind :token :set-id sid}))
                       set-ids)]
-    (merge-results (concat [presence rename order themes active] tokens))))
+    (merge-results (concat [presence rename order themes active-paths active-sets] tokens))))
 
 (defn compute-merge
   "Compute the three-way diff between the merge `base`, `main` and
@@ -298,7 +322,8 @@
 ;; pages (add/remove/rename) and tokens are not yet supported and cause
 ;; the merge to refuse rather than silently drop changes.
 (def ^:private mergeable-kinds
-  #{:color :typography :media :shape :token :token-set :token-theme :page :component})
+  #{:color :typography :media :shape :token :token-set :token-set-rename :token-theme
+    :token-active-themes :page :component})
 
 (defn unsupported-kinds
   "Set of change kinds present in `changes` that `compute-changes`
@@ -495,6 +520,31 @@
                                          (fn [_ _] nil)
                                          (fn [sid] {:type :set-token-set :id sid :attrs nil}))
                            (filterv some?))
+
+         ;; set rename: take branch name/description, keep main's tokens
+         ;; (the per-token pass then layers branch's token edits). Emitted
+         ;; before token-vals.
+         common-sets (set/intersection (lib-set-ids bl) (lib-set-ids ml) (lib-set-ids ol))
+         set-rename-changes
+         (into []
+               (comp (filter (fn [sid]
+                               (let [b (set-meta-of bl sid)
+                                     m (set-meta-of ml sid)
+                                     o (set-meta-of ol sid)]
+                                 (and (not= o b)
+                                      (or (= m b) (= (get resolutions sid) :branch))))))
+                     (map (fn [sid] {:type :set-token-set :id sid :attrs (set-rename-attrs ml ol sid)})))
+               common-sets)
+
+         ;; active theme paths
+         active-changes
+         (let [bp (lib-active-paths bl) mp (lib-active-paths ml) op (lib-active-paths ol)]
+           (cond
+             (= op bp) []
+             (= mp bp) [{:type :set-active-token-themes :theme-paths op}]
+             (= op mp) []
+             (= (get resolutions :active-themes) :branch) [{:type :set-active-token-themes :theme-paths op}]
+             :else []))
          ;; sets deleted from the branch are dropped wholesale; skip their per-token diff
          deleted-set-ids (into #{} (filter (fn [sid]
                                              (and (contains? (lib-set-ids bl) sid)
@@ -522,4 +572,5 @@
      {:unsupported unsupported
       :changes     (vec (concat page-presence shapes page-meta-changes components
                                 colors typos media
-                                set-presence token-vals themes))})))
+                                set-presence set-rename-changes token-vals themes
+                                active-changes))})))

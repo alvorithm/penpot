@@ -50,7 +50,8 @@
    :token-set-rename    i/tokens
    :token-set-order     i/tokens
    :token-theme         i/tokens
-   :token-active-themes i/tokens})
+   :token-active-themes i/tokens
+   :token-active-sets   i/tokens})
 
 (def ^:private status->label
   {:added    "workspace.branches.status.added"

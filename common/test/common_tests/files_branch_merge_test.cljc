@@ -338,13 +338,38 @@
         del (first (filter #(= :del-component (:type %)) changes))]
     (t/is (= :c1 (:id del)))))
 
-(t/deftest compute-changes-token-set-rename-is-unsupported
+(t/deftest compute-changes-token-set-rename
   (let [sid  (uuid/next)
         tid  (uuid/next)
         base-lib   (token-lib sid tid "#ff0000")
-        branch-lib (ctob/update-set base-lib sid (fn [s] (ctob/make-token-set {:id (ctob/get-id s)
-                                                                               :name "renamed"})))
-        {:keys [unsupported]} (bm/compute-changes (with-tokens base-lib)
-                                                  (with-tokens base-lib)
-                                                  (with-tokens branch-lib))]
-    (t/is (contains? unsupported :token-set-rename))))
+        ;; rename the set but keep its token
+        branch-lib (ctob/update-set base-lib sid
+                                    (fn [s] (ctob/make-token-set {:id (ctob/get-id s)
+                                                                  :name "renamed"
+                                                                  :tokens (ctob/get-tokens base-lib sid)})))
+        {:keys [changes unsupported]} (bm/compute-changes (with-tokens base-lib)
+                                                          (with-tokens base-lib)
+                                                          (with-tokens branch-lib))
+        ch (first (filter #(= :set-token-set (:type %)) changes))]
+    (t/is (empty? unsupported))
+    (t/is (= "renamed" (-> ch :attrs :name)))
+    ;; round-trip: set renamed AND its token preserved
+    (let [data' (cfc/process-changes {:tokens-lib base-lib} changes)]
+      (t/is (= "renamed" (ctob/get-name (ctob/get-set (:tokens-lib data') sid))))
+      (t/is (some? (ctob/get-token (:tokens-lib data') sid tid))))))
+
+(t/deftest compute-changes-token-active-themes
+  (let [thid (uuid/next)
+        base-lib   (-> (ctob/make-tokens-lib)
+                       (ctob/add-theme (ctob/make-token-theme {:id thid :name "Dark" :group ""})))
+        branch-lib (ctob/activate-theme base-lib thid)
+        {:keys [changes unsupported]} (bm/compute-changes (with-tokens base-lib)
+                                                          (with-tokens base-lib)
+                                                          (with-tokens branch-lib))
+        ch (first (filter #(= :set-active-token-themes (:type %)) changes))]
+    (t/is (empty? unsupported))
+    (t/is (some? ch))
+    ;; round-trip: active theme paths match the branch
+    (let [data' (cfc/process-changes {:tokens-lib base-lib} changes)]
+      (t/is (= (set (ctob/get-active-theme-paths branch-lib))
+               (set (ctob/get-active-theme-paths (:tokens-lib data'))))))))
