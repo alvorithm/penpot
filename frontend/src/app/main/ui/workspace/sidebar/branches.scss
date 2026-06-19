@@ -33,6 +33,33 @@
   inline-size: $sz-200;
 }
 
+.branches-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.branches-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-block: var(--sp-s) var(--sp-xs);
+  padding-inline: var(--sp-s);
+
+  @include t.use-typography("body-small");
+
+  color: var(--color-foreground-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.branches-section-count {
+  color: var(--color-foreground-secondary);
+}
+
 .branches-entries {
   display: flex;
   flex-direction: column;
@@ -40,7 +67,6 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  overflow-y: auto;
 }
 
 .branch-entry {
@@ -60,6 +86,11 @@
 .branch-entry-icon {
   display: flex;
   align-items: center;
+  justify-content: center;
+  inline-size: 32px;
+  block-size: 32px;
+  border-radius: 8px;
+  background-color: var(--color-background-tertiary);
   color: var(--color-accent-primary);
 }
 
@@ -74,6 +105,7 @@
   @include t.use-typography("body-medium");
 
   color: var(--color-foreground-primary);
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -83,12 +115,23 @@
   display: flex;
   align-items: center;
   gap: var(--sp-xs);
+  min-width: 0;
 }
 
 .branch-entry-author {
   @include t.use-typography("body-small");
 
   color: var(--color-foreground-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.branch-entry-aside {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
 }
 
 .branch-entry-counts {
@@ -524,6 +567,19 @@
   opacity: 0.7;
 }
 
+.branch-entry.is-current {
+  border: 1px solid var(--color-background-quaternary);
+  background-color: var(--color-background-tertiary);
+}
+
+// while its context menu is open, lift the whole entry (and its absolutely
+// positioned dropdown) above sibling entries so their hover/background does
+// not paint over the menu
+.branch-entry.is-menu-open {
+  position: relative;
+  z-index: 1;
+}
+
 .branch-rename-input {
   inline-size: 100%;
   padding: var(--sp-xxs) var(--sp-xs);
@@ -536,33 +592,17 @@
 }
 
 .branch-options-dropdown {
-  margin: 0;
-  padding: var(--sp-xs);
-  list-style: none;
-  border-radius: 8px;
-  border: 1px solid var(--color-background-quaternary);
-  background-color: var(--color-background-secondary);
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
+  @extend %menu-dropdown;
+
+  inset-block-start: 100%;
+  inset-inline-end: 0;
+  inline-size: $sz-160;
 }
 
 .menu-option {
-  padding: var(--sp-xs) var(--sp-s);
-  border-radius: 6px;
-  cursor: pointer;
+  @extend %menu-item-base;
+
   white-space: nowrap;
-
-  @include t.use-typography("body-medium");
-
-  &:hover {
-    background-color: var(--color-background-tertiary);
-  }
-}
-
-.branches-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-s);
-  overflow-y: auto;
 }
 
 .branches-archived {
@@ -572,16 +612,20 @@
 }
 
 .branches-archived-toggle {
+  @include t.use-typography("body-small");
+
   display: flex;
   align-items: center;
   gap: var(--sp-xs);
-  padding: var(--sp-xs);
+  padding-block: var(--sp-s) var(--sp-xs);
+  padding-inline: var(--sp-s);
   border: none;
   background: none;
   cursor: pointer;
   color: var(--color-foreground-secondary);
-
-  @include t.use-typography("body-small");
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
 }
 
 .branches-archived-count {
