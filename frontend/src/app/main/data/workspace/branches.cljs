@@ -50,7 +50,13 @@
     ptk/WatchEvent
     (watch [_ state _]
       (when-let [file-id (:current-file-id state)]
-        (->> (rp/cmd! :get-file-branches {:file-id file-id :include-archived true})
+        ;; the open file may itself be a branch; branches are listed by their
+        ;; source (main), so resolve the source first (nil when on main) and
+        ;; list siblings against it, so the panel is complete from a branch too
+        (->> (rp/cmd! :get-file-branch-info {:file-id file-id})
+             (rx/mapcat (fn [info]
+                          (let [root (or (:source-file-id info) file-id)]
+                            (rp/cmd! :get-file-branches {:file-id root :include-archived true}))))
              (rx/map #(update-branches-state {:status :loaded :data %}))
              (rx/catch (fn [_]
                          (rx/of (update-branches-state {:status :loaded :data []})))))))))

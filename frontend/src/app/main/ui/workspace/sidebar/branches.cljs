@@ -74,6 +74,78 @@
       (str (subs s 0 40) "…")
       s)))
 
+;; --- Compare: grouping by category + per-item type labels
+
+(def ^:private kind->category
+  {:shape :pages :page :pages :page-attrs :pages :page-order :pages
+   :page-guide :pages :page-flow :pages :page-grid :pages :page-plugin :pages
+   :component :components
+   :color :colors
+   :typography :typographies
+   :media :media
+   :token :tokens :token-set :tokens :token-set-rename :tokens :token-set-order :tokens
+   :token-theme :tokens :token-active-themes :tokens :token-active-sets :tokens})
+
+(def ^:private category-order [:pages :components :colors :typographies :media :tokens])
+
+(def ^:private category->icon
+  {:pages i/document :components i/component :colors i/picker
+   :typographies i/text :media i/img :tokens i/tokens})
+
+(def ^:private category->label
+  {:pages "workspace.branches.compare.group.pages"
+   :components "workspace.branches.compare.group.components"
+   :colors "workspace.branches.compare.group.colors"
+   :typographies "workspace.branches.compare.group.typographies"
+   :media "workspace.branches.compare.group.media"
+   :tokens "workspace.branches.compare.group.tokens"})
+
+(def ^:private kind->type-label
+  {:shape "workspace.branches.compare.type.shape"
+   :component "workspace.branches.compare.type.component"
+   :color "workspace.branches.compare.type.color"
+   :typography "workspace.branches.compare.type.typography"
+   :media "workspace.branches.compare.type.media"
+   :token "workspace.branches.compare.type.token"})
+
+(defn- item-status
+  "Conflicts carry `:conflict`; otherwise the regular add/mod/del status."
+  [item]
+  (if (= :conflict (:status item)) :conflict (:status item)))
+
+(defn- hex-color
+  "Return a usable hex string when `v` looks like a color, else nil."
+  [v]
+  (let [s (cond (string? v) v
+                (and (map? v) (string? (:color v))) (:color v)
+                :else nil)]
+    (when (and s (re-matches #"#?[0-9a-fA-F]{3,8}" s))
+      (if (str/starts-with? s "#") s (str "#" s)))))
+
+(defn- display-val
+  [v]
+  (cond
+    (nil? v)     "—"
+    (string? v)  (if (> (count v) 32) (str (subs v 0 32) "…") v)
+    (number? v)  (dm/str v)
+    (keyword? v) (name v)
+    :else        (short-str v)))
+
+(defn- status-matches?
+  [filter status]
+  (case filter
+    :all      true
+    :added    (= status :added)
+    :modified (contains? #{:modified :conflict} status)
+    :deleted  (= status :deleted)
+    true))
+
+(def ^:private compare-filters
+  [[:all "labels.all"]
+   [:added "workspace.branches.status.added"]
+   [:modified "workspace.branches.status.modified"]
+   [:deleted "workspace.branches.status.deleted"]])
+
 ;; --- Create branch dialog (modal)
 
 (mf/defc create-branch-dialog*
@@ -245,7 +317,7 @@
                                :is-current current
                                :is-menu-open (deref show-menu?))
           :role "button"
-          :on-click (when-not main? on-open)}
+          :on-click (when-not current on-open)}
      [:div {:class (stl/css :branch-entry-icon)}
       [:> i/icon* {:icon-id i/git-branch}]]
 
@@ -262,9 +334,10 @@
        (when author
          [:> avatar* {:profile author :variant "S"}])
        [:span {:class (stl/css :branch-entry-author)}
-        (if main?
-          (tr "workspace.branches.you-editing" (:fullname author))
-          (:fullname author))]]]
+        (cond
+          (and main? current) (tr "workspace.branches.you-editing" (:fullname author))
+          main?               (tr "workspace.branches.main-subtitle")
+          :else               (:fullname author))]]]
 
      [:div {:class (stl/css :branch-entry-aside)}
       (when (and (not archived?) (not main?))
@@ -340,8 +413,24 @@
                             (str/includes? (str/lower (or (:name %) ""))
                                            (str/lower filter-v))))))
 
-        open-entries     (filter #(= "open" (:status %)) entries)
-        archived-entries (remove #(= "open" (:status %)) entries)
+        ;; the current branch (if any) is shown in its own section; drop it
+        ;; from the rest of the list
+        open-entries     (->> entries
+                              (filter #(= "open" (:status %)))
+                              (remove #(= (:id %) (:id branch-ctx))))
+        archived-entries (->> entries
+                              (remove #(= "open" (:status %)))
+                              (remove #(= (:id %) (:id branch-ctx))))
+
+        ;; when the open file is a branch, offer Main as a switch target
+        main-entry       (when branch-ctx
+                           {:name (tr "workspace.branches.main")
+                            :is-main true
+                            :status "open"
+                            :branch-file-id (:source-file-id branch-ctx)})
+
+        other-entries    (cond->> open-entries
+                           main-entry (cons main-entry))
 
         on-filter-change
         (mf/use-fn #(reset! filter* (dom/get-target-val %)))
@@ -386,15 +475,16 @@
                             :profiles profiles
                             :current true}]]
 
-        (when (seq open-entries)
+        (when (seq other-entries)
           [:div {:class (stl/css :branches-section-header)}
            [:span (tr "workspace.branches.section.others")]
-           [:span {:class (stl/css :branches-section-count)} (dm/str (count open-entries))]])
-        [:ul {:class (stl/css :branches-entries)}
-         (for [entry open-entries]
-           [:> branch-entry* {:key (dm/str (:id entry))
-                              :entry entry
-                              :profiles profiles}])]
+           [:span {:class (stl/css :branches-section-count)} (dm/str (count other-entries))]])
+        (when (seq other-entries)
+          [:ul {:class (stl/css :branches-entries)}
+           (for [entry other-entries]
+             [:> branch-entry* {:key (dm/str (or (:id entry) (:branch-file-id entry)))
+                                :entry entry
+                                :profiles profiles}])])
 
         (when (seq archived-entries)
           [:div {:class (stl/css :branches-archived)}
@@ -412,17 +502,46 @@
 
 ;; --- Compare changes dialog (read-only 3-way diff)
 
+(mf/defc compare-value-chip*
+  {::mf/private true}
+  [{:keys [value tone]}]
+  (let [hex (hex-color value)]
+    [:span {:class (stl/css-case :value-chip true
+                                 :value-main (= tone :main)
+                                 :value-branch (= tone :branch))}
+     (when hex
+       [:span {:class (stl/css :value-swatch)
+               :style {:background-color hex}}])
+     (display-val value)]))
+
 (mf/defc branch-compare-item*
   {::mf/private true}
   [{:keys [item index selected on-select]}]
   (let [on-click (mf/use-fn (mf/deps index on-select) #(on-select index))
-        status   (:status item)]
+        status   (item-status item)
+        attrs    (:changed-attrs item)
+        type-lbl (get kind->type-label (:kind item))
+        subtitle (cond
+                   (= :added status)   (tr "workspace.branches.compare.subtitle-new"
+                                           (if type-lbl (tr type-lbl) ""))
+                   (and (= :modified status) (seq attrs))
+                   (tr "workspace.branches.compare.subtitle-mods" (count attrs))
+                   type-lbl (tr type-lbl)
+                   :else nil)]
     [:li {:class (stl/css-case :compare-item true
-                               :is-selected (= index selected))
+                               :is-selected (= index selected)
+                               :status-added    (= :added status)
+                               :status-modified (= :modified status)
+                               :status-deleted  (= :deleted status)
+                               :status-conflict (= :conflict status))
           :role "button"
           :on-click on-click}
-     [:> i/icon* {:icon-id (get kind->icon (:kind item) i/git-branch)}]
-     [:span {:class (stl/css :compare-item-label)} (:label item)]
+     [:div {:class (stl/css :compare-item-icon)}
+      [:> i/icon* {:icon-id (get kind->icon (:kind item) i/git-branch)}]]
+     [:div {:class (stl/css :compare-item-body)}
+      [:span {:class (stl/css :compare-item-label)} (:label item)]
+      (when subtitle
+        [:span {:class (stl/css :compare-item-subtitle)} subtitle])]
      [:span {:class (stl/css-case :item-badge true
                                   :badge-added    (= :added status)
                                   :badge-modified (= :modified status)
@@ -433,26 +552,37 @@
 (mf/defc branch-compare-detail*
   {::mf/private true}
   [{:keys [item]}]
-  (let [attrs (:changed-attrs item)]
+  (let [attrs    (:changed-attrs item)
+        type-lbl (get kind->type-label (:kind item))]
     (cond
       (nil? item)
-      [:p {:class (stl/css :compare-detail-hint)}
-       (tr "workspace.branches.compare.select-hint")]
-
-      (seq attrs)
-      [:div {:class (stl/css :attr-list)}
-       [:div {:class (stl/css :attr-row :attr-head)}
-        [:span (tr "workspace.branches.compare.attr")]
-        [:span (tr "workspace.branches.compare.main")]
-        [:span (tr "workspace.branches.compare.branch")]]
-       (for [[attr {:keys [main branch]}] attrs]
-         [:div {:class (stl/css :attr-row) :key (str attr)}
-          [:span {:class (stl/css :attr-name)} (name attr)]
-          [:span {:class (stl/css :attr-main)} (short-str main)]
-          [:span {:class (stl/css :attr-branch)} (short-str branch)]])]
+      [:div {:class (stl/css :compare-detail-empty)}
+       [:> empty-state* {:icon i/switch
+                         :text (tr "workspace.branches.compare.select-hint")}]]
 
       :else
-      [:p {:class (stl/css :compare-detail-hint)} (:label item)])))
+      [:div {:class (stl/css :compare-detail-content)}
+       [:div {:class (stl/css :compare-detail-head)}
+        [:h3 {:class (stl/css :compare-detail-title)} (:label item)]
+        [:span {:class (stl/css :compare-detail-subtitle)}
+         (cond-> ""
+           type-lbl     (str (tr type-lbl))
+           (seq attrs)  (str " · " (tr "workspace.branches.compare.subtitle-mods" (count attrs))))]]
+
+       (if (seq attrs)
+         [:div {:class (stl/css :prop-changes)}
+          [:div {:class (stl/css :prop-changes-head)}
+           [:span (tr "workspace.branches.compare.prop-changes")]
+           [:span {:class (stl/css :prop-changes-count)} (dm/str (count attrs))]]
+          (for [[attr {:keys [main branch]}] attrs]
+            [:div {:class (stl/css :prop-row) :key (str attr)}
+             [:span {:class (stl/css :prop-name)} (name attr)]
+             [:div {:class (stl/css :prop-values)}
+              [:> compare-value-chip* {:value main :tone :main}]
+              [:> i/icon* {:icon-id i/arrow-up-right :size "s"}]
+              [:> compare-value-chip* {:value branch :tone :branch}]]])]
+         [:p {:class (stl/css :compare-detail-hint)}
+          (tr "workspace.branches.compare.no-props")])])))
 
 (mf/defc branch-compare-dialog*
   {::mf/register modal/components
@@ -468,25 +598,60 @@
         sel-item (when (and (some? selected) (< selected (count items)))
                    (nth items selected))
 
-        on-close  (mf/use-fn #(st/emit! (modal/hide)))
-        on-select (mf/use-fn #(st/emit! (dwb/select-diff-change %)))
+        active-filter* (mf/use-state :all)
+        active-filter  (deref active-filter*)
+
+        ;; keep the original index for selection while filtering/grouping
+        indexed   (map-indexed vector items)
+        filtered  (filterv (fn [[_ it]] (status-matches? active-filter (item-status it))) indexed)
+        by-cat    (group-by (fn [[_ it]] (get kind->category (:kind it) :pages)) filtered)
+
+        on-close   (mf/use-fn #(st/emit! (modal/hide)))
+        on-select  (mf/use-fn #(st/emit! (dwb/select-diff-change %)))
+        on-filter  (mf/use-fn (fn [f] (reset! active-filter* f)))
         on-merge   (mf/use-fn (mf/deps branch)
                               #(st/emit! (dwb/merge-branch (:id branch))))
         on-resolve (mf/use-fn (mf/deps branch)
-                              #(modal/show! :branch-conflicts {:branch branch}))]
+                              #(modal/show! :branch-conflicts {:branch branch}))
+        on-export  (mf/use-fn
+                    (mf/deps diff branch)
+                    (fn []
+                      (let [payload (clj->js {:stats stats
+                                              :changes (:changes diff)
+                                              :conflicts (:conflicts diff)})
+                            text    (js/JSON.stringify payload nil 2)
+                            blob    (js/Blob. #js [text] #js {:type "application/json"})
+                            url     (js/URL.createObjectURL blob)
+                            a       (.createElement js/document "a")]
+                        (set! (.-href a) url)
+                        (set! (.-download a) (dm/str (:name branch) "-diff.json"))
+                        (.click a)
+                        (js/URL.revokeObjectURL url))))]
 
     (mf/with-effect [(:id branch)]
       (st/emit! (dwb/fetch-branch-diff (:id branch))))
+
+    ;; auto-select the first change once loaded
+    (mf/with-effect [status (count items)]
+      (when (and (= status :loaded) (nil? selected) (seq items))
+        (st/emit! (dwb/select-diff-change 0))))
 
     [:div {:class (stl/css :compare-overlay)}
      [:div {:class (stl/css :compare-container)}
       [:div {:class (stl/css :compare-header)}
        [:div {:class (stl/css :compare-title-group)}
-        [:> i/icon* {:icon-id i/switch}]
-        [:div
+        [:div {:class (stl/css :compare-title-icon)}
+         [:> i/icon* {:icon-id i/switch}]]
+        [:div {:class (stl/css :compare-title-text)}
          [:h2 {:class (stl/css :modal-title)} (tr "workspace.branches.compare.title")]
-         [:span {:class (stl/css :compare-subtitle)}
-          (dm/str (:name branch) " → main")]]]
+         [:div {:class (stl/css :compare-breadcrumb)}
+          [:span {:class (stl/css :breadcrumb-branch)}
+           [:> i/icon* {:icon-id i/git-branch :size "s"}]
+           (:name branch)]
+          [:> i/icon* {:icon-id i/arrow-up-right :size "s"}]
+          [:span {:class (stl/css :breadcrumb-main)}
+           [:span {:class (stl/css :breadcrumb-dot)}]
+           "main"]]]]
 
        (when stats
          [:div {:class (stl/css :compare-stats)}
@@ -523,32 +688,75 @@
 
         :else
         [:div {:class (stl/css :compare-body)}
-         [:ul {:class (stl/css :compare-list)}
-          (for [[idx item] (map-indexed vector items)]
-            [:> branch-compare-item* {:key idx
-                                      :item item
-                                      :index idx
-                                      :selected selected
-                                      :on-select on-select}])]
+         [:div {:class (stl/css :compare-side)}
+          [:div {:class (stl/css :compare-filters)}
+           (for [[f label] compare-filters]
+             [:button {:key (name f)
+                       :class (stl/css-case :filter-chip true
+                                            :is-active (= active-filter f)
+                                            :dot-added    (= f :added)
+                                            :dot-modified (= f :modified)
+                                            :dot-deleted  (= f :deleted))
+                       :on-click #(on-filter f)}
+              (when-not (= f :all) [:span {:class (stl/css :filter-dot)}])
+              (tr label)])]
+
+          [:div {:class (stl/css :compare-list)}
+           (for [cat category-order
+                 :let [group (get by-cat cat)]
+                 :when (seq group)]
+             [:div {:class (stl/css :compare-group) :key (name cat)}
+              [:div {:class (stl/css :compare-group-head)}
+               [:> i/icon* {:icon-id (get category->icon cat i/document) :size "s"}]
+               [:span {:class (stl/css :compare-group-label)} (tr (get category->label cat))]
+               (let [freqs (frequencies (map (fn [[_ it]] (item-status it)) group))]
+                 [:span {:class (stl/css :compare-group-counts)}
+                  (when (pos? (get freqs :added 0))
+                    [:span {:class (stl/css :count-added)} (dm/str "+" (get freqs :added))])
+                  (when (pos? (+ (get freqs :modified 0) (get freqs :conflict 0)))
+                    [:span {:class (stl/css :count-modified)}
+                     (dm/str "~" (+ (get freqs :modified 0) (get freqs :conflict 0)))])
+                  (when (pos? (get freqs :deleted 0))
+                    [:span {:class (stl/css :count-deleted)} (dm/str "−" (get freqs :deleted))])])]
+              [:ul {:class (stl/css :compare-group-items)}
+               (for [[idx item] group]
+                 [:> branch-compare-item* {:key idx
+                                           :item item
+                                           :index idx
+                                           :selected selected
+                                           :on-select on-select}])]])]]
+
          [:div {:class (stl/css :compare-detail)}
           [:> branch-compare-detail* {:item sel-item}]]])
 
       (when (= status :loaded)
-        (let [conflicts? (pos? (long (or (:conflicts stats) 0)))
+        (let [conflicts  (long (or (:conflicts stats) 0))
+              conflicts? (pos? conflicts)
               total      (long (+ (or (:added stats) 0)
                                   (or (:modified stats) 0)
                                   (or (:deleted stats) 0)))]
           [:div {:class (stl/css :compare-footer)}
-           (if conflicts?
-             [:> button* {:variant "primary"
-                          :icon i/triangle-alert
-                          :on-click on-resolve}
-              (tr "workspace.branches.conflicts.resolve")]
-             [:> button* {:variant "primary"
-                          :icon i/git-merge
-                          :disabled (zero? total)
-                          :on-click on-merge}
-              (tr "workspace.branches.merge.action")])]))]]))
+           [:div {:class (stl/css :compare-footer-info)}
+            [:> i/icon* {:icon-id i/info :size "s"}]
+            [:span (tr "workspace.branches.compare.footer-changes" total)]
+            (when conflicts?
+              [:span {:class (stl/css :compare-footer-conflicts)}
+               (dm/str " · " (tr "workspace.branches.compare.footer-conflicts" conflicts))])]
+           [:div {:class (stl/css :compare-footer-actions)}
+            [:> button* {:variant "ghost"
+                         :icon i/download
+                         :on-click on-export}
+             (tr "workspace.branches.compare.export")]
+            (if conflicts?
+              [:> button* {:variant "primary"
+                           :icon i/git-merge
+                           :on-click on-resolve}
+               (tr "workspace.branches.conflicts.resolve")]
+              [:> button* {:variant "primary"
+                           :icon i/git-merge
+                           :disabled (zero? total)
+                           :on-click on-merge}
+               (tr "workspace.branches.merge.action")])]]))]]))
 
 ;; --- Resolve conflicts dialog
 
