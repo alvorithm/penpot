@@ -32,6 +32,7 @@
    [app.main.ui.workspace.left-header :refer [left-header*]]
    [app.main.ui.workspace.right-header :refer [right-header*]]
    [app.main.ui.workspace.sidebar.assets :refer [assets-toolbox*]]
+   [app.main.ui.workspace.sidebar.branches :refer [branches-toolbox*]]
    [app.main.ui.workspace.sidebar.debug :refer [debug-panel*]]
    [app.main.ui.workspace.sidebar.debug-shape-info :refer [debug-shape-info*]]
    [app.main.ui.workspace.sidebar.history :refer [history-toolbox*]]
@@ -251,10 +252,13 @@
 
         tabs
         (mf/with-memo []
-          [{:label (tr "workspace.versions.tab.history")
-            :id "history"}
-           {:label (tr "workspace.versions.tab.actions")
-            :id "actions"}])
+          (cond-> [{:label (tr "workspace.versions.tab.history")
+                    :id "history"}
+                   {:label (tr "workspace.versions.tab.actions")
+                    :id "actions"}]
+            (contains? cf/flags :branching)
+            (conj {:label (tr "workspace.branches.tab")
+                   :id "branches"})))
 
         button
         (mf/with-memo []
@@ -278,7 +282,11 @@
 
        "actions"
        [:article {:class (stl/css :versions-tab)}
-        [:> history-toolbox*]])]))
+        [:> history-toolbox*]]
+
+       "branches"
+       [:article {:class (stl/css :history-tab)}
+        [:> branches-toolbox* {}]])]))
 
 (mf/defc right-sidebar*
   [{:keys [layout section file-id page-id drawing-tool active-tokens] :as props}]

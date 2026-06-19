@@ -1,0 +1,382 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) KALEIDOS INC Sucursal en España SL
+
+@use "ds/_sizes.scss" as *;
+@use "ds/typography.scss" as t;
+@use "refactor/common-refactor.scss" as deprecated;
+
+// --- Panel
+
+.branches-toolbox {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: var(--sp-s);
+  height: 100%;
+  padding: var(--sp-s);
+  overflow: hidden;
+}
+
+.branches-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-s);
+}
+
+.branches-empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xxxl);
+  margin: var(--sp-xxxl) auto;
+  inline-size: $sz-200;
+}
+
+.branches-entries {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.branch-entry {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--sp-s);
+  padding: var(--sp-s);
+  border-radius: 8px;
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--color-background-tertiary);
+  }
+}
+
+.branch-entry-icon {
+  display: flex;
+  align-items: center;
+  color: var(--color-accent-primary);
+}
+
+.branch-entry-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xxs);
+  min-width: 0;
+}
+
+.branch-entry-name {
+  @include t.use-typography("body-medium");
+  color: var(--color-foreground-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.branch-entry-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+}
+
+.branch-entry-author {
+  @include t.use-typography("body-small");
+  color: var(--color-foreground-secondary);
+}
+
+.branch-entry-counts {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-s);
+  @include t.use-typography("body-small");
+}
+
+.count-ahead,
+.count-behind {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-xxs);
+  color: var(--color-foreground-secondary);
+}
+
+.count-ahead {
+  color: var(--color-accent-primary);
+}
+
+// --- Create branch dialog
+
+.modal-overlay {
+  @extend %modal-overlay-base;
+}
+
+.modal-container {
+  @extend %modal-container-base;
+  min-width: deprecated.$s-408;
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-s);
+  margin-bottom: deprecated.$s-24;
+}
+
+.modal-header-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: $sz-32;
+  height: $sz-32;
+  border-radius: 8px;
+  color: var(--color-accent-primary);
+  background-color: var(--color-background-tertiary);
+}
+
+.modal-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xxs);
+  flex: 1;
+}
+
+.modal-title {
+  @include deprecated.headline-medium-typography;
+  color: var(--modal-title-foreground-color);
+}
+
+.modal-subtitle {
+  @include t.use-typography("body-small");
+  color: var(--color-foreground-secondary);
+}
+
+.modal-content {
+  @include deprecated.flex-column;
+  gap: deprecated.$s-16;
+  margin-bottom: deprecated.$s-24;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+}
+
+.field-label {
+  @include t.use-typography("body-small");
+  color: var(--color-foreground-secondary);
+}
+
+.textarea {
+  width: 100%;
+  min-height: $sz-64;
+  padding: var(--sp-s);
+  border-radius: 8px;
+  border: 1px solid var(--color-background-quaternary);
+  background-color: var(--color-background-tertiary);
+  color: var(--color-foreground-primary);
+  resize: vertical;
+  @include t.use-typography("body-medium");
+}
+
+.derive-from {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-s);
+  padding: var(--sp-s);
+  border-radius: 8px;
+  background-color: var(--color-background-tertiary);
+}
+
+.derive-from-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--color-accent-primary);
+}
+
+.derive-from-name {
+  @include t.use-typography("body-medium");
+  color: var(--color-foreground-primary);
+  font-weight: bold;
+}
+
+.derive-from-hint {
+  @include t.use-typography("body-small");
+  color: var(--color-foreground-secondary);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-s);
+}
+
+// --- Compare changes dialog
+
+.compare-overlay {
+  @extend %modal-overlay-base;
+}
+
+.compare-container {
+  display: flex;
+  flex-direction: column;
+  inline-size: min(90vw, 1100px);
+  block-size: min(85vh, 760px);
+  padding: deprecated.$s-16;
+  border-radius: 12px;
+  background-color: var(--color-background-primary);
+  overflow: hidden;
+}
+
+.compare-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-s);
+  padding-bottom: var(--sp-s);
+  border-bottom: 1px solid var(--color-background-quaternary);
+}
+
+.compare-title-group {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-s);
+}
+
+.compare-subtitle {
+  @include t.use-typography("body-small");
+  color: var(--color-foreground-secondary);
+}
+
+.compare-stats {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  margin-inline-start: auto;
+}
+
+.stat-badge,
+.item-badge {
+  @include t.use-typography("body-small");
+  padding: var(--sp-xxs) var(--sp-s);
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+.badge-added {
+  color: var(--color-accent-success);
+  background-color: var(--color-background-success);
+}
+
+.badge-modified {
+  color: var(--color-accent-info);
+  background-color: var(--color-background-info);
+}
+
+.badge-deleted {
+  color: var(--color-accent-error);
+  background-color: var(--color-background-error);
+}
+
+.badge-conflict {
+  color: var(--color-accent-warning);
+  background-color: var(--color-background-warning);
+}
+
+.compare-empty {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+}
+
+.compare-body {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) 2fr;
+  flex: 1;
+  min-height: 0;
+}
+
+.compare-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xxs);
+  margin: 0;
+  padding: var(--sp-s) var(--sp-s) var(--sp-s) 0;
+  list-style: none;
+  overflow-y: auto;
+  border-right: 1px solid var(--color-background-quaternary);
+}
+
+.compare-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-s);
+  padding: var(--sp-s);
+  border-radius: 8px;
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--color-background-tertiary);
+  }
+
+  &.is-selected {
+    background-color: var(--color-background-tertiary);
+  }
+}
+
+.compare-item-label {
+  @include t.use-typography("body-medium");
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--color-foreground-primary);
+}
+
+.compare-detail {
+  padding: var(--sp-l);
+  overflow-y: auto;
+}
+
+.compare-detail-hint {
+  @include t.use-typography("body-medium");
+  color: var(--color-foreground-secondary);
+}
+
+.attr-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+}
+
+.attr-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--sp-s);
+  padding: var(--sp-xs) 0;
+  border-bottom: 1px solid var(--color-background-quaternary);
+  @include t.use-typography("body-small");
+  color: var(--color-foreground-primary);
+}
+
+.attr-head {
+  color: var(--color-foreground-secondary);
+  font-weight: bold;
+}
+
+.attr-name {
+  color: var(--color-foreground-secondary);
+}
+
+.attr-main {
+  color: var(--color-accent-error);
+}
+
+.attr-branch {
+  color: var(--color-accent-success);
+}

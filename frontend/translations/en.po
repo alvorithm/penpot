@@ -6547,6 +6547,105 @@ msgstr "Text Transform"
 msgid "workspace.assets.ungroup"
 msgstr "Ungroup"
 
+msgid "workspace.branches.compare"
+msgstr "Compare"
+
+msgid "workspace.branches.compare.attr"
+msgstr "Property"
+
+msgid "workspace.branches.compare.branch"
+msgstr "branch"
+
+msgid "workspace.branches.compare.empty"
+msgstr "No changes between this branch and main"
+
+msgid "workspace.branches.compare.loading"
+msgstr "Computing changes…"
+
+msgid "workspace.branches.compare.main"
+msgstr "main"
+
+msgid "workspace.branches.compare.select-hint"
+msgstr "Select a change to see its details"
+
+msgid "workspace.branches.compare.stats.added"
+msgstr "added"
+
+msgid "workspace.branches.compare.stats.conflicts"
+msgstr "conflicts"
+
+msgid "workspace.branches.compare.stats.deleted"
+msgstr "deleted"
+
+msgid "workspace.branches.compare.stats.modified"
+msgstr "modified"
+
+msgid "workspace.branches.compare.title"
+msgstr "Compare changes"
+
+msgid "workspace.branches.status.added"
+msgstr "Added"
+
+msgid "workspace.branches.status.conflict"
+msgstr "Conflict"
+
+msgid "workspace.branches.status.deleted"
+msgstr "Deleted"
+
+msgid "workspace.branches.status.modified"
+msgstr "Modified"
+
+msgid "workspace.branches.create.derive-from"
+msgstr "Derive from"
+
+msgid "workspace.branches.create.derive-from-latest"
+msgstr "latest version"
+
+msgid "workspace.branches.create.derive-from-main"
+msgstr "main"
+
+msgid "workspace.branches.create.description-label"
+msgstr "Description (optional)"
+
+msgid "workspace.branches.create.error"
+msgstr "Could not create the branch"
+
+msgid "workspace.branches.create.info"
+msgstr "Your branch is a complete, isolated copy. Nothing you do affects main until you merge it."
+
+msgid "workspace.branches.create.name-label"
+msgstr "Branch name"
+
+msgid "workspace.branches.create.name-placeholder"
+msgstr "e.g. redesign-checkout"
+
+msgid "workspace.branches.create.submit"
+msgstr "Create branch"
+
+msgid "workspace.branches.create.subtitle"
+msgstr "Derived from main · %s"
+
+msgid "workspace.branches.create.success"
+msgstr "Branch \"%s\" created"
+
+msgid "workspace.branches.create.title"
+msgstr "Create branch"
+
+msgid "workspace.branches.empty"
+msgstr "No branches yet"
+
+msgid "workspace.branches.loading"
+msgstr "Loading branches…"
+
+msgid "workspace.branches.new"
+msgstr "New"
+
+msgid "workspace.branches.search.placeholder"
+msgstr "Search branch…"
+
+msgid "workspace.branches.tab"
+msgstr "Branches"
+
 #: src/app/main/data/workspace/clipboard.cljs:1175
 msgid "workspace.clipboard.copying"
 msgstr "Copying image…"

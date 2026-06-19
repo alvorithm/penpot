@@ -21,7 +21,8 @@
           file    (th/create-file* 1 {:profile-id (:id profile)
                                       :project-id proj-id
                                       :is-shared false})
-          branch-file-id (volatile! nil)]
+          branch-file-id (volatile! nil)
+          branch-meta-id (volatile! nil)]
 
       (t/testing "create branch"
         (let [params {::th/type :create-file-branch
@@ -38,7 +39,8 @@
             (t/is (= (:id file) (:source-file-id result)))
             (t/is (= "redesign-checkout" (:name result)))
             (t/is (= "open" (:status result)))
-            (vreset! branch-file-id (:branch-file-id result)))))
+            (vreset! branch-file-id (:branch-file-id result))
+            (vreset! branch-meta-id (:id result)))))
 
       (t/testing "branch file is flagged and hidden from project listing"
         (let [[row] (th/db-query :file {:id @branch-file-id})]
@@ -68,7 +70,17 @@
       (t/testing "merge base snapshot created on main"
         (let [rows (th/db-query :file-change {:file-id (:id file)})]
           (t/is (pos? (count rows)))
-          (t/is (some #(= "system" (:created-by %)) rows)))))))
+          (t/is (some #(= "system" (:created-by %)) rows))))
+
+      (t/testing "diff right after creation has no conflicts"
+        (let [out   (th/command! {::th/type :get-branch-diff
+                                  ::rpc/profile-id (:id profile)
+                                  :branch-id @branch-meta-id})
+              stats (-> out :result :stats)]
+          (t/is (nil? (:error out)))
+          (t/is (map? stats))
+          ;; base == main == branch at fork -> nothing to merge, no conflicts
+          (t/is (= 0 (:conflicts stats))))))))
 
 (t/deftest branching-disabled-raises
   (let [profile (th/create-profile* 1 {:is-active true})

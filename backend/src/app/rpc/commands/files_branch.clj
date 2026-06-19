@@ -13,6 +13,7 @@
   (:require
    [app.binfile.common :as bfc]
    [app.common.exceptions :as ex]
+   [app.common.files.branch-merge :as bm]
    [app.common.schema :as sm]
    [app.common.time :as ct]
    [app.common.uuid :as uuid]
@@ -173,3 +174,38 @@
                               (assoc :ahead (max 0 (- branch-revn base-revn)))
                               (assoc :behind (max 0 (- source-revn base-revn)))
                               (dissoc :branch-revn :source-revn))))))))
+
+;; --- COMMAND QUERY: get-branch-diff
+
+(def ^:private schema:get-branch-diff
+  [:map {:title "get-branch-diff"}
+   [:branch-id ::sm/uuid]])
+
+(sv/defmethod ::get-branch-diff
+  "Read-only three-way diff between a branch and its source (main),
+  using the merge base captured at branch creation. Returns the summary
+  produced by `branch-merge/compute-merge` (stats, changes, conflicts).
+
+  NOTE (Phase 2): base/main/branch are assumed to share the same file
+  data version; explicit migration normalization before diffing is a
+  later refinement."
+  {::doc/added "2.16"
+   ::sm/params schema:get-branch-diff
+   ::db/transaction true}
+  [{:keys [::db/conn] :as cfg} {:keys [::rpc/profile-id branch-id]}]
+  (check-branching-enabled!)
+  (let [branch (db/get* conn :file-branch {:id branch-id})]
+    (when (or (nil? branch) (some? (:deleted-at branch)))
+      (ex/raise :type :not-found
+                :code :branch-not-found
+                :hint "unable to find branch with the provided id"
+                :branch-id branch-id))
+
+    (files/check-read-permissions! conn profile-id (:source-file-id branch))
+
+    (let [main-data   (:data (bfc/get-file cfg (:source-file-id branch) :realize? true))
+          branch-data (:data (bfc/get-file cfg (:branch-file-id branch) :realize? true))
+          base-data   (or (when-let [snap-id (:base-snapshot-id branch)]
+                            (:data (fsnap/get-snapshot cfg (:source-file-id branch) snap-id)))
+                          main-data)]
+      (bm/compute-merge base-data main-data branch-data :branch->main))))
