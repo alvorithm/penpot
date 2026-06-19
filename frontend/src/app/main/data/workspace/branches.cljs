@@ -24,6 +24,7 @@
    :filter ""})
 
 (declare fetch-branches)
+(declare fetch-branch-context)
 
 (defn init-branches-state
   []
@@ -49,10 +50,42 @@
     ptk/WatchEvent
     (watch [_ state _]
       (when-let [file-id (:current-file-id state)]
-        (->> (rp/cmd! :get-file-branches {:file-id file-id})
+        (->> (rp/cmd! :get-file-branches {:file-id file-id :include-archived true})
              (rx/map #(update-branches-state {:status :loaded :data %}))
              (rx/catch (fn [_]
                          (rx/of (update-branches-state {:status :loaded :data []})))))))))
+
+(defn rename-branch
+  [id name]
+  (assert (uuid? id) "expected valid uuid for `id`")
+  (ptk/reify ::rename-branch
+    ptk/WatchEvent
+    (watch [_ _ _]
+      (->> (rp/cmd! :update-file-branch {:id id :name name})
+           (rx/mapcat (fn [_] (rx/of (fetch-branches) (fetch-branch-context))))
+           (rx/catch (fn [_] (rx/of (ntf/error (tr "workspace.branches.lifecycle.error")))))))))
+
+(defn archive-branch
+  ([id] (archive-branch id true))
+  ([id archived?]
+   (assert (uuid? id) "expected valid uuid for `id`")
+   (ptk/reify ::archive-branch
+     ptk/WatchEvent
+     (watch [_ _ _]
+       (->> (rp/cmd! :archive-file-branch {:id id :archived archived?})
+            (rx/mapcat (fn [_] (rx/of (fetch-branches))))
+            (rx/catch (fn [_] (rx/of (ntf/error (tr "workspace.branches.lifecycle.error"))))))))))
+
+(defn delete-branch
+  [id]
+  (assert (uuid? id) "expected valid uuid for `id`")
+  (ptk/reify ::delete-branch
+    ptk/WatchEvent
+    (watch [_ _ _]
+      (->> (rp/cmd! :delete-file-branch {:id id})
+           (rx/mapcat (fn [_] (rx/of (ntf/success (tr "workspace.branches.lifecycle.deleted"))
+                                     (fetch-branches))))
+           (rx/catch (fn [_] (rx/of (ntf/error (tr "workspace.branches.lifecycle.error")))))))))
 
 (defn create-branch
   "Force-persist the current file, then create a branch from it. Closing
@@ -126,6 +159,28 @@
     (update [_ state]
       (assoc-in state [:workspace-branch-diff :selected] selected))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; BRANCH CONTEXT (banner when the open file is a branch)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn- set-branch-context
+  [info]
+  (ptk/reify ::set-branch-context
+    ptk/UpdateEvent
+    (update [_ state]
+      (assoc state :workspace-branch-context info))))
+
+(defn fetch-branch-context
+  "Load branch metadata for the current file (nil when it is not a branch)."
+  []
+  (ptk/reify ::fetch-branch-context
+    ptk/WatchEvent
+    (watch [_ state _]
+      (when-let [file-id (:current-file-id state)]
+        (->> (rp/cmd! :get-file-branch-info {:file-id file-id})
+             (rx/map set-branch-context)
+             (rx/catch (fn [_] (rx/of (set-branch-context nil)))))))))
+
 (defn update-branch-from-main
   "Bring main's changes into the branch (reverse of merge). Surfaces
   conflicts / unsupported kinds as notifications."
@@ -141,7 +196,8 @@
              (fn [{:keys [status]}]
                (case status
                  :updated     (rx/of (ntf/success (tr "workspace.branches.update.success"))
-                                     (fetch-branches))
+                                     (fetch-branches)
+                                     (fetch-branch-context))
                  :conflicts   (rx/of (ntf/warn (tr "workspace.branches.update.conflicts")))
                  :unsupported (rx/of (ntf/warn (tr "workspace.branches.update.unsupported")))
                  (rx/of (ntf/error (tr "workspace.branches.update.error"))))))
@@ -188,7 +244,8 @@
                 (case status
                   :merged      (rx/of (modal/hide)
                                       (ntf/success (tr "workspace.branches.merge.success"))
-                                      (fetch-branches))
+                                      (fetch-branches)
+                                      (fetch-branch-context))
                   :conflicts   (rx/of (ntf/warn (tr "workspace.branches.merge.conflicts")))
                   :unsupported (rx/of (ntf/warn (tr "workspace.branches.merge.unsupported")))
                   (rx/of (ntf/error (tr "workspace.branches.merge.error"))))))

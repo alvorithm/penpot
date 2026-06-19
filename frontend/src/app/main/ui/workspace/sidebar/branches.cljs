@@ -8,10 +8,12 @@
   (:require-macros [app.main.style :as stl])
   (:require
    [app.common.data.macros :as dm]
+   [app.config :as cf]
    [app.main.data.modal :as modal]
    [app.main.data.workspace.branches :as dwb]
    [app.main.refs :as refs]
    [app.main.store :as st]
+   [app.main.ui.components.dropdown :refer [dropdown]]
    [app.main.ui.ds.buttons.button :refer [button*]]
    [app.main.ui.ds.buttons.icon-button :refer [icon-button*]]
    [app.main.ui.ds.controls.input :refer [input*]]
@@ -20,6 +22,7 @@
    [app.main.ui.ds.product.empty-state :refer [empty-state*]]
    [app.util.dom :as dom]
    [app.util.i18n :refer [tr]]
+   [app.util.keyboard :as kbd]
    [cuerdas.core :as str]
    [okulary.core :as l]
    [rumext.v2 :as mf]))
@@ -29,6 +32,9 @@
 
 (def ^:private branch-diff
   (l/derived :workspace-branch-diff st/state))
+
+(def ^:private branch-context
+  (l/derived :workspace-branch-context st/state))
 
 (def ^:private kind->icon
   {:shape               i/board
@@ -145,12 +151,17 @@
   (let [author    (get profiles (:created-by entry))
         ahead     (:ahead entry)
         behind    (:behind entry)
+        archived? (contains? #{"archived" "merged"} (:status entry))
+
+        show-menu? (mf/use-state false)
+        editing?   (mf/use-state false)
 
         on-open
         (mf/use-fn
-         (mf/deps entry)
+         (mf/deps entry editing?)
          (fn [_]
-           (st/emit! (dwb/open-branch (:branch-file-id entry)))))
+           (when-not (deref editing?)
+             (st/emit! (dwb/open-branch (:branch-file-id entry))))))
 
         on-compare
         (mf/use-fn
@@ -164,38 +175,107 @@
          (mf/deps entry)
          (fn [event]
            (dom/stop-propagation event)
-           (st/emit! (dwb/update-branch-from-main (:id entry)))))]
+           (st/emit! (dwb/update-branch-from-main (:id entry)))))
 
-    [:li {:class (stl/css :branch-entry)
+        on-open-menu
+        (mf/use-fn (fn [event]
+                     (dom/stop-propagation event)
+                     (reset! show-menu? true)))
+        on-close-menu (mf/use-fn #(reset! show-menu? false))
+
+        on-start-rename
+        (mf/use-fn (fn [] (reset! show-menu? false) (reset! editing? true)))
+
+        on-rename-commit
+        (mf/use-fn
+         (mf/deps entry)
+         (fn [event]
+           (let [value (str/trim (dom/get-target-val event))]
+             (when (and (seq value) (not= value (:name entry)))
+               (st/emit! (dwb/rename-branch (:id entry) value)))
+             (reset! editing? false))))
+
+        on-rename-key-down
+        (mf/use-fn
+         (mf/deps on-rename-commit)
+         (fn [event]
+           (cond
+             (kbd/enter? event) (on-rename-commit event)
+             (kbd/esc? event)   (reset! editing? false))))
+
+        on-archive
+        (mf/use-fn (mf/deps entry)
+                   (fn [] (reset! show-menu? false)
+                     (st/emit! (dwb/archive-branch (:id entry) (not archived?)))))
+
+        on-delete
+        (mf/use-fn
+         (mf/deps entry)
+         (fn []
+           (reset! show-menu? false)
+           (st/emit! (modal/show {:type :confirm
+                                  :title (tr "workspace.branches.delete.title")
+                                  :message (tr "workspace.branches.delete.message" (:name entry))
+                                  :accept-label (tr "labels.delete")
+                                  :accept-style :danger
+                                  :on-accept (fn [_] (st/emit! (dwb/delete-branch (:id entry))))}))))]
+
+    [:li {:class (stl/css-case :branch-entry true :is-archived archived?)
           :role "button"
           :on-click on-open}
      [:div {:class (stl/css :branch-entry-icon)}
       [:> i/icon* {:icon-id i/git-branch}]]
 
      [:div {:class (stl/css :branch-entry-body)}
-      [:span {:class (stl/css :branch-entry-name)} (:name entry)]
+      (if (deref editing?)
+        [:input {:class (stl/css :branch-rename-input)
+                 :default-value (:name entry)
+                 :auto-focus true
+                 :on-click (fn [e] (dom/stop-propagation e))
+                 :on-blur on-rename-commit
+                 :on-key-down on-rename-key-down}]
+        [:span {:class (stl/css :branch-entry-name)} (:name entry)])
       [:div {:class (stl/css :branch-entry-meta)}
        [:span {:class (stl/css :branch-entry-author)}
         (:fullname author)]]]
 
-     [:div {:class (stl/css :branch-entry-counts)}
-      [:span {:class (stl/css :count-ahead)}
-       [:> i/icon* {:icon-id i/arrow-up :size "s"}]
-       (dm/str ahead)]
-      [:span {:class (stl/css :count-behind)}
-       [:> i/icon* {:icon-id i/arrow-down :size "s"}]
-       (dm/str behind)]]
+     (when-not archived?
+       [:div {:class (stl/css :branch-entry-counts)}
+        [:span {:class (stl/css :count-ahead)}
+         [:> i/icon* {:icon-id i/arrow-up :size "s"}]
+         (dm/str ahead)]
+        [:span {:class (stl/css :count-behind)}
+         [:> i/icon* {:icon-id i/arrow-down :size "s"}]
+         (dm/str behind)]])
 
-     (when (pos? behind)
+     (when (and (not archived?) (pos? behind))
        [:> icon-button* {:variant "ghost"
                          :icon i/status-update
                          :aria-label (tr "workspace.branches.update")
                          :on-click on-update}])
 
+     (when-not archived?
+       [:> icon-button* {:variant "ghost"
+                         :icon i/switch
+                         :aria-label (tr "workspace.branches.compare")
+                         :on-click on-compare}])
+
      [:> icon-button* {:variant "ghost"
-                       :icon i/switch
-                       :aria-label (tr "workspace.branches.compare")
-                       :on-click on-compare}]]))
+                       :icon i/menu
+                       :aria-label (tr "labels.options")
+                       :on-click on-open-menu}]
+
+     [:& dropdown {:show (deref show-menu?) :on-close on-close-menu}
+      [:ul {:class (stl/css :branch-options-dropdown)}
+       (when-not archived?
+         [:li {:class (stl/css :menu-option) :role "button" :on-click on-start-rename}
+          (tr "labels.rename")])
+       [:li {:class (stl/css :menu-option) :role "button" :on-click on-archive}
+        (tr (if archived?
+              "workspace.branches.menu.restore"
+              "workspace.branches.menu.archive"))]
+       [:li {:class (stl/css :menu-option) :role "button" :on-click on-delete}
+        (tr "labels.delete")]]]]))
 
 ;; --- Branches panel
 
@@ -210,6 +290,8 @@
         filter*  (mf/use-state "")
         filter-v (deref filter*)
 
+        show-archived? (mf/use-state false)
+
         entries
         (mf/with-memo [data filter-v]
           (->> data
@@ -217,8 +299,14 @@
                             (str/includes? (str/lower (or (:name %) ""))
                                            (str/lower filter-v))))))
 
+        open-entries     (filter #(= "open" (:status %)) entries)
+        archived-entries (remove #(= "open" (:status %)) entries)
+
         on-filter-change
         (mf/use-fn #(reset! filter* (dom/get-target-val %)))
+
+        on-toggle-archived
+        (mf/use-fn #(swap! show-archived? not))
 
         on-create
         (mf/use-fn
@@ -253,11 +341,26 @@
                           :text (tr "workspace.branches.empty")}]]
 
        :else
-       [:ul {:class (stl/css :branches-entries)}
-        (for [entry entries]
-          [:> branch-entry* {:key (dm/str (:id entry))
-                             :entry entry
-                             :profiles profiles}])])]))
+       [:div {:class (stl/css :branches-list)}
+        [:ul {:class (stl/css :branches-entries)}
+         (for [entry open-entries]
+           [:> branch-entry* {:key (dm/str (:id entry))
+                              :entry entry
+                              :profiles profiles}])]
+
+        (when (seq archived-entries)
+          [:div {:class (stl/css :branches-archived)}
+           [:button {:class (stl/css :branches-archived-toggle)
+                     :on-click on-toggle-archived}
+            [:> i/icon* {:icon-id (if (deref show-archived?) i/arrow-down i/arrow-right) :size "s"}]
+            [:span (tr "workspace.branches.archived")]
+            [:span {:class (stl/css :branches-archived-count)} (dm/str (count archived-entries))]]
+           (when (deref show-archived?)
+             [:ul {:class (stl/css :branches-entries)}
+              (for [entry archived-entries]
+                [:> branch-entry* {:key (dm/str (:id entry))
+                                   :entry entry
+                                   :profiles profiles}])])])])]))
 
 ;; --- Compare changes dialog (read-only 3-way diff)
 
@@ -504,3 +607,62 @@
                     :disabled (not all-done?)
                     :on-click on-apply}
         (tr "workspace.branches.conflicts.apply")]]]]))
+
+;; --- Branch context banner (shown while editing a branch)
+
+(mf/defc branch-context-banner*
+  [{:keys [file-id]}]
+  (let [ctx     (mf/deref branch-context)
+        merged? (contains? #{"merged" "archived"} (:status ctx))
+
+        on-compare   (mf/use-fn (mf/deps ctx) #(modal/show! :branch-compare {:branch ctx}))
+        on-update    (mf/use-fn (mf/deps ctx) #(st/emit! (dwb/update-branch-from-main (:id ctx))))
+        on-merge     (mf/use-fn (mf/deps ctx) #(st/emit! (dwb/merge-branch (:id ctx))))
+        on-open-main (mf/use-fn (mf/deps ctx) #(st/emit! (dwb/open-branch (:source-file-id ctx))))]
+
+    (mf/with-effect [file-id]
+      (when (contains? cf/flags :branching)
+        (st/emit! (dwb/fetch-branch-context))))
+
+    (when ctx
+      [:div {:class (stl/css-case :branch-banner true
+                                  :branch-banner-merged merged?)}
+       [:div {:class (stl/css :branch-banner-icon)}
+        [:> i/icon* {:icon-id i/git-branch}]]
+       [:div {:class (stl/css :branch-banner-text)}
+        [:span {:class (stl/css :branch-banner-title)}
+         (tr (if merged?
+               "workspace.branches.banner.merged"
+               "workspace.branches.banner.on-branch"))]
+        [:span {:class (stl/css :branch-banner-name)} (:name ctx)]
+        [:span {:class (stl/css :branch-banner-from)} (tr "workspace.branches.banner.from-main")]]
+
+       (if merged?
+         [:> button* {:variant "secondary"
+                      :icon i/arrow-up-right
+                      :on-click on-open-main}
+          (tr "workspace.branches.banner.view-main")]
+
+         [:div {:class (stl/css :branch-banner-actions)}
+          [:span {:class (stl/css :branch-banner-counts)}
+           [:span {:class (stl/css :count-ahead)}
+            [:> i/icon* {:icon-id i/arrow-up :size "s"}] (dm/str (:ahead ctx))]
+           [:span {:class (stl/css :count-behind)}
+            [:> i/icon* {:icon-id i/arrow-down :size "s"}] (dm/str (:behind ctx))]]
+
+          [:> button* {:variant "secondary"
+                       :icon i/switch
+                       :on-click on-compare}
+           (tr "workspace.branches.compare")]
+
+          (when (pos? (:behind ctx))
+            [:> button* {:variant "primary"
+                         :icon i/status-update
+                         :on-click on-update}
+             (tr "workspace.branches.update")])
+
+          (when (and (zero? (:behind ctx)) (pos? (:ahead ctx)))
+            [:> button* {:variant "primary"
+                         :icon i/git-merge
+                         :on-click on-merge}
+             (tr "workspace.branches.merge.action")])])])))

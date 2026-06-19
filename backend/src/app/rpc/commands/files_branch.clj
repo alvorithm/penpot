@@ -39,7 +39,8 @@
    [app.rpc.quotes :as quotes]
    [app.util.blob :as blob]
    [app.util.pointer-map :as pmap]
-   [app.util.services :as sv]))
+   [app.util.services :as sv]
+   [app.worker :as wrk]))
 
 (defn- check-branching-enabled!
   "Guard the branching commands behind the `:branching` product flag."
@@ -498,3 +499,140 @@
                                             :revn (:revn updated)})
 
                        {:status :updated :revn (:revn updated)}))))))))))))
+
+;; --- COMMAND QUERY: get-file-branch-info
+
+(def ^:private schema:get-file-branch-info
+  [:map {:title "get-file-branch-info"}
+   [:file-id ::sm/uuid]])
+
+(def ^:private sql:get-file-branch-info
+  "SELECT fb.id,
+          fb.branch_file_id,
+          fb.source_file_id,
+          fb.name,
+          fb.description,
+          fb.status,
+          fb.created_by,
+          fb.created_at,
+          fb.base_revn,
+          bf.revn AS branch_revn,
+          sf.revn AS source_revn
+     FROM file_branch AS fb
+     JOIN file AS bf ON (bf.id = fb.branch_file_id)
+     JOIN file AS sf ON (sf.id = fb.source_file_id)
+    WHERE fb.branch_file_id = ?
+      AND fb.deleted_at IS NULL")
+
+(sv/defmethod ::get-file-branch-info
+  "If the given file is a branch, return its branch metadata (with cheap
+  revn-based ahead/behind); otherwise nil. Returns nil when branching is
+  disabled, so it is safe to call on every file open."
+  {::doc/added "2.16"
+   ::sm/params schema:get-file-branch-info}
+  [cfg {:keys [::rpc/profile-id file-id]}]
+  (when (contains? cf/flags :branching)
+    (db/run! cfg
+             (fn [{:keys [::db/conn]}]
+               (files/check-read-permissions! conn profile-id file-id)
+               (when-let [{:keys [branch-revn source-revn base-revn] :as row}
+                          (db/exec-one! conn [sql:get-file-branch-info file-id])]
+                 (-> row
+                     (assoc :ahead (max 0 (- branch-revn base-revn)))
+                     (assoc :behind (max 0 (- source-revn base-revn)))
+                     (dissoc :branch-revn :source-revn)))))))
+
+;; --- COMMAND: update-file-branch (rename / description)
+
+(def ^:private schema:update-file-branch
+  [:map {:title "update-file-branch"}
+   [:id ::sm/uuid]
+   [:name {:optional true} [:string {:max 250}]]
+   [:description {:optional true} [:string {:max 4000}]]])
+
+(sv/defmethod ::update-file-branch
+  "Rename a branch or update its description."
+  {::doc/added "2.16"
+   ::sm/params schema:update-file-branch
+   ::db/transaction true}
+  [{:keys [::db/conn] :as cfg} {:keys [::rpc/profile-id id name description]}]
+  (check-branching-enabled!)
+  (let [branch (db/get* conn :file-branch {:id id})]
+    (when (or (nil? branch) (some? (:deleted-at branch)))
+      (ex/raise :type :not-found :code :branch-not-found :branch-id id))
+    (files/check-edition-permissions! cfg profile-id (:branch-file-id branch))
+    (db/update! conn :file-branch
+                (cond-> {:updated-at (ct/now)}
+                  (some? name)        (assoc :name name)
+                  (some? description) (assoc :description description))
+                {:id id}
+                {::db/return-keys false})
+    {:id id :name name :description description}))
+
+;; --- COMMAND: archive-file-branch
+
+(def ^:private schema:archive-file-branch
+  [:map {:title "archive-file-branch"}
+   [:id ::sm/uuid]
+   [:archived {:optional true} :boolean]])
+
+(sv/defmethod ::archive-file-branch
+  "Archive (hide from the default list) or restore a branch."
+  {::doc/added "2.16"
+   ::sm/params schema:archive-file-branch
+   ::db/transaction true}
+  [{:keys [::db/conn] :as cfg} {:keys [::rpc/profile-id id archived]}]
+  (check-branching-enabled!)
+  (let [branch (db/get* conn :file-branch {:id id})]
+    (when (or (nil? branch) (some? (:deleted-at branch)))
+      (ex/raise :type :not-found :code :branch-not-found :branch-id id))
+    (when (= "merged" (:status branch))
+      (ex/raise :type :validation :code :branch-merged :branch-id id))
+    (files/check-edition-permissions! cfg profile-id (:branch-file-id branch))
+    (let [status (if (false? archived) "open" "archived")]
+      (db/update! conn :file-branch
+                  {:status status :updated-at (ct/now)}
+                  {:id id}
+                  {::db/return-keys false})
+      {:id id :status status})))
+
+;; --- COMMAND: delete-file-branch
+
+(def ^:private schema:delete-file-branch
+  [:map {:title "delete-file-branch"}
+   [:id ::sm/uuid]])
+
+(sv/defmethod ::delete-file-branch
+  "Logically delete a branch: marks the branch metadata and the branch
+  file as deleted (with the team's deletion delay) and schedules the
+  file object for GC, mirroring the normal file deletion path."
+  {::doc/added "2.16"
+   ::webhooks/event? true
+   ::sm/params schema:delete-file-branch}
+  [{:keys [::mbus/msgbus] :as cfg} {:keys [::rpc/profile-id id]}]
+  (check-branching-enabled!)
+  (let [branch (db/get* cfg :file-branch {:id id})]
+    (when (or (nil? branch) (some? (:deleted-at branch)))
+      (ex/raise :type :not-found :code :branch-not-found :branch-id id))
+    (let [branch-file-id (:branch-file-id branch)]
+      (files/check-edition-permissions! cfg profile-id branch-file-id)
+      (db/tx-run!
+       cfg
+       (fn [{:keys [::db/conn] :as cfg}]
+         (let [team (teams/get-team conn :profile-id profile-id :file-id branch-file-id)
+               dt   (ct/in-future (ldel/get-deletion-delay team))]
+           (db/update! conn :file {:deleted-at dt} {:id branch-file-id} {::db/return-keys false})
+           (db/delete! conn :file-library-rel {:library-file-id branch-file-id})
+           (db/update! conn :file-branch
+                       {:deleted-at dt :status "archived" :updated-at (ct/now)}
+                       {:id id}
+                       {::db/return-keys false})
+           (wrk/submit! {::db/conn conn
+                         ::wrk/task :delete-object
+                         ::wrk/params {:object :file :deleted-at dt :id branch-file-id}})
+           (mbus/pub! msgbus
+                      :topic branch-file-id
+                      :message {:type :file-deleted
+                                :file-id branch-file-id
+                                :profile-id profile-id})
+           {:status :deleted}))))))

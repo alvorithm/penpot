@@ -30,6 +30,7 @@
    [app.main.ui.workspace.palette :refer [palette*]]
    [app.main.ui.workspace.plugins]
    [app.main.ui.workspace.sidebar :refer [sidebar*]]
+   [app.main.ui.workspace.sidebar.branches :refer [branch-context-banner*]]
    [app.main.ui.workspace.sidebar.history :refer [history-toolbox*]]
    [app.main.ui.workspace.tokens.export]
    [app.main.ui.workspace.tokens.export.modal]
@@ -87,6 +88,9 @@
 
         node-ref (use-resize-observer on-resize)]
     [:*
+     (when (not ^boolean hide-ui?)
+       [:> branch-context-banner* {:file-id (get file :id)}])
+
      (when (not ^boolean hide-ui?)
        [:> palette* {:layout layout
                      :on-change-size on-resize-palette}])

@@ -456,3 +456,134 @@
   gap: var(--sp-s);
   margin-top: var(--sp-l);
 }
+
+// --- Branch context banner
+
+.branch-banner {
+  position: absolute;
+  z-index: 10;
+  inset-block-start: var(--sp-s);
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-m);
+  max-inline-size: 90vw;
+  padding: var(--sp-s) var(--sp-m);
+  border-radius: 12px;
+  border: 1px solid var(--color-background-quaternary);
+  background-color: var(--color-background-secondary);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
+}
+
+.branch-banner-icon {
+  display: flex;
+  align-items: center;
+  color: var(--color-accent-primary);
+
+  .branch-banner-merged & {
+    color: var(--color-foreground-secondary);
+  }
+}
+
+.branch-banner-text {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-xs);
+
+  @include t.use-typography("body-small");
+}
+
+.branch-banner-title,
+.branch-banner-from {
+  color: var(--color-foreground-secondary);
+}
+
+.branch-banner-name {
+  color: var(--color-foreground-primary);
+  font-weight: 700;
+}
+
+.branch-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-s);
+}
+
+.branch-banner-counts {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-s);
+
+  @include t.use-typography("body-small");
+}
+
+// --- Lifecycle: kebab menu, rename, archived section
+
+.branch-entry.is-archived {
+  opacity: 0.7;
+}
+
+.branch-rename-input {
+  inline-size: 100%;
+  padding: var(--sp-xxs) var(--sp-xs);
+  border-radius: 8px;
+  border: 1px solid var(--color-accent-primary);
+  background-color: var(--color-background-tertiary);
+  color: var(--color-foreground-primary);
+
+  @include t.use-typography("body-medium");
+}
+
+.branch-options-dropdown {
+  margin: 0;
+  padding: var(--sp-xs);
+  list-style: none;
+  border-radius: 8px;
+  border: 1px solid var(--color-background-quaternary);
+  background-color: var(--color-background-secondary);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
+}
+
+.menu-option {
+  padding: var(--sp-xs) var(--sp-s);
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+
+  @include t.use-typography("body-medium");
+
+  &:hover {
+    background-color: var(--color-background-tertiary);
+  }
+}
+
+.branches-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-s);
+  overflow-y: auto;
+}
+
+.branches-archived {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+}
+
+.branches-archived-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  padding: var(--sp-xs);
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--color-foreground-secondary);
+
+  @include t.use-typography("body-small");
+}
+
+.branches-archived-count {
+  margin-inline-start: auto;
+}

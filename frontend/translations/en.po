@@ -6547,8 +6547,41 @@ msgstr "Text Transform"
 msgid "workspace.assets.ungroup"
 msgstr "Ungroup"
 
+msgid "workspace.branches.archived"
+msgstr "Archived"
+
+msgid "workspace.branches.banner.from-main"
+msgstr "from main"
+
+msgid "workspace.branches.banner.merged"
+msgstr "Merged branch"
+
+msgid "workspace.branches.banner.on-branch"
+msgstr "On branch"
+
+msgid "workspace.branches.banner.view-main"
+msgstr "View in main"
+
 msgid "workspace.branches.compare"
 msgstr "Compare"
+
+msgid "workspace.branches.delete.message"
+msgstr "Delete branch \"%s\"? This cannot be undone."
+
+msgid "workspace.branches.delete.title"
+msgstr "Delete branch"
+
+msgid "workspace.branches.lifecycle.deleted"
+msgstr "Branch deleted"
+
+msgid "workspace.branches.lifecycle.error"
+msgstr "The branch operation could not be completed"
+
+msgid "workspace.branches.menu.archive"
+msgstr "Archive"
+
+msgid "workspace.branches.menu.restore"
+msgstr "Restore"
 
 msgid "workspace.branches.compare.attr"
 msgstr "Property"
