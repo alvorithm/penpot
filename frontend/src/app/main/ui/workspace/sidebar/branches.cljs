@@ -178,7 +178,7 @@
          (mf/deps entry)
          (fn [event]
            (dom/stop-propagation event)
-           (st/emit! (dwb/update-branch-from-main (:id entry)))))
+           (st/emit! (dwb/update-branch-from-main entry))))
 
         on-open-menu
         (mf/use-fn (fn [event]
@@ -529,7 +529,7 @@
 (mf/defc branch-conflicts-dialog*
   {::mf/register modal/components
    ::mf/register-as :branch-conflicts}
-  [{:keys [branch]}]
+  [{:keys [branch mode]}]
   (let [{:keys [diff selected resolutions]} (mf/deref branch-diff)
 
         conflicts   (:conflicts diff)
@@ -550,8 +550,10 @@
                                  #(when sel (st/emit! (dwb/set-conflict-resolution (:id sel) :main))))
         on-use-branch (mf/use-fn (mf/deps sel)
                                  #(when sel (st/emit! (dwb/set-conflict-resolution (:id sel) :branch))))
-        on-apply      (mf/use-fn (mf/deps branch resolutions)
-                                 #(st/emit! (dwb/merge-branch (:id branch) resolutions)))]
+        on-apply      (mf/use-fn (mf/deps branch resolutions mode)
+                                 #(st/emit! (if (= mode :update)
+                                              (dwb/update-branch-from-main branch resolutions)
+                                              (dwb/merge-branch (:id branch) resolutions))))]
 
     (mf/with-effect [(:id branch)]
       (st/emit! (dwb/fetch-branch-diff (:id branch))))
@@ -619,7 +621,7 @@
         merged? (contains? #{"merged" "archived"} (:status ctx))
 
         on-compare   (mf/use-fn (mf/deps ctx) #(modal/show! :branch-compare {:branch ctx}))
-        on-update    (mf/use-fn (mf/deps ctx) #(st/emit! (dwb/update-branch-from-main (:id ctx))))
+        on-update    (mf/use-fn (mf/deps ctx) #(st/emit! (dwb/update-branch-from-main ctx)))
         on-merge     (mf/use-fn (mf/deps ctx) #(st/emit! (dwb/merge-branch (:id ctx))))
         on-open-main (mf/use-fn (mf/deps ctx) #(st/emit! (dwb/open-branch (:source-file-id ctx))))]
 

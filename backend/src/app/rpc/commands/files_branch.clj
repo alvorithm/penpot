@@ -228,7 +228,9 @@
 (def ^:private schema:merge-file-branch
   [:map {:title "merge-file-branch"}
    [:branch-id ::sm/uuid]
-   [:resolutions {:optional true} [:map-of ::sm/uuid :keyword]]
+   ;; conflict resolutions keyed by entity id (uuid) or, for structural
+   ;; conflicts, a keyword id like :active-themes
+   [:resolutions {:optional true} [:map-of :any :keyword]]
    [:expected-main-revn {:optional true} ::sm/int]])
 
 (sv/defmethod ::merge-file-branch
@@ -374,22 +376,24 @@
 
 (def ^:private schema:update-branch-from-main
   [:map {:title "update-branch-from-main"}
-   [:branch-id ::sm/uuid]])
+   [:branch-id ::sm/uuid]
+   ;; resolutions in UI terms: id -> :main (take main) | :branch (keep branch)
+   [:resolutions {:optional true} [:map-of :any :keyword]]])
 
 (sv/defmethod ::update-branch-from-main
   "Bring the changes main received since the merge base into the branch
-  (the reverse direction of a merge). Phase 5 scope: clean updates only.
-  Returns `{:status :conflicts}` when main and the branch diverged on the
-  same entity (resolve at merge time for now), or `{:status :unsupported}`
-  for change kinds not yet translatable. On success it applies main's
-  changes to the branch, takes a safety snapshot, and repositions the
-  merge base to the current state of main."
+  (the reverse direction of a merge). Returns `{:status :conflicts}` when
+  main and the branch diverged on the same entity and it is not resolved
+  in `resolutions`, or `{:status :unsupported}` for change kinds not yet
+  translatable. On success it applies main's changes (and any conflicts
+  resolved to main) to the branch, takes a safety snapshot, and
+  repositions the merge base to the current state of main."
   {::doc/added "2.16"
    ::webhooks/event? true
    ::sm/params schema:update-branch-from-main
    ::climit/id [[:update-branch-from-main/global]]}
   [{:keys [::mbus/msgbus] :as cfg}
-   {:keys [::rpc/profile-id ::rpc/session-id branch-id]}]
+   {:keys [::rpc/profile-id ::rpc/session-id branch-id resolutions]}]
   (check-branching-enabled!)
   (let [branch (db/get* cfg :file-branch {:id branch-id})]
     (when (or (nil? branch) (some? (:deleted-at branch)))
@@ -429,17 +433,28 @@
 
                conflicts
                (:conflicts (bm/compute-merge base-data (:data main-file)
-                                             (:data branch-file) :main->branch))]
+                                             (:data branch-file) :main->branch))
+
+               resolved?  (fn [c] (contains? #{:main :branch} (get resolutions (:id c))))
+               unresolved (remove resolved? conflicts)
+
+               ;; UI resolutions are in main/branch terms; the update applies
+               ;; main->branch (compute-changes target=branch, source=main),
+               ;; where :branch means "take the source (main)". So invert.
+               inverted (into {} (map (fn [[k v]]
+                                        [k (case v :main :branch, :branch :main, v)]))
+                              resolutions)]
 
            (cond
-             (seq conflicts)
+             (seq unresolved)
              {:status :conflicts :count (count conflicts)}
 
              :else
              ;; target = branch, source = main -> changes that bring main's
-             ;; net changes into the branch
+             ;; net changes (and conflicts resolved to main) into the branch
              (let [{:keys [changes unsupported]}
-                   (bm/compute-changes base-data (:data branch-file) (:data main-file))]
+                   (bm/compute-changes base-data (:data branch-file) (:data main-file)
+                                       (or inverted {}))]
                (cond
                  (seq unsupported)
                  {:status :unsupported :kinds (vec unsupported)}

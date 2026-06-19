@@ -193,27 +193,30 @@
              (rx/catch (fn [_] (rx/of (set-branch-context nil)))))))))
 
 (defn update-branch-from-main
-  "Bring main's changes into the branch (reverse of merge). Surfaces
-  conflicts / unsupported kinds as notifications."
-  [branch-id]
-  (assert (uuid? branch-id) "expected valid uuid for `branch-id`")
-  (ptk/reify ::update-branch-from-main
-    ptk/WatchEvent
-    (watch [_ _ _]
-      (rx/concat
-       (rx/of (ev/event {::ev/name "update-branch-from-main"}))
-       (->> (rp/cmd! :update-branch-from-main {:branch-id branch-id})
-            (rx/mapcat
-             (fn [{:keys [status]}]
-               (case status
-                 :updated     (rx/of (ntf/success (tr "workspace.branches.update.success"))
-                                     (fetch-branches)
-                                     (fetch-branch-context))
-                 :conflicts   (rx/of (ntf/warn (tr "workspace.branches.update.conflicts")))
-                 :unsupported (rx/of (ntf/warn (tr "workspace.branches.update.unsupported")))
-                 (rx/of (ntf/error (tr "workspace.branches.update.error"))))))
-            (rx/catch (fn [_]
-                        (rx/of (ntf/error (tr "workspace.branches.update.error"))))))))))
+  "Bring main's changes into the branch (reverse of merge). `branch` is the
+  branch row. With conflicts and no `resolutions`, opens the conflict
+  resolution modal in update mode; with resolutions, applies them."
+  ([branch] (update-branch-from-main branch nil))
+  ([branch resolutions]
+   (ptk/reify ::update-branch-from-main
+     ptk/WatchEvent
+     (watch [_ _ _]
+       (rx/concat
+        (rx/of (ev/event {::ev/name "update-branch-from-main"}))
+        (->> (rp/cmd! :update-branch-from-main (cond-> {:branch-id (:id branch)}
+                                                 (seq resolutions) (assoc :resolutions resolutions)))
+             (rx/mapcat
+              (fn [{:keys [status]}]
+                (case status
+                  :updated     (rx/of (modal/hide)
+                                      (ntf/success (tr "workspace.branches.update.success"))
+                                      (fetch-branches)
+                                      (fetch-branch-context))
+                  :conflicts   (rx/of (modal/show :branch-conflicts {:branch branch :mode :update}))
+                  :unsupported (rx/of (ntf/warn (tr "workspace.branches.update.unsupported")))
+                  (rx/of (ntf/error (tr "workspace.branches.update.error"))))))
+             (rx/catch (fn [_]
+                         (rx/of (ntf/error (tr "workspace.branches.update.error")))))))))))
 
 (defn set-conflict-resolution
   "Choose `:main` or `:branch` for a single conflicting entity (by id)."

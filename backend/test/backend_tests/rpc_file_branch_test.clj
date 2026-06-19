@@ -299,6 +299,59 @@
           (t/is (some? (:deleted-at row)))
           (t/is (some? (:deleted-at frow))))))))
 
+(t/deftest update-resolves-conflict-to-main
+  (with-redefs [cf/flags (conj cf/flags :branching)]
+    (let [profile (th/create-profile* 1 {:is-active true})
+          proj-id (:default-project-id profile)
+          file    (th/create-file* 1 {:profile-id (:id profile)
+                                      :project-id proj-id
+                                      :is-shared false})
+          cid     (uuid/random)
+          apply-change
+          (fn [file-id change]
+            (let [f (th/db-get :file {:id file-id})]
+              (th/command! {::th/type :update-file
+                            ::rpc/profile-id (:id profile)
+                            :id file-id
+                            :session-id (uuid/random)
+                            :revn (:revn f)
+                            :vern (:vern f)
+                            :features cfeat/supported-features
+                            :changes [change]})))]
+
+      ;; color exists on main before branching (base = red)
+      (apply-change (:id file) {:type :add-color :color {:id cid :name "Brand" :color "#ff0000" :opacity 1}})
+
+      (let [create (:result (th/command! {::th/type :create-file-branch
+                                          ::rpc/profile-id (:id profile)
+                                          :file-id (:id file)
+                                          :name "b"}))
+            branch-id      (:id create)
+            branch-file-id (:branch-file-id create)]
+
+        ;; main edits the color -> green; branch edits it -> blue (conflict)
+        (apply-change (:id file) {:type :mod-color :color {:id cid :name "Brand" :color "#00ff00" :opacity 1}})
+        (apply-change branch-file-id {:type :mod-color :color {:id cid :name "Brand" :color "#0000ff" :opacity 1}})
+
+        (t/testing "update without resolutions reports conflicts"
+          (let [out (th/command! {::th/type :update-branch-from-main
+                                  ::rpc/profile-id (:id profile)
+                                  :branch-id branch-id})]
+            (t/is (= :conflicts (-> out :result :status)))))
+
+        (t/testing "resolving to main brings main's value into the branch"
+          (let [out (th/command! {::th/type :update-branch-from-main
+                                  ::rpc/profile-id (:id profile)
+                                  :branch-id branch-id
+                                  :resolutions {cid :main}})]
+            (t/is (nil? (:error out)))
+            (t/is (= :updated (-> out :result :status))))
+          (let [out   (th/command! {::th/type :get-file
+                                    ::rpc/profile-id (:id profile)
+                                    :id branch-file-id})
+                color (get-in out [:result :data :colors cid])]
+            (t/is (= "#00ff00" (:color color)))))))))
+
 (t/deftest branching-disabled-raises
   (let [profile (th/create-profile* 1 {:is-active true})
         proj-id (:default-project-id profile)
