@@ -258,7 +258,11 @@
           f.vern,
           f.is_shared,
           ft.media_id AS thumbnail_id,
-          p.team_id
+          p.team_id,
+          (select count(*) from file_branch as fb
+            where fb.source_file_id = f.id
+              and fb.deleted_at is null
+              and fb.status = 'open') as branches_count
      from file as f
      inner join project as p on (p.id = f.project_id)
      left join file_thumbnail as ft on (ft.file_id = f.id
@@ -733,6 +737,10 @@
             f.name,
             f.is_shared,
             ft.media_id AS thumbnail_id,
+            (select count(*) from file_branch as fb
+              where fb.source_file_id = f.id
+                and fb.deleted_at is null
+                and fb.status = 'open') as branches_count,
             row_number() over w as row_num,
             p.team_id
        from file as f

@@ -382,3 +382,13 @@ $thumbnail-default-height: deprecated.$s-168; // Default width
 .deleted-item {
   opacity: 0.5;
 }
+
+.branches-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-end: var(--sp-xs);
+  padding: var(--sp-xxs) var(--sp-xs);
+  border-radius: 8px;
+  color: var(--color-accent-primary);
+  background-color: var(--color-background-tertiary);
+}

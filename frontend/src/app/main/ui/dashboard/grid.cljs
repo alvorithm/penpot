@@ -242,10 +242,15 @@
 (mf/defc grid-item-metadata*
   [{:keys [file]}]
   (let [time (ct/timeago (or (:will-be-deleted-at file)
-                             (:modified-at file)))]
-    [:span {:class (stl/css :date)
-            :title (tr "dashboard.deleted.will-be-deleted-at" time)}
-     time]))
+                             (:modified-at file)))
+        n    (or (:branches-count file) 0)]
+    [:*
+     (when (and (contains? cf/flags :branching) (pos? n))
+       [:span {:class (stl/css :branches-badge)}
+        (tr "dashboard.branches-badge" (str n))])
+     [:span {:class (stl/css :date)
+             :title (tr "dashboard.deleted.will-be-deleted-at" time)}
+      time]]))
 
 (defn create-counter-element
   [_element file-count]

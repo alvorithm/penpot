@@ -358,6 +358,12 @@ msgstr "Add file"
 msgid "dashboard.add-shared"
 msgstr "Add as Shared Library"
 
+msgid "dashboard.branches-badge"
+msgstr "%s branches"
+
+msgid "dashboard.create-branch"
+msgstr "Create branch…"
+
 #: src/app/main/ui/settings/profile.cljs:75
 msgid "dashboard.change-email"
 msgstr "Change email"

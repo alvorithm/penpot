@@ -88,32 +88,43 @@
            (rx/catch (fn [_] (rx/of (ntf/error (tr "workspace.branches.lifecycle.error")))))))))
 
 (defn create-branch
-  "Force-persist the current file, then create a branch from it. Closing
-  the dialog is responsibility of the caller; errors surface as a toast."
-  [name description]
-  (assert (string? name) "expected string for `name`")
-  (ptk/reify ::create-branch
-    ptk/WatchEvent
-    (watch [_ state _]
-      (let [file-id (:current-file-id state)]
-        ;; Force persist before branching, otherwise the merge base
-        ;; snapshot could miss the latest local changes.
-        (rx/concat
-         (rx/of ::dwp/force-persist
-                (ev/event {::ev/name "create-branch"}))
-
-         (->> (dwp/wait-persisted)
-              (rx/mapcat #(rp/cmd! :create-file-branch
-                                   {:file-id file-id
-                                    :name name
-                                    :description description}))
-              (rx/mapcat
-               (fn [_]
-                 (rx/of (ntf/success (tr "workspace.branches.create.success" name))
-                        (fetch-branches))))
-              (rx/catch
-               (fn [_]
-                 (rx/of (ntf/error (tr "workspace.branches.create.error")))))))))))
+  "Create a branch from a file. With no `file-id`, branches the currently
+  open file (force-persisting first so the merge base captures the latest
+  edits) and refreshes the panel. With an explicit `file-id` (e.g. from
+  the dashboard, where the file is not open), creates it directly and
+  opens the new branch. Errors surface as a toast; the caller closes the
+  dialog."
+  ([name description] (create-branch nil name description))
+  ([file-id name description]
+   (assert (string? name) "expected string for `name`")
+   (ptk/reify ::create-branch
+     ptk/WatchEvent
+     (watch [_ state _]
+       (let [current-id (:current-file-id state)
+             from-ws?   (and (nil? file-id) (some? current-id))
+             target-id  (or file-id current-id)
+             ;; Force-persist only makes sense for the open file.
+             persist    (if from-ws?
+                          (rx/concat (rx/of ::dwp/force-persist) (dwp/wait-persisted))
+                          (rx/of :ready))]
+         (rx/concat
+          (rx/of (ev/event {::ev/name "create-branch"}))
+          (->> persist
+               (rx/mapcat #(rp/cmd! :create-file-branch
+                                    {:file-id target-id
+                                     :name name
+                                     :description description}))
+               (rx/mapcat
+                (fn [{:keys [branch-file-id]}]
+                  (rx/concat
+                   (rx/of (ntf/success (tr "workspace.branches.create.success" name)))
+                   (if from-ws?
+                     (rx/of (fetch-branches))
+                     ;; from dashboard: jump into the new branch
+                     (rx/of (dcm/go-to-workspace :file-id branch-file-id))))))
+               (rx/catch
+                (fn [_]
+                  (rx/of (ntf/error (tr "workspace.branches.create.error"))))))))))))
 
 (defn open-branch
   "Navigate to the branch file as a normal workspace file."

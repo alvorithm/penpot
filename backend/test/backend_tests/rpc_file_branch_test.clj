@@ -52,9 +52,13 @@
                                 ::rpc/profile-id (:id profile)
                                 :project-id proj-id})]
           (t/is (nil? (:error out)))
-          (let [ids (set (map :id (:result out)))]
+          (let [rows (:result out)
+                ids  (set (map :id rows))
+                src  (first (filter #(= (:id %) (:id file)) rows))]
             (t/is (contains? ids (:id file)))
-            (t/is (not (contains? ids @branch-file-id))))))
+            (t/is (not (contains? ids @branch-file-id)))
+            ;; the source file card reports its open branch count
+            (t/is (= 1 (:branches-count src))))))
 
       (t/testing "list branches"
         (let [out (th/command! {::th/type :get-file-branches
