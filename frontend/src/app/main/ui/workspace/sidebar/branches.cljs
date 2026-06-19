@@ -43,6 +43,8 @@
    :typography          i/text
    :media               i/img
    :page                i/document
+   :page-attrs          i/document
+   :page-order          i/document
    :token               i/tokens
    :token-set           i/tokens
    :token-set-rename    i/tokens

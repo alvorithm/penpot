@@ -126,28 +126,47 @@
   {:changes   (into [] (mapcat :changes) results)
    :conflicts (into [] (mapcat :conflicts) results)})
 
+(defn- present-map
+  [ids]
+  (zipmap ids (repeat true)))
+
+(defn- page-meta
+  "Page attrs mergeable via `:mod-page` (name/background/pixel-grid)."
+  [page]
+  (select-keys page [:name :background :pixel-grid-color :pixel-grid-opacity]))
+
+(defn- page-extra
+  "Other page attrs (options/guides/flows/...) — not yet mergeable."
+  [page]
+  (dissoc page :objects :id :name :background :pixel-grid-color :pixel-grid-opacity))
+
 (defn- diff-pages
-  "Diff page set (add/remove/rename, objects excluded) plus, for every
-  page present on both sides, the page's objects (shapes)."
   [base theirs ours]
-  (let [strip      (fn [index]
-                     (persistent!
-                      (reduce-kv (fn [acc k v] (assoc! acc k (dissoc v :objects)))
-                                 (transient {})
-                                 (or index {}))))
-        page-diff  (three-way-entities (strip (:pages-index base))
-                                       (strip (:pages-index theirs))
-                                       (strip (:pages-index ours))
-                                       {:kind :page})
-        common-ids (set/intersection (set (keys (:pages-index theirs)))
-                                     (set (keys (:pages-index ours))))
-        obj-diffs  (map (fn [page-id]
-                          (three-way-entities (get-in base [:pages-index page-id :objects] {})
-                                              (get-in theirs [:pages-index page-id :objects] {})
-                                              (get-in ours [:pages-index page-id :objects] {})
-                                              {:kind :shape :page-id page-id}))
-                        common-ids)]
-    (merge-results (cons page-diff obj-diffs))))
+  (let [bpi (or (:pages-index base) {}) tpi (or (:pages-index theirs) {}) opi (or (:pages-index ours) {})
+        bids (set (keys bpi)) tids (set (keys tpi)) oids (set (keys opi))
+        common (set/intersection bids tids oids)
+
+        ;; page add/delete (mergeable: :page)
+        presence (three-way-entities (present-map bids) (present-map tids) (present-map oids)
+                                     {:kind :page})
+        ;; page name/background/grid on common pages (mergeable: :page via mod-page)
+        meta-map (fn [pi] (into {} (map (fn [id] [id (page-meta (get pi id))])) common))
+        meta-diff (three-way-entities (meta-map bpi) (meta-map tpi) (meta-map opi) {:kind :page})
+        ;; other page attrs (options/guides/flows) on common pages (NOT yet mergeable)
+        extra-map (fn [pi] (into {} (map (fn [id] [id (page-extra (get pi id))])) common))
+        extra-diff (three-way-entities (extra-map bpi) (extra-map tpi) (extra-map opi) {:kind :page-attrs})
+        ;; page order on common pages (NOT yet mergeable)
+        order-of (fn [data] (filterv common (or (:pages data) [])))
+        order (three-way-entities {:order (order-of base)} {:order (order-of theirs)} {:order (order-of ours)}
+                                  {:kind :page-order})
+        ;; objects (shapes) on common pages (mergeable: :shape)
+        obj-diffs (map (fn [pid]
+                         (three-way-entities (get-in base [:pages-index pid :objects] {})
+                                             (get-in theirs [:pages-index pid :objects] {})
+                                             (get-in ours [:pages-index pid :objects] {})
+                                             {:kind :shape :page-id pid}))
+                       common)]
+    (merge-results (concat [presence meta-diff extra-diff order] obj-diffs))))
 
 ;; --- Tokens ---
 ;;
@@ -204,10 +223,6 @@
   [lib]
   {:paths (if lib (set (ctob/get-active-theme-paths lib)) #{})
    :hidden-sets (some-> lib (ctob/get-theme ctob/hidden-theme-id) :sets set)})
-
-(defn- present-map
-  [ids]
-  (zipmap ids (repeat true)))
 
 (defn- diff-tokens
   [base theirs ours]
@@ -282,7 +297,8 @@
 ;; Kinds `compute-changes` can translate into change ops. Components,
 ;; pages (add/remove/rename) and tokens are not yet supported and cause
 ;; the merge to refuse rather than silently drop changes.
-(def ^:private mergeable-kinds #{:color :typography :media :shape :token :token-set :token-theme})
+(def ^:private mergeable-kinds
+  #{:color :typography :media :shape :token :token-set :token-theme :page :component})
 
 (defn unsupported-kinds
   "Set of change kinds present in `changes` that `compute-changes`
@@ -441,9 +457,31 @@
                               (fn [_ o] {:type :mod-media :object o})
                               (fn [id] {:type :del-media :id id}))
 
-         common-pages (set/intersection (set (keys (:pages-index main)))
-                                        (set (keys (:pages-index branch))))
+         ;; pages: add (full page incl. objects) / delete + rename (mod-page)
+         bpi (:pages-index base) mpi (:pages-index main) opi (:pages-index branch)
+         bpids (set (keys bpi)) mpids (set (keys mpi)) opids (set (keys opi))
+         common-pages (set/intersection mpids opids)
+         tri-common-pages (set/intersection bpids mpids opids)
+
+         page-presence (->> (flat-changes (present-map bpids) (present-map mpids) (present-map opids) resolutions
+                                          (fn [pid _] {:type :add-page :page (get opi pid)})
+                                          (fn [_ _] nil)
+                                          (fn [pid] {:type :del-page :id pid}))
+                            (filterv some?))
+         pmeta (fn [pi] (into {} (map (fn [id] [id (page-meta (get pi id))])) tri-common-pages))
+         page-meta-changes (->> (flat-changes (pmeta bpi) (pmeta mpi) (pmeta opi) resolutions
+                                              (fn [_ _] nil)
+                                              (fn [pid m] (assoc m :type :mod-page :id pid))
+                                              (fn [_] nil))
+                                (filterv some?))
+
          shapes (into [] (mapcat #(page-shape-changes base main branch resolutions %)) common-pages)
+
+         ;; components: row metadata (shapes handled by the shape/page passes)
+         components (flat-changes (:components base) (:components main) (:components branch) resolutions
+                                  (fn [_ c] (assoc c :type :add-component))
+                                  (fn [_ c] (assoc c :type :mod-component))
+                                  (fn [id] {:type :del-component :id id}))
 
          bl (:tokens-lib base) ml (:tokens-lib main) ol (:tokens-lib branch)
          set-ids (set/union (lib-set-ids bl) (lib-set-ids ml) (lib-set-ids ol))
@@ -482,5 +520,6 @@
                               (fn [tid] {:type :set-token-theme :id tid :attrs nil}))]
 
      {:unsupported unsupported
-      :changes     (vec (concat colors typos media shapes
+      :changes     (vec (concat page-presence shapes page-meta-changes components
+                                colors typos media
                                 set-presence token-vals themes))})))

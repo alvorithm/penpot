@@ -20,6 +20,13 @@
    :components   {}
    :media        {}})
 
+(defn- pages-data
+  [pages-index pages & {:keys [components]}]
+  {:pages-index pages-index
+   :pages pages
+   :colors {} :typographies {} :media {}
+   :components (or components {})})
+
 (t/deftest identity-no-changes
   (let [base (mkdata {:s1 {:id :s1 :name "A" :fill "red"}})
         r    (bm/compute-merge base base base :branch->main)]
@@ -142,11 +149,13 @@
     ;; children membership is not re-set via :shapes ops
     (t/is (empty? (filter #(and (= :mod-obj (:type %)) (= :root (:id %))) changes)))))
 
-(t/deftest compute-changes-refuses-unsupported-kinds
-  (let [base   {:pages-index {} :colors {} :typographies {} :media {} :components {}}
-        branch (assoc base :components {:cmp1 {:id :cmp1 :name "Button"}})
+(t/deftest compute-changes-page-reorder-unsupported
+  (let [p1 {:id :p1 :name "P1" :objects {}}
+        p2 {:id :p2 :name "P2" :objects {}}
+        base   (pages-data {:p1 p1 :p2 p2} [:p1 :p2])
+        branch (pages-data {:p1 p1 :p2 p2} [:p2 :p1])
         {:keys [unsupported]} (bm/compute-changes base base branch)]
-    (t/is (contains? unsupported :component))))
+    (t/is (contains? unsupported :page-order))))
 
 (t/deftest compute-changes-resolve-shape-conflict
   (let [base   (mkdata {:s1 {:id :s1 :name "A" :fill "red"}})
@@ -265,6 +274,69 @@
     (t/is (= thid (:id (first thm))))
     (let [data' (cfc/process-changes {:tokens-lib base-lib} changes)]
       (t/is (some? (ctob/get-theme (:tokens-lib data') thid))))))
+
+;; --- pages
+
+(t/deftest compute-changes-page-add
+  (let [p1 {:id :p1 :name "Page 1" :objects {}}
+        p2 {:id :p2 :name "Page 2" :objects {:s1 {:id :s1 :name "A"}}}
+        base   (pages-data {:p1 p1} [:p1])
+        branch (pages-data {:p1 p1 :p2 p2} [:p1 :p2])
+        {:keys [changes unsupported]} (bm/compute-changes base base branch)
+        add (first (filter #(= :add-page (:type %)) changes))]
+    (t/is (empty? unsupported))
+    (t/is (= :p2 (-> add :page :id)))
+    (t/is (contains? (-> add :page :objects) :s1))))
+
+(t/deftest compute-changes-page-delete
+  (let [p1 {:id :p1 :name "Page 1" :objects {}}
+        p2 {:id :p2 :name "Page 2" :objects {}}
+        base   (pages-data {:p1 p1 :p2 p2} [:p1 :p2])
+        branch (pages-data {:p1 p1} [:p1])
+        {:keys [changes]} (bm/compute-changes base base branch)
+        del (first (filter #(= :del-page (:type %)) changes))]
+    (t/is (= :p2 (:id del)))))
+
+(t/deftest compute-changes-page-rename
+  (let [base   (pages-data {:p1 {:id :p1 :name "Page 1" :objects {}}} [:p1])
+        branch (assoc-in base [:pages-index :p1 :name] "Renamed")
+        {:keys [changes unsupported]} (bm/compute-changes base base branch)
+        mod (first (filter #(= :mod-page (:type %)) changes))]
+    (t/is (empty? unsupported))
+    (t/is (= :p1 (:id mod)))
+    (t/is (= "Renamed" (:name mod)))))
+
+(t/deftest compute-changes-page-options-unsupported
+  (let [base   (pages-data {:p1 {:id :p1 :name "Page 1" :objects {} :options {}}} [:p1])
+        branch (assoc-in base [:pages-index :p1 :options] {:saved-grids {:x 1}})
+        {:keys [unsupported]} (bm/compute-changes base base branch)]
+    (t/is (contains? unsupported :page-attrs))))
+
+;; --- components
+
+(t/deftest compute-changes-component-add
+  (let [pid (uuid/next)
+        mi  (uuid/next)
+        cid (uuid/next)
+        base   (pages-data {pid {:id pid :name "Page 1" :objects {}}} [pid])
+        cmp    {:id cid :name "Button" :path "" :main-instance-id mi :main-instance-page pid}
+        branch (assoc base :components {cid cmp})
+        {:keys [changes unsupported]} (bm/compute-changes base base branch)
+        add (first (filter #(= :add-component (:type %)) changes))]
+    (t/is (empty? unsupported))
+    (t/is (= cid (:id add)))
+    (t/is (= "Button" (:name add)))
+    ;; round-trip: the component row exists in main afterwards
+    (let [data' (cfc/process-changes {:components {}} changes)]
+      (t/is (contains? (:components data') cid)))))
+
+(t/deftest compute-changes-component-delete
+  (let [cmp    {:id :c1 :name "Button" :path "" :main-instance-id :mi :main-instance-page :p1}
+        base   (pages-data {:p1 {:id :p1 :name "Page 1" :objects {}}} [:p1] :components {:c1 cmp})
+        branch (assoc base :components {})
+        {:keys [changes]} (bm/compute-changes base base branch)
+        del (first (filter #(= :del-component (:type %)) changes))]
+    (t/is (= :c1 (:id del)))))
 
 (t/deftest compute-changes-token-set-rename-is-unsupported
   (let [sid  (uuid/next)

@@ -209,6 +209,46 @@
               mf    (th/db-get :file {:id (:id file)})]
           (t/is (= (:revn mf) (:base-revn row))))))))
 
+(t/deftest merge-applies-page-add
+  (with-redefs [cf/flags (conj cf/flags :branching)]
+    (let [profile (th/create-profile* 1 {:is-active true})
+          proj-id (:default-project-id profile)
+          file    (th/create-file* 1 {:profile-id (:id profile)
+                                      :project-id proj-id
+                                      :is-shared false})
+          create  (:result (th/command! {::th/type :create-file-branch
+                                         ::rpc/profile-id (:id profile)
+                                         :file-id (:id file)
+                                         :name "feature-page"}))
+          branch-id      (:id create)
+          branch-file-id (:branch-file-id create)
+          new-page-id    (uuid/random)]
+
+      (t/testing "add a page on the branch"
+        (let [bf  (th/db-get :file {:id branch-file-id})
+              out (th/command! {::th/type :update-file
+                                ::rpc/profile-id (:id profile)
+                                :id branch-file-id
+                                :session-id (uuid/random)
+                                :revn (:revn bf)
+                                :vern (:vern bf)
+                                :features cfeat/supported-features
+                                :changes [{:type :add-page :id new-page-id :name "Branch Page"}]})]
+          (t/is (nil? (:error out)))))
+
+      (t/testing "merge brings the new page into main"
+        (let [out (th/command! {::th/type :merge-file-branch
+                                ::rpc/profile-id (:id profile)
+                                :branch-id branch-id})]
+          (t/is (nil? (:error out)))
+          (t/is (= :merged (-> out :result :status))))
+
+        (let [out   (th/command! {::th/type :get-file
+                                  ::rpc/profile-id (:id profile)
+                                  :id (:id file)})
+              pages (-> out :result :data :pages-index)]
+          (t/is (contains? pages new-page-id)))))))
+
 (t/deftest branch-lifecycle
   (with-redefs [cf/flags (conj cf/flags :branching)]
     (let [profile (th/create-profile* 1 {:is-active true})
