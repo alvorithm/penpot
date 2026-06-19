@@ -370,7 +370,7 @@
                                               :session-id session-id
                                               :revn (:revn merged)})
 
-                         {:status :merged :revn (:revn merged)})))))))))))))
+                         {:status :merged :revn (:revn merged) :source-file-id main-id})))))))))))))
 
 ;; --- COMMAND: update-branch-from-main
 

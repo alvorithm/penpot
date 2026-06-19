@@ -14,9 +14,35 @@
    [app.main.data.notifications :as ntf]
    [app.main.data.persistence :as dwp]
    [app.main.repo :as rp]
+   [app.util.dom :as dom]
    [app.util.i18n :refer [tr]]
    [beicon.v2.core :as rx]
    [potok.v2.core :as ptk]))
+
+(defn- reload-file-window
+  "Hard-reload the browser window so the open file is re-fetched from
+  scratch. Used after merge / update-from-main, which rewrite the file
+  server-side (including repair changes); a full reload is the most
+  robust way to show the new state without local/server divergence."
+  []
+  (ptk/reify ::reload-file-window
+    ptk/EffectEvent
+    (effect [_ _ _]
+      (dom/reload-current-window))))
+
+(declare open-branch)
+
+(defn- show-merge-result
+  "After merging a branch into main, surface the merged result: if main is
+  the file currently open, hard-reload it; otherwise navigate to main."
+  [source-file-id]
+  (ptk/reify ::show-merge-result
+    ptk/WatchEvent
+    (watch [_ state _]
+      (cond
+        (nil? source-file-id)                          (rx/of (reload-file-window))
+        (= source-file-id (:current-file-id state))    (rx/of (reload-file-window))
+        :else                                          (rx/of (open-branch source-file-id))))))
 
 (defonce default-state
   {:status :loading
@@ -243,10 +269,10 @@
              (rx/mapcat
               (fn [{:keys [status]}]
                 (case status
-                  :updated     (rx/of (modal/hide)
-                                      (ntf/success (tr "workspace.branches.update.success"))
-                                      (fetch-branches)
-                                      (fetch-branch-context))
+                  ;; the open branch file just changed server-side: hard-reload
+                  ;; it so the pulled changes are shown
+                  :updated     (rx/of (ntf/success (tr "workspace.branches.update.success"))
+                                      (reload-file-window))
                   :conflicts   (rx/of (modal/show :branch-conflicts {:branch branch :mode :update}))
                   :unsupported (rx/of (ntf/warn (tr "workspace.branches.update.unsupported")))
                   (rx/of (ntf/error (tr "workspace.branches.update.error"))))))
@@ -289,12 +315,13 @@
         (->> (rp/cmd! :merge-file-branch (cond-> {:branch-id branch-id}
                                            (seq resolutions) (assoc :resolutions resolutions)))
              (rx/mapcat
-              (fn [{:keys [status]}]
+              (fn [{:keys [status source-file-id]}]
                 (case status
-                  :merged      (rx/of (modal/hide)
-                                      (ntf/success (tr "workspace.branches.merge.success"))
-                                      (fetch-branches)
-                                      (fetch-branch-context))
+                  ;; the merged result lives in main: take the user there to
+                  ;; see it (navigate if elsewhere, hard-reload if already on
+                  ;; main). Other clients reload via the `:file-merged` event.
+                  :merged      (rx/of (ntf/success (tr "workspace.branches.merge.success"))
+                                      (show-merge-result source-file-id))
                   :conflicts   (rx/of (ntf/warn (tr "workspace.branches.merge.conflicts")))
                   :unsupported (rx/of (ntf/warn (tr "workspace.branches.merge.unsupported")))
                   (rx/of (ntf/error (tr "workspace.branches.merge.error"))))))
