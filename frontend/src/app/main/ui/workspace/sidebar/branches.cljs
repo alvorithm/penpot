@@ -49,6 +49,8 @@
    :page-order          i/document
    :page-guide          i/document
    :page-flow           i/document
+   :page-grid           i/document
+   :page-plugin         i/document
    :token               i/tokens
    :token-set           i/tokens
    :token-set-rename    i/tokens
@@ -191,7 +193,10 @@
         on-close-menu (mf/use-fn #(reset! show-menu? false))
 
         on-start-rename
-        (mf/use-fn (fn [] (reset! show-menu? false) (reset! editing? true)))
+        (mf/use-fn (fn [event]
+                     (dom/stop-propagation event)
+                     (reset! show-menu? false)
+                     (reset! editing? true)))
 
         on-rename-commit
         (mf/use-fn
@@ -211,14 +216,17 @@
              (kbd/esc? event)   (reset! editing? false))))
 
         on-archive
-        (mf/use-fn (mf/deps entry)
-                   (fn [] (reset! show-menu? false)
+        (mf/use-fn (mf/deps entry archived?)
+                   (fn [event]
+                     (dom/stop-propagation event)
+                     (reset! show-menu? false)
                      (st/emit! (dwb/archive-branch (:id entry) (not archived?)))))
 
         on-delete
         (mf/use-fn
          (mf/deps entry)
-         (fn []
+         (fn [event]
+           (dom/stop-propagation event)
            (reset! show-menu? false)
            (st/emit! (modal/show {:type :confirm
                                   :title (tr "workspace.branches.delete.title")

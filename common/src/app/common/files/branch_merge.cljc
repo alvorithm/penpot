@@ -137,12 +137,24 @@
   (select-keys page [:name :background :pixel-grid-color :pixel-grid-opacity]))
 
 (defn- page-extra
-  "Page attrs not handled elsewhere (options/default-grids/...) — not yet
-  mergeable. Objects, name/background/grid, guides and flows are handled
-  by their own passes."
+  "Residual page attrs that no pass handles — kept as `:page-attrs` to be
+  refused (never silently dropped). Objects, name/background/grid, guides,
+  flows, default-grids and plugin-data have their own passes; `:index` is
+  derived from page order; comment-thread-positions deliberately stay on
+  the branch (comments are not migrated, like Figma)."
   [page]
   (dissoc page :objects :id :name :background :pixel-grid-color :pixel-grid-opacity
-          :guides :flows))
+          :guides :flows :default-grids :plugin-data
+          :index :comment-thread-positions))
+
+(defn- flatten-plugin-data
+  "{namespace {key value}} -> {[namespace key] value} for diffing."
+  [pd]
+  (persistent!
+   (reduce-kv (fn [acc ns kvs]
+                (reduce-kv (fn [acc k v] (assoc! acc [ns k] v)) acc kvs))
+              (transient {})
+              (or pd {}))))
 
 (defn- diff-pages
   [base theirs ours]
@@ -156,7 +168,7 @@
         ;; page name/background/grid on common pages (mergeable: :page via mod-page)
         meta-map (fn [pi] (into {} (map (fn [id] [id (page-meta (get pi id))])) common))
         meta-diff (three-way-entities (meta-map bpi) (meta-map tpi) (meta-map opi) {:kind :page})
-        ;; other page attrs (options/guides/flows) on common pages (NOT yet mergeable)
+        ;; residual page attrs on common pages (NOT mergeable -> refused, never dropped)
         extra-map (fn [pi] (into {} (map (fn [id] [id (page-extra (get pi id))])) common))
         extra-diff (three-way-entities (extra-map bpi) (extra-map tpi) (extra-map opi) {:kind :page-attrs})
         ;; page order on common pages (NOT yet mergeable)
@@ -177,6 +189,21 @@
                                                (sub-of ours pid :flows)
                                                {:kind :page-flow :page-id pid}))
                          common)
+        ;; default-grids per common page (mergeable: :page-grid -> :set-default-grid)
+        grids-diffs (map (fn [pid]
+                           (three-way-entities (sub-of base pid :default-grids)
+                                               (sub-of theirs pid :default-grids)
+                                               (sub-of ours pid :default-grids)
+                                               {:kind :page-grid :page-id pid}))
+                         common)
+        ;; page-level plugin-data per common page (mergeable: :page-plugin -> :set-plugin-data)
+        plugin-of (fn [data pid] (flatten-plugin-data (get-in data [:pages-index pid :plugin-data] {})))
+        plugins-diffs (map (fn [pid]
+                             (three-way-entities (plugin-of base pid)
+                                                 (plugin-of theirs pid)
+                                                 (plugin-of ours pid)
+                                                 {:kind :page-plugin :page-id pid}))
+                           common)
         ;; objects (shapes) on common pages (mergeable: :shape)
         obj-diffs (map (fn [pid]
                          (three-way-entities (get-in base [:pages-index pid :objects] {})
@@ -185,7 +212,7 @@
                                              {:kind :shape :page-id pid}))
                        common)]
     (merge-results (concat [presence meta-diff extra-diff order]
-                           guides-diffs flows-diffs obj-diffs))))
+                           guides-diffs flows-diffs grids-diffs plugins-diffs obj-diffs))))
 
 ;; --- Tokens ---
 ;;
@@ -359,7 +386,7 @@
 (def ^:private mergeable-kinds
   #{:color :typography :media :shape :token :token-set :token-set-rename :token-set-order
     :token-theme :token-active-themes :token-active-sets
-    :page :page-order :page-guide :page-flow :component})
+    :page :page-order :page-guide :page-flow :page-grid :page-plugin :component})
 
 (defn unsupported-kinds
   "Set of change kinds present in `changes` that `compute-changes`
@@ -558,6 +585,30 @@
                                                   (fn [fid] {:type :set-flow :page-id pid :id fid :params nil}))))
                           common-pages)
 
+         ;; page default-grids per common page
+         page-grids (into []
+                          (mapcat (fn [pid]
+                                    (flat-changes (get-in base [:pages-index pid :default-grids] {})
+                                                  (get-in main [:pages-index pid :default-grids] {})
+                                                  (get-in branch [:pages-index pid :default-grids] {})
+                                                  resolutions
+                                                  (fn [gt p] {:type :set-default-grid :page-id pid :grid-type gt :params p})
+                                                  (fn [gt p] {:type :set-default-grid :page-id pid :grid-type gt :params p})
+                                                  (fn [gt] {:type :set-default-grid :page-id pid :grid-type gt :params nil}))))
+                          common-pages)
+
+         ;; page-level plugin-data per common page (flattened to [ns key] -> value)
+         page-plugins (into []
+                            (mapcat (fn [pid]
+                                      (flat-changes (flatten-plugin-data (get-in base [:pages-index pid :plugin-data] {}))
+                                                    (flatten-plugin-data (get-in main [:pages-index pid :plugin-data] {}))
+                                                    (flatten-plugin-data (get-in branch [:pages-index pid :plugin-data] {}))
+                                                    resolutions
+                                                    (fn [[ns k] v] {:type :set-plugin-data :object-type :page :object-id pid :namespace ns :key k :value v})
+                                                    (fn [[ns k] v] {:type :set-plugin-data :object-type :page :object-id pid :namespace ns :key k :value v})
+                                                    (fn [[ns k]] {:type :set-plugin-data :object-type :page :object-id pid :namespace ns :key k :value nil}))))
+                            common-pages)
+
          ;; page order: reorder common pages to branch's order via mov-page
          page-order-changes
          (let [order-of (fn [data] (filterv tri-common-pages (or (:pages data) [])))
@@ -675,7 +726,7 @@
       ;; components before shapes so del-component can store the main-instance
       ;; objects (still on the page) before del-obj removes them
       :changes     (vec (concat page-presence components shapes page-meta-changes
-                                page-guides page-flows page-order-changes
+                                page-guides page-flows page-grids page-plugins page-order-changes
                                 colors typos media
                                 set-presence set-rename-changes set-order-changes
                                 token-vals themes

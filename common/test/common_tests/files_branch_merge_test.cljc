@@ -328,11 +328,55 @@
     (let [data' (cfc/process-changes base changes)]
       (t/is (contains? (get-in data' [:pages-index pid :guides]) gid)))))
 
-(t/deftest compute-changes-page-options-unsupported
-  (let [base   (pages-data {:p1 {:id :p1 :name "Page 1" :objects {} :options {}}} [:p1])
-        branch (assoc-in base [:pages-index :p1 :options] {:saved-grids {:x 1}})
+(t/deftest compute-changes-page-attrs-unsupported
+  ;; an unknown/unhandled residual page attr must be refused, never dropped
+  (let [base   (pages-data {:p1 {:id :p1 :name "Page 1" :objects {}}} [:p1])
+        branch (assoc-in base [:pages-index :p1 :some-future-attr] {:x 1})
         {:keys [unsupported]} (bm/compute-changes base base branch)]
     (t/is (contains? unsupported :page-attrs))))
+
+(t/deftest compute-changes-page-default-grid
+  (let [pid    (uuid/next)
+        grid   {:size 16 :color {:color "#cccccc" :opacity 0.5}}
+        base   (pages-data {pid {:id pid :name "P" :objects {} :default-grids {}}} [pid])
+        branch (assoc-in base [:pages-index pid :default-grids :square] grid)
+        {:keys [changes unsupported]} (bm/compute-changes base base branch)
+        ch (first (filter #(= :set-default-grid (:type %)) changes))]
+    (t/is (empty? unsupported))
+    (t/is (= pid (:page-id ch)))
+    (t/is (= :square (:grid-type ch)))
+    (t/is (= grid (:params ch)))
+    ;; round-trip: the grid is present on main afterwards
+    (let [data' (cfc/process-changes base changes)]
+      (t/is (= grid (get-in data' [:pages-index pid :default-grids :square]))))))
+
+(t/deftest compute-changes-page-default-grid-delete
+  (let [pid    (uuid/next)
+        grid   {:size 16 :color {:color "#cccccc" :opacity 0.5}}
+        base   (pages-data {pid {:id pid :name "P" :objects {} :default-grids {:square grid}}} [pid])
+        branch (assoc-in base [:pages-index pid :default-grids] {})
+        {:keys [changes]} (bm/compute-changes base base branch)
+        ch (first (filter #(= :set-default-grid (:type %)) changes))]
+    (t/is (= :square (:grid-type ch)))
+    (t/is (nil? (:params ch)))
+    (let [data' (cfc/process-changes base changes)]
+      (t/is (not (contains? (get-in data' [:pages-index pid :default-grids]) :square))))))
+
+(t/deftest compute-changes-page-plugin-data
+  (let [pid    (uuid/next)
+        base   (pages-data {pid {:id pid :name "P" :objects {} :plugin-data {}}} [pid])
+        branch (assoc-in base [:pages-index pid :plugin-data :my-plugin] {"foo" "bar"})
+        {:keys [changes unsupported]} (bm/compute-changes base base branch)
+        ch (first (filter #(= :set-plugin-data (:type %)) changes))]
+    (t/is (empty? unsupported))
+    (t/is (= :page (:object-type ch)))
+    (t/is (= pid (:object-id ch)))
+    (t/is (= :my-plugin (:namespace ch)))
+    (t/is (= "foo" (:key ch)))
+    (t/is (= "bar" (:value ch)))
+    ;; round-trip
+    (let [data' (cfc/process-changes base changes)]
+      (t/is (= "bar" (get-in data' [:pages-index pid :plugin-data :my-plugin "foo"]))))))
 
 ;; --- components
 

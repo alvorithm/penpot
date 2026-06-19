@@ -144,7 +144,7 @@
 (def ^:private schema:get-file-branches
   [:map {:title "get-file-branches"}
    [:file-id ::sm/uuid]
-   [:include-archived {:optional true} :boolean]])
+   [:include-archived {:optional true} ::sm/boolean]])
 
 (def ^:private sql:get-file-branches
   "SELECT fb.id,
@@ -601,7 +601,7 @@
 (def ^:private schema:archive-file-branch
   [:map {:title "archive-file-branch"}
    [:id ::sm/uuid]
-   [:archived {:optional true} :boolean]])
+   [:archived {:optional true} ::sm/boolean]])
 
 (sv/defmethod ::archive-file-branch
   "Archive (hide from the default list) or restore a branch."
