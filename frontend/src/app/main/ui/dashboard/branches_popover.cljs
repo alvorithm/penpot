@@ -57,9 +57,12 @@
 
     [:div {:class (stl/css :branches-popover-wrap)
            :on-click (fn [e] (dom/stop-propagation e))}
-     [:button {:class (stl/css :branches-badge) :on-click on-toggle}
+     [:div {:class (stl/css :branches-badge)
+            :role "button"
+            :aria-label (tr "dashboard.branches-badge" (dm/str n))
+            :on-click on-toggle}
       [:> i/icon* {:icon-id i/git-branch :size "s"}]
-      [:span (tr "dashboard.branches-badge" (dm/str n))]]
+      [:span (dm/str n)]]
 
      [:& dropdown {:show (deref show?) :on-close on-close}
       [:div {:class (stl/css :branches-popover)}

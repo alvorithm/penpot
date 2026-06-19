@@ -505,7 +505,10 @@
                   {:type :add-obj
                    :page-id page-id
                    :id id
-                   :obj (dissoc o :shapes)
+                   ;; container shapes (frame/group/…) require `:shapes`; reset
+                   ;; it to empty so the schema is valid and children get
+                   ;; appended by their own add-obj (add-shape inserts at index)
+                   :obj (cond-> o (contains? o :shapes) (assoc :shapes []))
                    :parent-id parent
                    :frame-id (:frame-id o)
                    :index index

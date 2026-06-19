@@ -243,14 +243,10 @@
 (mf/defc grid-item-metadata*
   [{:keys [file]}]
   (let [time (ct/timeago (or (:will-be-deleted-at file)
-                             (:modified-at file)))
-        n    (or (:branches-count file) 0)]
-    [:*
-     (when (and (contains? cf/flags :branching) (pos? n))
-       [:> branches-popover* {:file file :n n}])
-     [:span {:class (stl/css :date)
-             :title (tr "dashboard.deleted.will-be-deleted-at" time)}
-      time]]))
+                             (:modified-at file)))]
+    [:span {:class (stl/css :date)
+            :title (tr "dashboard.deleted.will-be-deleted-at" time)}
+     time]))
 
 (defn create-counter-element
   [_element file-count]
@@ -433,6 +429,11 @@
 
       (when (and (:is-shared file) (not is-library-view?))
         [:div {:class (stl/css :item-badge)} deprecated-icon/library])
+
+      (when (and (contains? cf/flags :branching)
+                 (not is-library-view?)
+                 (pos? (or (:branches-count file) 0)))
+        [:> branches-popover* {:file file :n (:branches-count file)}])
 
       [:div {:class (stl/css :info-wrapper)}
        [:div {:class (stl/css :item-info)}

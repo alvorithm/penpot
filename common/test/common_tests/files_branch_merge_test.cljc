@@ -146,6 +146,12 @@
     (t/is (= [:f1 :c1] (mapv :id adds)))
     (t/is (= :root (:parent-id (first adds))))
     (t/is (= 0 (:index (first adds))))
+    ;; container shapes keep `:shapes` (reset to []), not dropped — frames
+    ;; require the key and would otherwise fail schema validation on apply
+    (t/is (= [] (get-in (first adds) [:obj :shapes])))
+    (t/is (contains? (:obj (first adds)) :shapes))
+    ;; leaf shapes that never had `:shapes` don't get the key added
+    (t/is (not (contains? (:obj (second adds)) :shapes)))
     ;; children membership is not re-set via :shapes ops
     (t/is (empty? (filter #(and (= :mod-obj (:type %)) (= :root (:id %))) changes)))))
 
