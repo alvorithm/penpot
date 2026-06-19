@@ -21,9 +21,11 @@
    [app.main.ui.ds.notifications.context-notification :refer [context-notification*]]
    [app.main.ui.ds.product.empty-state :refer [empty-state*]]
    [app.util.dom :as dom]
+   [app.util.globals :as globals]
    [app.util.i18n :refer [tr]]
    [app.util.keyboard :as kbd]
    [cuerdas.core :as str]
+   [goog.events :as events]
    [okulary.core :as l]
    [rumext.v2 :as mf]))
 
@@ -625,11 +627,21 @@
         on-compare   (mf/use-fn (mf/deps ctx) #(modal/show! :branch-compare {:branch ctx}))
         on-update    (mf/use-fn (mf/deps ctx) #(st/emit! (dwb/update-branch-from-main ctx)))
         on-merge     (mf/use-fn (mf/deps ctx) #(st/emit! (dwb/merge-branch (:id ctx))))
-        on-open-main (mf/use-fn (mf/deps ctx) #(st/emit! (dwb/open-branch (:source-file-id ctx))))]
+        on-open-main (mf/use-fn (mf/deps ctx) #(st/emit! (dwb/open-branch (:source-file-id ctx))))
+        on-resolve   (mf/use-fn (mf/deps ctx) #(modal/show! :branch-conflicts {:branch ctx :mode :merge}))]
 
     (mf/with-effect [file-id]
       (when (contains? cf/flags :branching)
         (st/emit! (dwb/fetch-branch-context))))
+
+    ;; refresh when returning to the tab, so "main advanced" is surfaced
+    ;; while working on the branch
+    (mf/with-effect []
+      (let [key (events/listen globals/window "focus"
+                               (fn [_]
+                                 (when (contains? cf/flags :branching)
+                                   (st/emit! (dwb/fetch-branch-context)))))]
+        (fn [] (events/unlistenByKey key))))
 
     (when ctx
       [:div {:class (stl/css-case :branch-banner true
@@ -650,26 +662,38 @@
                       :on-click on-open-main}
           (tr "workspace.branches.banner.view-main")]
 
-         [:div {:class (stl/css :branch-banner-actions)}
-          [:span {:class (stl/css :branch-banner-counts)}
-           [:span {:class (stl/css :count-ahead)}
-            [:> i/icon* {:icon-id i/arrow-up :size "s"}] (dm/str (:ahead ctx))]
-           [:span {:class (stl/css :count-behind)}
-            [:> i/icon* {:icon-id i/arrow-down :size "s"}] (dm/str (:behind ctx))]]
+         (let [conflicts (or (:conflicts ctx) 0)]
+           [:div {:class (stl/css :branch-banner-actions)}
+            [:span {:class (stl/css :branch-banner-counts)}
+             [:span {:class (stl/css :count-ahead)}
+              [:> i/icon* {:icon-id i/arrow-up :size "s"}] (dm/str (:ahead ctx))]
+             [:span {:class (stl/css :count-behind)}
+              [:> i/icon* {:icon-id i/arrow-down :size "s"}] (dm/str (:behind ctx))]]
 
-          [:> button* {:variant "secondary"
-                       :icon i/switch
-                       :on-click on-compare}
-           (tr "workspace.branches.compare")]
+            (when (pos? conflicts)
+              [:span {:class (stl/css :item-badge :badge-conflict)}
+               (tr "workspace.branches.banner.conflicts" (dm/str conflicts))])
 
-          (when (pos? (:behind ctx))
-            [:> button* {:variant "primary"
-                         :icon i/status-update
-                         :on-click on-update}
-             (tr "workspace.branches.update")])
+            [:> button* {:variant "secondary"
+                         :icon i/switch
+                         :on-click on-compare}
+             (tr "workspace.branches.compare")]
 
-          (when (and (zero? (:behind ctx)) (pos? (:ahead ctx)))
-            [:> button* {:variant "primary"
-                         :icon i/git-merge
-                         :on-click on-merge}
-             (tr "workspace.branches.merge.action")])])])))
+            (cond
+              (pos? conflicts)
+              [:> button* {:variant "primary"
+                           :icon i/triangle-alert
+                           :on-click on-resolve}
+               (tr "workspace.branches.conflicts.resolve")]
+
+              (pos? (:behind ctx))
+              [:> button* {:variant "primary"
+                           :icon i/status-update
+                           :on-click on-update}
+               (tr "workspace.branches.update")]
+
+              (pos? (:ahead ctx))
+              [:> button* {:variant "primary"
+                           :icon i/git-merge
+                           :on-click on-merge}
+               (tr "workspace.branches.merge.action")])]))])))

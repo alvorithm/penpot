@@ -569,10 +569,14 @@
 
          shapes (into [] (mapcat #(page-shape-changes base main branch resolutions %)) common-pages)
 
-         ;; components: row metadata (shapes handled by the shape/page passes)
+         ;; components: row metadata (shapes handled by the shape/page passes).
+         ;; A branch soft-delete keeps the row with `:deleted true`; surface it
+         ;; as a proper del-component so the deletion propagates.
          components (flat-changes (:components base) (:components main) (:components branch) resolutions
                                   (fn [_ c] (assoc c :type :add-component))
-                                  (fn [_ c] (assoc c :type :mod-component))
+                                  (fn [id c] (if (:deleted c)
+                                               {:type :del-component :id id}
+                                               (assoc c :type :mod-component)))
                                   (fn [id] {:type :del-component :id id}))
 
          bl (:tokens-lib base) ml (:tokens-lib main) ol (:tokens-lib branch)
@@ -668,8 +672,10 @@
                               (fn [tid] {:type :set-token-theme :id tid :attrs nil}))]
 
      {:unsupported unsupported
-      :changes     (vec (concat page-presence shapes page-meta-changes
-                                page-guides page-flows page-order-changes components
+      ;; components before shapes so del-component can store the main-instance
+      ;; objects (still on the page) before del-obj removes them
+      :changes     (vec (concat page-presence components shapes page-meta-changes
+                                page-guides page-flows page-order-changes
                                 colors typos media
                                 set-presence set-rename-changes set-order-changes
                                 token-vals themes

@@ -360,6 +360,29 @@
         del (first (filter #(= :del-component (:type %)) changes))]
     (t/is (= :c1 (:id del)))))
 
+(t/deftest compute-changes-component-soft-delete
+  (let [cmp    {:id :c1 :name "Button" :path "" :main-instance-id :mi :main-instance-page :p1}
+        base   (pages-data {:p1 {:id :p1 :name "Page 1" :objects {}}} [:p1] :components {:c1 cmp})
+        ;; soft-delete keeps the row but marks it deleted
+        branch (assoc-in base [:components :c1 :deleted] true)
+        {:keys [changes]} (bm/compute-changes base base branch)
+        del (first (filter #(= :del-component (:type %)) changes))]
+    ;; surfaced as a real delete, not a no-op mod
+    (t/is (= :c1 (:id del)))
+    (t/is (empty? (filter #(= :mod-component (:type %)) changes)))))
+
+(t/deftest compute-changes-component-variant-add
+  (let [cmp    {:id :c1 :name "Button" :path "" :main-instance-id :mi :main-instance-page :p1
+                :variant-id :v1 :variant-properties [{:name "size" :value "lg"}]}
+        base   (pages-data {:p1 {:id :p1 :name "Page 1" :objects {}}} [:p1])
+        branch (assoc base :components {:c1 cmp})
+        {:keys [changes unsupported]} (bm/compute-changes base base branch)
+        add (first (filter #(= :add-component (:type %)) changes))]
+    (t/is (empty? unsupported))
+    ;; variant metadata is carried into the add-component change
+    (t/is (= :v1 (:variant-id add)))
+    (t/is (= [{:name "size" :value "lg"}] (:variant-properties add)))))
+
 (t/deftest compute-changes-token-set-rename
   (let [sid  (uuid/next)
         tid  (uuid/next)

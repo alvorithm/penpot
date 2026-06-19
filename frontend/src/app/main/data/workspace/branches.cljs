@@ -55,6 +55,26 @@
              (rx/catch (fn [_]
                          (rx/of (update-branches-state {:status :loaded :data []})))))))))
 
+;; --- Dashboard popover (list a file's branches from the dashboard)
+
+(defn- set-dashboard-branches
+  [bs]
+  (ptk/reify ::set-dashboard-branches
+    ptk/UpdateEvent
+    (update [_ state]
+      (assoc state :dashboard-branches bs))))
+
+(defn load-file-branches
+  "Load the open branches of `file-id` into `:dashboard-branches` (used by
+  the dashboard branches popover)."
+  [file-id]
+  (ptk/reify ::load-file-branches
+    ptk/WatchEvent
+    (watch [_ _ _]
+      (->> (rp/cmd! :get-file-branches {:file-id file-id})
+           (rx/map set-dashboard-branches)
+           (rx/catch (fn [_] (rx/of (set-dashboard-branches []))))))))
+
 (defn rename-branch
   [id name]
   (assert (uuid? id) "expected valid uuid for `id`")
@@ -182,15 +202,24 @@
       (assoc state :workspace-branch-context info))))
 
 (defn fetch-branch-context
-  "Load branch metadata for the current file (nil when it is not a branch)."
+  "Load branch metadata for the current file (nil when it is not a branch).
+  If `behind` grew since the previous value (main advanced while working on
+  the branch), surface a notification."
   []
   (ptk/reify ::fetch-branch-context
     ptk/WatchEvent
     (watch [_ state _]
       (when-let [file-id (:current-file-id state)]
-        (->> (rp/cmd! :get-file-branch-info {:file-id file-id})
-             (rx/map set-branch-context)
-             (rx/catch (fn [_] (rx/of (set-branch-context nil)))))))))
+        (let [prev-behind (-> state :workspace-branch-context :behind (or 0))]
+          (->> (rp/cmd! :get-file-branch-info {:file-id file-id})
+               (rx/mapcat
+                (fn [info]
+                  (rx/concat
+                   (rx/of (set-branch-context info))
+                   (if (and info (> (or (:behind info) 0) prev-behind))
+                     (rx/of (ntf/info (tr "workspace.branches.main-advanced")))
+                     (rx/empty)))))
+               (rx/catch (fn [_] (rx/of (set-branch-context nil))))))))))
 
 (defn update-branch-from-main
   "Bring main's changes into the branch (reverse of merge). `branch` is the

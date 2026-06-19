@@ -6556,6 +6556,9 @@ msgstr "Ungroup"
 msgid "workspace.branches.archived"
 msgstr "Archived"
 
+msgid "workspace.branches.banner.conflicts"
+msgstr "%s conflicts"
+
 msgid "workspace.branches.banner.from-main"
 msgstr "from main"
 
@@ -6579,6 +6582,9 @@ msgstr "Delete branch"
 
 msgid "workspace.branches.lifecycle.deleted"
 msgstr "Branch deleted"
+
+msgid "workspace.branches.main-advanced"
+msgstr "main has new changes — you can update this branch"
 
 msgid "workspace.branches.lifecycle.error"
 msgstr "The branch operation could not be completed"

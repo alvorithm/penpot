@@ -27,6 +27,7 @@
    [app.main.store :as st]
    [app.main.ui.components.color-bullet :as bc]
    [app.main.ui.components.portal :refer [portal-on-document*]]
+   [app.main.ui.dashboard.branches-popover :refer [branches-popover*]]
    [app.main.ui.dashboard.file-menu :refer [file-menu*]]
    [app.main.ui.dashboard.import :refer [use-import-file]]
    [app.main.ui.dashboard.inline-edition :refer [inline-edition]]
@@ -246,8 +247,7 @@
         n    (or (:branches-count file) 0)]
     [:*
      (when (and (contains? cf/flags :branching) (pos? n))
-       [:span {:class (stl/css :branches-badge)}
-        (tr "dashboard.branches-badge" (str n))])
+       [:> branches-popover* {:file file :n n}])
      [:span {:class (stl/css :date)
              :title (tr "dashboard.deleted.will-be-deleted-at" time)}
       time]]))
