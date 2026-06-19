@@ -149,13 +149,6 @@
     ;; children membership is not re-set via :shapes ops
     (t/is (empty? (filter #(and (= :mod-obj (:type %)) (= :root (:id %))) changes)))))
 
-(t/deftest compute-changes-page-reorder-unsupported
-  (let [p1 {:id :p1 :name "P1" :objects {}}
-        p2 {:id :p2 :name "P2" :objects {}}
-        base   (pages-data {:p1 p1 :p2 p2} [:p1 :p2])
-        branch (pages-data {:p1 p1 :p2 p2} [:p2 :p1])
-        {:keys [unsupported]} (bm/compute-changes base base branch)]
-    (t/is (contains? unsupported :page-order))))
 
 (t/deftest compute-changes-resolve-shape-conflict
   (let [base   (mkdata {:s1 {:id :s1 :name "A" :fill "red"}})
@@ -305,6 +298,35 @@
     (t/is (empty? unsupported))
     (t/is (= :p1 (:id mod)))
     (t/is (= "Renamed" (:name mod)))))
+
+(t/deftest compute-changes-page-order
+  (let [p1 (uuid/next) p2 (uuid/next) p3 (uuid/next)
+        pi {p1 {:id p1 :name "P1" :objects {}}
+            p2 {:id p2 :name "P2" :objects {}}
+            p3 {:id p3 :name "P3" :objects {}}}
+        base   (pages-data pi [p1 p2 p3])
+        branch (pages-data pi [p3 p1 p2])
+        {:keys [changes unsupported]} (bm/compute-changes base base branch)]
+    (t/is (empty? unsupported))
+    (t/is (seq (filter #(= :mov-page (:type %)) changes)))
+    ;; round-trip: main ends up in branch's page order
+    (let [data' (cfc/process-changes base changes)]
+      (t/is (= [p3 p1 p2] (:pages data'))))))
+
+(t/deftest compute-changes-page-guide
+  (let [pid   (uuid/next)
+        gid   (uuid/next)
+        guide {:id gid :axis :x :position 100}
+        base   (pages-data {pid {:id pid :name "P" :objects {} :guides {}}} [pid])
+        branch (assoc-in base [:pages-index pid :guides gid] guide)
+        {:keys [changes unsupported]} (bm/compute-changes base base branch)
+        ch (first (filter #(= :set-guide (:type %)) changes))]
+    (t/is (empty? unsupported))
+    (t/is (= gid (:id ch)))
+    (t/is (= pid (:page-id ch)))
+    ;; round-trip: the guide is present on main afterwards
+    (let [data' (cfc/process-changes base changes)]
+      (t/is (contains? (get-in data' [:pages-index pid :guides]) gid)))))
 
 (t/deftest compute-changes-page-options-unsupported
   (let [base   (pages-data {:p1 {:id :p1 :name "Page 1" :objects {} :options {}}} [:p1])

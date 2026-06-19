@@ -45,6 +45,8 @@
    :page                i/document
    :page-attrs          i/document
    :page-order          i/document
+   :page-guide          i/document
+   :page-flow           i/document
    :token               i/tokens
    :token-set           i/tokens
    :token-set-rename    i/tokens

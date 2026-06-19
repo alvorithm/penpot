@@ -137,9 +137,12 @@
   (select-keys page [:name :background :pixel-grid-color :pixel-grid-opacity]))
 
 (defn- page-extra
-  "Other page attrs (options/guides/flows/...) — not yet mergeable."
+  "Page attrs not handled elsewhere (options/default-grids/...) — not yet
+  mergeable. Objects, name/background/grid, guides and flows are handled
+  by their own passes."
   [page]
-  (dissoc page :objects :id :name :background :pixel-grid-color :pixel-grid-opacity))
+  (dissoc page :objects :id :name :background :pixel-grid-color :pixel-grid-opacity
+          :guides :flows))
 
 (defn- diff-pages
   [base theirs ours]
@@ -160,6 +163,20 @@
         order-of (fn [data] (filterv common (or (:pages data) [])))
         order (three-way-entities {:order (order-of base)} {:order (order-of theirs)} {:order (order-of ours)}
                                   {:kind :page-order})
+        ;; guides / flows per common page (mergeable: :page-guide / :page-flow)
+        sub-of (fn [data pid k] (get-in data [:pages-index pid k] {}))
+        guides-diffs (map (fn [pid]
+                            (three-way-entities (sub-of base pid :guides)
+                                                (sub-of theirs pid :guides)
+                                                (sub-of ours pid :guides)
+                                                {:kind :page-guide :page-id pid}))
+                          common)
+        flows-diffs (map (fn [pid]
+                           (three-way-entities (sub-of base pid :flows)
+                                               (sub-of theirs pid :flows)
+                                               (sub-of ours pid :flows)
+                                               {:kind :page-flow :page-id pid}))
+                         common)
         ;; objects (shapes) on common pages (mergeable: :shape)
         obj-diffs (map (fn [pid]
                          (three-way-entities (get-in base [:pages-index pid :objects] {})
@@ -167,7 +184,8 @@
                                              (get-in ours [:pages-index pid :objects] {})
                                              {:kind :shape :page-id pid}))
                        common)]
-    (merge-results (concat [presence meta-diff extra-diff order] obj-diffs))))
+    (merge-results (concat [presence meta-diff extra-diff order]
+                           guides-diffs flows-diffs obj-diffs))))
 
 ;; --- Tokens ---
 ;;
@@ -340,7 +358,8 @@
 ;; the merge to refuse rather than silently drop changes.
 (def ^:private mergeable-kinds
   #{:color :typography :media :shape :token :token-set :token-set-rename :token-set-order
-    :token-theme :token-active-themes :token-active-sets :page :component})
+    :token-theme :token-active-themes :token-active-sets
+    :page :page-order :page-guide :page-flow :component})
 
 (defn unsupported-kinds
   "Set of change kinds present in `changes` that `compute-changes`
@@ -517,6 +536,37 @@
                                               (fn [_] nil))
                                 (filterv some?))
 
+         ;; page guides / flows per common page
+         page-guides (into []
+                           (mapcat (fn [pid]
+                                     (flat-changes (get-in base [:pages-index pid :guides] {})
+                                                   (get-in main [:pages-index pid :guides] {})
+                                                   (get-in branch [:pages-index pid :guides] {})
+                                                   resolutions
+                                                   (fn [gid g] {:type :set-guide :page-id pid :id gid :params g})
+                                                   (fn [gid g] {:type :set-guide :page-id pid :id gid :params g})
+                                                   (fn [gid] {:type :set-guide :page-id pid :id gid :params nil}))))
+                           common-pages)
+         page-flows (into []
+                          (mapcat (fn [pid]
+                                    (flat-changes (get-in base [:pages-index pid :flows] {})
+                                                  (get-in main [:pages-index pid :flows] {})
+                                                  (get-in branch [:pages-index pid :flows] {})
+                                                  resolutions
+                                                  (fn [fid f] {:type :set-flow :page-id pid :id fid :params f})
+                                                  (fn [fid f] {:type :set-flow :page-id pid :id fid :params f})
+                                                  (fn [fid] {:type :set-flow :page-id pid :id fid :params nil}))))
+                          common-pages)
+
+         ;; page order: reorder common pages to branch's order via mov-page
+         page-order-changes
+         (let [order-of (fn [data] (filterv tri-common-pages (or (:pages data) [])))
+               bo (order-of base) mo (order-of main) oo (order-of branch)]
+           (if (and (not= oo bo)
+                    (or (= mo bo) (= (get resolutions :page-order) :branch)))
+             (vec (map-indexed (fn [i pid] {:type :mov-page :id pid :index i}) oo))
+             []))
+
          shapes (into [] (mapcat #(page-shape-changes base main branch resolutions %)) common-pages)
 
          ;; components: row metadata (shapes handled by the shape/page passes)
@@ -618,7 +668,8 @@
                               (fn [tid] {:type :set-token-theme :id tid :attrs nil}))]
 
      {:unsupported unsupported
-      :changes     (vec (concat page-presence shapes page-meta-changes components
+      :changes     (vec (concat page-presence shapes page-meta-changes
+                                page-guides page-flows page-order-changes components
                                 colors typos media
                                 set-presence set-rename-changes set-order-changes
                                 token-vals themes
