@@ -6579,11 +6579,19 @@ msgstr "Ungroup"
 msgid "workspace.branches.archived"
 msgstr "Archived"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:1144
+#, unused
+msgid "workspace.branches.banner.collapse"
+msgstr "Collapse"
+
+#: src/app/main/ui/workspace/sidebar/branches.cljs:1167
 msgid "workspace.branches.banner.conflicts"
 msgstr "%s conflicts"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:1126
+#, unused
+msgid "workspace.branches.banner.expand"
+msgstr "Expand"
+
+#: src/app/main/ui/workspace/sidebar/branches.cljs:1149
 msgid "workspace.branches.banner.from-main"
 msgstr "from main"
 
@@ -6595,11 +6603,11 @@ msgstr "Merged branch"
 msgid "workspace.branches.banner.on-branch"
 msgstr "On branch"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:1132
+#: src/app/main/ui/workspace/sidebar/branches.cljs:1155
 msgid "workspace.branches.banner.view-main"
 msgstr "View in main"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:464, src/app/main/ui/workspace/sidebar/branches.cljs:1149
+#: src/app/main/ui/workspace/sidebar/branches.cljs:464, src/app/main/ui/workspace/sidebar/branches.cljs:1172
 msgid "workspace.branches.compare"
 msgstr "Compare"
 
@@ -6875,7 +6883,7 @@ msgstr "edited in the branch, deleted in main"
 msgid "workspace.branches.conflicts.reason.modify-modify"
 msgstr "edited in main and in the branch since the base"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:860, src/app/main/ui/workspace/sidebar/branches.cljs:1156
+#: src/app/main/ui/workspace/sidebar/branches.cljs:860, src/app/main/ui/workspace/sidebar/branches.cljs:1179
 msgid "workspace.branches.conflicts.resolve"
 msgstr "Resolve conflicts"
 
@@ -7020,7 +7028,7 @@ msgstr "Archive"
 msgid "workspace.branches.menu.restore"
 msgstr "Restore"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:865, src/app/main/ui/workspace/sidebar/branches.cljs:1168
+#: src/app/main/ui/workspace/sidebar/branches.cljs:865, src/app/main/ui/workspace/sidebar/branches.cljs:1191
 msgid "workspace.branches.merge.action"
 msgstr "Merge into main"
 
@@ -7092,7 +7100,7 @@ msgstr "Modified"
 msgid "workspace.branches.tab"
 msgstr "Branches"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:467, src/app/main/ui/workspace/sidebar/branches.cljs:1162
+#: src/app/main/ui/workspace/sidebar/branches.cljs:467, src/app/main/ui/workspace/sidebar/branches.cljs:1185
 msgid "workspace.branches.update"
 msgstr "Update from main"
 

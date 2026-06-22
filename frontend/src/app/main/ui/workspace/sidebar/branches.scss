@@ -8,6 +8,15 @@
 @use "ds/typography.scss" as t;
 @use "refactor/common-refactor.scss" as deprecated;
 
+// All branch change-count numbers and changed-value indicators (counts,
+// ahead/behind, resolved/pending, property values) use the monospace
+// inspect font at 600 weight, for consistent, legible figures.
+@mixin branch-count {
+  @include t.use-typography("code-font");
+
+  font-weight: 600;
+}
+
 // --- Panel
 
 .branches-toolbox {
@@ -144,6 +153,8 @@
 
 .count-ahead,
 .count-behind {
+  @include branch-count;
+
   display: inline-flex;
   align-items: center;
   gap: var(--sp-xxs);
@@ -505,6 +516,8 @@
 }
 
 .compare-group-counts {
+  @include branch-count;
+
   display: inline-flex;
   gap: var(--sp-xs);
 }
@@ -662,6 +675,8 @@
 }
 
 .prop-changes-count {
+  @include branch-count;
+
   color: var(--color-foreground-secondary);
 }
 
@@ -692,7 +707,7 @@
 }
 
 .value-chip {
-  @include t.use-typography("body-small");
+  @include branch-count;
 
   display: inline-flex;
   align-items: center;
@@ -749,7 +764,7 @@
 // --- Resolve conflicts dialog
 
 .conflicts-progress {
-  @include t.use-typography("body-small");
+  @include branch-count;
 
   margin-inline-start: auto;
   padding: var(--sp-xxs) var(--sp-s);
@@ -773,11 +788,10 @@
 }
 
 .conflicts-pending {
-  @include t.use-typography("body-small");
+  @include branch-count;
 
   margin-inline-start: auto;
   color: var(--color-accent-warning);
-  font-weight: 600;
 }
 
 // left list
@@ -1015,10 +1029,9 @@
 }
 
 .conflict-card-value {
-  @include t.use-typography("body-medium");
+  @include branch-count;
 
   color: var(--color-foreground-primary);
-  font-weight: 600;
   word-break: break-all;
 }
 
@@ -1043,7 +1056,7 @@
 }
 
 .conflict-attr-val {
-  @include t.use-typography("body-small");
+  @include branch-count;
 
   color: var(--color-foreground-primary);
   word-break: break-all;
@@ -1079,15 +1092,66 @@
   inset-block-end: var(--sp-m);
   inset-inline-start: 50%;
   transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: var(--sp-m);
   max-inline-size: 90vw;
-  padding: var(--sp-s) var(--sp-m);
   border-radius: 12px;
   border: 1px solid var(--color-background-quaternary);
   background-color: var(--color-background-secondary);
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
+  overflow: hidden;
+  transition:
+    inset-block-end 0.2s,
+    block-size 0.2s;
+
+  // collapsed: hide the content and stick the handle strip flush to the
+  // bottom of the canvas (rounded top corners only). The banner lives at the
+  // bottom, so it folds DOWN — mirror of the toolbar (which folds up).
+  // NOTE: the content keeps `visibility: hidden` (not `display: none`) so it
+  // still defines the bar's WIDTH — otherwise the collapsed bar shrinks to
+  // the handle's width and looks broken.
+  &.is-collapsed {
+    inset-block-end: 0;
+    block-size: var(--sp-m);
+    border-radius: 12px 12px 0 0;
+
+    .branch-banner-content {
+      block-size: 0;
+      padding-block: 0;
+      visibility: hidden;
+    }
+  }
+}
+
+.branch-banner-handle {
+  @include deprecated.flex-center;
+  @include deprecated.button-style;
+
+  // overlaps the content's top padding so it stays snug without making the
+  // banner taller; fills the whole strip when collapsed
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 0;
+  block-size: var(--sp-m);
+  inline-size: 100%;
+  z-index: 1;
+}
+
+.branch-banner-handle-btn {
+  block-size: var(--sp-xs);
+  inline-size: 100%;
+  max-inline-size: 64px;
+  padding: 0;
+  border-radius: var(--sp-xs);
+  background-color: var(--palette-handler-background-color);
+}
+
+.branch-banner-content {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-m);
+
+  // extra top room for the grip handle that overlaps it
+  padding: var(--sp-m) var(--sp-m) var(--sp-s);
+  overflow: hidden;
 }
 
 .branch-banner-icon {
