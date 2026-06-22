@@ -19,6 +19,7 @@
    [app.main.data.style-dictionary :as sd]
    [app.main.data.tokenscript :as ts]
    [app.main.data.workspace :as dw]
+   [app.main.data.workspace.branches :as dwb]
    [app.main.features :as features]
    [app.main.refs :as refs]
    [app.main.store :as st]
@@ -242,7 +243,7 @@
    ::mf/memo true}
   []
   (let [selected*
-        (hooks/use-persisted-state ::history-sidebar "history")
+        (hooks/use-shared-state dwb/history-sidebar-tab-key "history")
 
         selected
         (deref selected*)

@@ -6861,6 +6861,10 @@ msgstr "main has new changes — you can update this branch"
 msgid "workspace.branches.main-subtitle"
 msgstr "Default branch"
 
+#: src/app/main/ui/workspace/main_menu.cljs:702
+msgid "workspace.branches.menu"
+msgstr "Branches"
+
 #, unused
 msgid "workspace.branches.menu.archive"
 msgstr "Archive"

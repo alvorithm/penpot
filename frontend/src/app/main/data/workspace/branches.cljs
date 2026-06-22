@@ -8,14 +8,18 @@
   "Data layer for file branching (Phase 1: create + list). Mirrors the
   patterns in `app.main.data.workspace.versions`."
   (:require
+   [app.config :as cf]
+   [app.main.broadcast :as mbc]
    [app.main.data.common :as dcm]
    [app.main.data.event :as ev]
    [app.main.data.modal :as modal]
    [app.main.data.notifications :as ntf]
    [app.main.data.persistence :as dwp]
+   [app.main.data.workspace.layout :as layout]
    [app.main.repo :as rp]
    [app.util.dom :as dom]
    [app.util.i18n :refer [tr]]
+   [app.util.storage :as storage]
    [beicon.v2.core :as rx]
    [potok.v2.core :as ptk]))
 
@@ -195,6 +199,31 @@
     ptk/WatchEvent
     (watch [_ _ _]
       (rx/of (dcm/go-to-workspace :file-id branch-file-id)))))
+
+(def history-sidebar-tab-key
+  "Storage + broadcast key for the selected tab of the version-history
+  sidebar. Shared with `app.main.ui.workspace.sidebar`, which reads it
+  through `hooks/use-shared-state` so this event can switch the active
+  tab even when the panel is already open."
+  ::history-sidebar-tab)
+
+(defn show-branches-panel
+  "Open the version-history sidebar and switch it to the Branches tab.
+  No-op when the branching feature flag is disabled (the tab does not
+  exist in that case). Writing storage covers a closed→open panel; the
+  broadcast emit covers an already-open one."
+  []
+  (ptk/reify ::show-branches-panel
+    ptk/WatchEvent
+    (watch [_ _ _]
+      (when (contains? cf/flags :branching)
+        (rx/of (layout/toggle-layout-flag :document-history :force? true))))
+
+    ptk/EffectEvent
+    (effect [_ _ _]
+      (when (contains? cf/flags :branching)
+        (swap! storage/user assoc history-sidebar-tab-key "branches")
+        (mbc/emit! history-sidebar-tab-key "branches")))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; COMPARE (read-only 3-way diff)
