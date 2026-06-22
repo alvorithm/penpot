@@ -211,6 +211,15 @@
                                 :changes [{:type :add-color :color color}]})]
           (t/is (nil? (:error out)))))
 
+      (t/testing "compare in the :main->branch direction shows main's incoming change"
+        (let [diff (:result (th/command! {::th/type :get-branch-diff
+                                          ::rpc/profile-id (:id profile)
+                                          :branch-id branch-id
+                                          :direction :main->branch}))
+              added (filterv #(= :added (:status %)) (:changes diff))]
+          (t/is (= 1 (-> diff :stats :added)))
+          (t/is (= color-id (-> added first :id)))))
+
       (t/testing "update the branch from main"
         (let [out (th/command! {::th/type :update-branch-from-main
                                 ::rpc/profile-id (:id profile)

@@ -670,10 +670,8 @@
       [:div {:class (stl/css :compare-detail-content)}
        [:div {:class (stl/css :compare-detail-head)}
         [:h3 {:class (stl/css :compare-detail-title)} (:label item)]
-        [:span {:class (stl/css :compare-detail-subtitle)}
-         (cond-> ""
-           type-lbl     (str (tr type-lbl))
-           (seq attrs)  (str " · " (tr "workspace.branches.compare.subtitle-mods" (count attrs))))]]
+        (when type-lbl
+          [:span {:class (stl/css :compare-detail-type)} (tr type-lbl)])]
 
        (if (seq attrs)
          [:div {:class (stl/css :prop-changes)}
@@ -694,7 +692,9 @@
   {::mf/register modal/components
    ::mf/register-as :branch-compare}
   [{:keys [branch]}]
-  (let [{:keys [status diff selected]} (mf/deref branch-diff)
+  (let [{:keys [status diff selected direction]} (mf/deref branch-diff)
+        direction  (or direction :branch->main)
+        incoming?  (= direction :main->branch)
 
         items
         (mf/with-memo [diff]
@@ -715,10 +715,18 @@
         on-close   (mf/use-fn #(st/emit! (modal/hide)))
         on-select  (mf/use-fn #(st/emit! (dwb/select-diff-change %)))
         on-filter  (mf/use-fn (fn [f] (reset! active-filter* f)))
+        on-swap    (mf/use-fn (mf/deps branch direction)
+                              #(st/emit! (dwb/fetch-branch-diff
+                                          (:id branch)
+                                          (if incoming? :branch->main :main->branch))))
         on-merge   (mf/use-fn (mf/deps branch)
                               #(confirm-merge! branch))
-        on-resolve (mf/use-fn (mf/deps branch)
-                              #(modal/show! :branch-conflicts {:branch branch}))
+        on-update  (mf/use-fn (mf/deps branch)
+                              #(confirm-update! branch))
+        on-resolve (mf/use-fn (mf/deps branch direction)
+                              #(modal/show! :branch-conflicts
+                                            {:branch branch
+                                             :mode (if incoming? :update :merge)}))
         on-export  (mf/use-fn
                     (mf/deps diff branch)
                     (fn []
@@ -751,13 +759,31 @@
         [:div {:class (stl/css :compare-title-text)}
          [:h2 {:class (stl/css :modal-title)} (tr "workspace.branches.compare.title")]
          [:div {:class (stl/css :compare-breadcrumb)}
-          [:span {:class (stl/css :breadcrumb-branch)}
-           [:> i/icon* {:icon-id i/git-branch :size "s"}]
-           (:name branch)]
-          [:> i/icon* {:icon-id i/arrow-up-right :size "s"}]
-          [:span {:class (stl/css :breadcrumb-main)}
-           [:> i/icon* {:icon-id i/git-commit-vertical :size "s"}]
-           "main"]]]]
+          (if incoming?
+            [:*
+             [:span {:class (stl/css :breadcrumb-main)}
+              [:> i/icon* {:icon-id i/git-commit-vertical :size "s"}]
+              "main"]
+             [:button {:class (stl/css :breadcrumb-swap)
+                       :title (tr "workspace.branches.compare.swap")
+                       :aria-label (tr "workspace.branches.compare.swap")
+                       :on-click on-swap}
+              [:> i/icon* {:icon-id i/arrow-up-right :size "s"}]]
+             [:span {:class (stl/css :breadcrumb-branch)}
+              [:> i/icon* {:icon-id i/git-branch :size "s"}]
+              (:name branch)]]
+            [:*
+             [:span {:class (stl/css :breadcrumb-branch)}
+              [:> i/icon* {:icon-id i/git-branch :size "s"}]
+              (:name branch)]
+             [:button {:class (stl/css :breadcrumb-swap)
+                       :title (tr "workspace.branches.compare.swap")
+                       :aria-label (tr "workspace.branches.compare.swap")
+                       :on-click on-swap}
+              [:> i/icon* {:icon-id i/arrow-up-right :size "s"}]]
+             [:span {:class (stl/css :breadcrumb-main)}
+              [:> i/icon* {:icon-id i/git-commit-vertical :size "s"}]
+              "main"]])]]]
 
        (when stats
          [:div {:class (stl/css :compare-stats)}
@@ -853,11 +879,23 @@
                          :icon i/download
                          :on-click on-export}
              (tr "workspace.branches.compare.export")]
-            (if conflicts?
+            ;; one action that follows the current direction: update from main
+            ;; while viewing main's incoming changes, merge otherwise
+            (cond
+              conflicts?
               [:> button* {:variant "primary"
                            :icon i/git-merge
                            :on-click on-resolve}
                (tr "workspace.branches.conflicts.resolve")]
+
+              incoming?
+              [:> button* {:variant "primary"
+                           :icon i/status-update
+                           :disabled (zero? total)
+                           :on-click on-update}
+               (tr "workspace.branches.update")]
+
+              :else
               [:> button* {:variant "primary"
                            :icon i/git-merge
                            :disabled (zero? total)

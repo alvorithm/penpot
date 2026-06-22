@@ -237,20 +237,25 @@
       (update state :workspace-branch-diff merge diff-state))))
 
 (defn fetch-branch-diff
-  [branch-id]
-  (assert (uuid? branch-id) "expected valid uuid for `branch-id`")
-  (ptk/reify ::fetch-branch-diff
-    ptk/UpdateEvent
-    (update [_ state]
-      (assoc state :workspace-branch-diff {:status :loading
-                                           :branch-id branch-id
-                                           :selected nil}))
-    ptk/WatchEvent
-    (watch [_ _ _]
-      (->> (rp/cmd! :get-branch-diff {:branch-id branch-id})
-           (rx/map #(update-branch-diff {:status :loaded :diff %}))
-           (rx/catch (fn [_]
-                       (rx/of (update-branch-diff {:status :error}))))))))
+  "Load the 3-way diff for `branch-id`. `direction` selects which side's
+  changes to show: `:branch->main` (default, the branch's outgoing changes)
+  or `:main->branch` (main's incoming changes the branch is missing)."
+  ([branch-id] (fetch-branch-diff branch-id :branch->main))
+  ([branch-id direction]
+   (assert (uuid? branch-id) "expected valid uuid for `branch-id`")
+   (ptk/reify ::fetch-branch-diff
+     ptk/UpdateEvent
+     (update [_ state]
+       (assoc state :workspace-branch-diff {:status :loading
+                                            :branch-id branch-id
+                                            :direction direction
+                                            :selected nil}))
+     ptk/WatchEvent
+     (watch [_ _ _]
+       (->> (rp/cmd! :get-branch-diff {:branch-id branch-id :direction direction})
+            (rx/map #(update-branch-diff {:status :loaded :diff %}))
+            (rx/catch (fn [_]
+                        (rx/of (update-branch-diff {:status :error})))))))))
 
 (defn select-diff-change
   "Select a change/conflict (by its index in the diff) to show its detail."

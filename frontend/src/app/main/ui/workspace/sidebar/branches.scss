@@ -341,7 +341,7 @@
 }
 
 .title-icon-warning {
-  color: var(--color-accent-warning);
+  color: var(--color-foreground-warning);
 }
 
 .compare-breadcrumb {
@@ -374,6 +374,20 @@
   color: var(--color-foreground-secondary);
 }
 
+.breadcrumb-swap {
+  @include deprecated.button-style;
+  @include deprecated.flex-center;
+
+  padding: var(--sp-xxs);
+  border-radius: var(--sp-xs);
+  color: var(--color-foreground-secondary);
+  cursor: pointer;
+
+  &:hover {
+    color: var(--color-accent-primary);
+  }
+}
+
 .compare-stats {
   display: flex;
   align-items: center;
@@ -391,22 +405,22 @@
 }
 
 .badge-added {
-  color: var(--color-accent-success);
+  color: var(--color-foreground-success);
   background-color: var(--color-background-success);
 }
 
 .badge-modified {
-  color: var(--color-accent-info);
+  color: var(--color-foreground-info);
   background-color: var(--color-background-info);
 }
 
 .badge-deleted {
-  color: var(--color-accent-error);
+  color: var(--color-foreground-error);
   background-color: var(--color-background-error);
 }
 
 .badge-conflict {
-  color: var(--color-accent-warning);
+  color: var(--color-foreground-warning);
   background-color: var(--color-background-warning);
 }
 
@@ -468,15 +482,15 @@
   background-color: var(--color-foreground-secondary);
 
   .dot-added & {
-    background-color: var(--color-accent-success);
+    background-color: var(--color-foreground-success);
   }
 
   .dot-modified & {
-    background-color: var(--color-accent-info);
+    background-color: var(--color-foreground-info);
   }
 
   .dot-deleted & {
-    background-color: var(--color-accent-error);
+    background-color: var(--color-foreground-error);
   }
 }
 
@@ -519,15 +533,15 @@
 }
 
 .count-added {
-  color: var(--color-accent-success);
+  color: var(--color-foreground-success);
 }
 
 .count-modified {
-  color: var(--color-accent-info);
+  color: var(--color-foreground-info);
 }
 
 .count-deleted {
-  color: var(--color-accent-error);
+  color: var(--color-foreground-error);
 }
 
 .compare-group-items {
@@ -556,19 +570,19 @@
   }
 
   &.status-added {
-    border-inline-start-color: var(--color-accent-success);
+    border-inline-start-color: var(--color-foreground-success);
   }
 
   &.status-modified {
-    border-inline-start-color: var(--color-accent-info);
+    border-inline-start-color: var(--color-foreground-info);
   }
 
   &.status-deleted {
-    border-inline-start-color: var(--color-accent-error);
+    border-inline-start-color: var(--color-foreground-error);
   }
 
   &.status-conflict {
-    border-inline-start-color: var(--color-accent-warning);
+    border-inline-start-color: var(--color-foreground-warning);
   }
 }
 
@@ -627,8 +641,8 @@
 
 .compare-detail-head {
   display: flex;
-  flex-direction: column;
-  gap: var(--sp-xxs);
+  align-items: baseline;
+  gap: var(--sp-s);
 }
 
 .compare-detail-title {
@@ -637,6 +651,14 @@
   margin: 0;
   color: var(--color-foreground-primary);
   font-weight: 600;
+}
+
+.compare-detail-type {
+  @include t.use-typography("body-small");
+
+  color: var(--color-foreground-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .compare-detail-subtitle {
@@ -713,12 +735,12 @@
 }
 
 .value-main {
-  color: var(--color-accent-error);
+  color: var(--color-foreground-error);
   background-color: var(--color-background-error);
 }
 
 .value-branch {
-  color: var(--color-accent-success);
+  color: var(--color-foreground-success);
   background-color: var(--color-background-success);
 }
 
@@ -748,7 +770,7 @@
 }
 
 .compare-footer-conflicts {
-  color: var(--color-accent-warning);
+  color: var(--color-foreground-warning);
 }
 
 .compare-footer-actions {
@@ -765,7 +787,7 @@
   margin-inline-start: auto;
   padding: var(--sp-xxs) var(--sp-s);
   border-radius: 12px;
-  color: var(--color-accent-info);
+  color: var(--color-foreground-info);
   background-color: var(--color-background-info);
 }
 
@@ -787,7 +809,7 @@
   @include branch-count;
 
   margin-inline-start: auto;
-  color: var(--color-accent-warning);
+  color: var(--color-foreground-warning);
 }
 
 // left list
@@ -831,7 +853,7 @@
 
   // a selected-but-unresolved conflict gets the warning outline
   &.is-selected.is-pending {
-    border-color: var(--color-accent-warning);
+    border-color: var(--color-foreground-warning);
   }
 }
 
@@ -896,7 +918,7 @@
 }
 
 .pill-pending {
-  color: var(--color-accent-warning);
+  color: var(--color-foreground-warning);
   background-color: var(--color-background-warning);
 }
 
@@ -919,7 +941,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-accent-warning);
+  color: var(--color-foreground-warning);
 }
 
 .conflict-detail-title {

@@ -235,7 +235,10 @@
 
 (def ^:private schema:get-branch-diff
   [:map {:title "get-branch-diff"}
-   [:branch-id ::sm/uuid]])
+   [:branch-id ::sm/uuid]
+   ;; `:branch->main` (default) = the branch's outgoing changes to merge;
+   ;; `:main->branch` = main's incoming changes the branch is missing.
+   [:direction {:optional true} [:enum :branch->main :main->branch]]])
 
 (sv/defmethod ::get-branch-diff
   "Read-only three-way diff between a branch and its source (main),
@@ -248,7 +251,7 @@
   {::doc/added "2.16"
    ::sm/params schema:get-branch-diff
    ::db/transaction true}
-  [{:keys [::db/conn] :as cfg} {:keys [::rpc/profile-id branch-id]}]
+  [{:keys [::db/conn] :as cfg} {:keys [::rpc/profile-id branch-id direction]}]
   (check-branching-enabled!)
   (let [branch (db/get* conn :file-branch {:id branch-id})]
     (when (or (nil? branch) (some? (:deleted-at branch)))
@@ -266,7 +269,7 @@
           base-data   (or (when-let [snap-id (:base-snapshot-id branch)]
                             (:data (fsnap/get-snapshot cfg (:source-file-id branch) snap-id)))
                           main-data)]
-      (bm/compute-merge base-data main-data branch-data :branch->main))))
+      (bm/compute-merge base-data main-data branch-data (or direction :branch->main)))))
 
 ;; --- COMMAND: merge-file-branch
 
