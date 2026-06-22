@@ -156,6 +156,15 @@
           (t/is (= 0 (:behind info)))
           (t/is (= 0 (:conflicts info)))))
 
+      (t/testing "branch list reports the same diff-based counts"
+        (let [branches (:result (th/command! {::th/type :get-file-branches
+                                              ::rpc/profile-id (:id profile)
+                                              :file-id (:id file)}))
+              row      (first (filter #(= branch-id (:id %)) branches))]
+          (t/is (= 1 (:ahead row)))
+          (t/is (= 0 (:behind row)))
+          (t/is (= 0 (:conflicts row)))))
+
       (t/testing "merge brings the new color into main"
         (let [out (th/command! {::th/type :merge-file-branch
                                 ::rpc/profile-id (:id profile)

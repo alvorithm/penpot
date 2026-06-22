@@ -159,6 +159,7 @@
           fb.merged_at,
           fb.merged_by,
           fb.base_revn,
+          fb.base_snapshot_id,
           bf.revn AS branch_revn,
           sf.revn AS source_revn
      FROM file_branch AS fb
@@ -169,24 +170,64 @@
       AND (?::boolean OR fb.status = 'open')
     ORDER BY fb.created_at DESC")
 
+(defn- branch-diff-counts
+  "Entity-level `[ahead behind conflicts]` change counts between a branch
+  file and its source (main) — the same numbers the compare dialog lists
+  (root-frame churn and structural noise filtered out). The revn deltas
+  are used only as a cheap gate to skip the (expensive) 3-way diff when a
+  side hasn't moved. `main-data` may be pre-realized and shared across
+  branches of the same source; otherwise it is loaded on demand."
+  [cfg main-data {:keys [source-file-id branch-file-id base-snapshot-id ahead-revn behind-revn]}]
+  (if (and (zero? ahead-revn) (zero? behind-revn))
+    [0 0 0]
+    (let [main-data   (or main-data (:data (bfc/get-file cfg source-file-id :realize? true)))
+          branch-data (:data (bfc/get-file cfg branch-file-id :realize? true))
+          base-data   (or (when base-snapshot-id
+                            (:data (fsnap/get-snapshot cfg source-file-id base-snapshot-id)))
+                          main-data)
+          clean-count (fn [m] (let [s (:stats m)]
+                                (+ (:added s) (:modified s) (:deleted s))))
+          fwd (when (pos? ahead-revn)
+                (bm/compute-merge base-data main-data branch-data :branch->main))
+          bwd (when (pos? behind-revn)
+                (bm/compute-merge base-data branch-data main-data :branch->main))]
+      [(if fwd (clean-count fwd) 0)
+       (if bwd (clean-count bwd) 0)
+       ;; conflicts are symmetric; only possible when both sides diverged
+       (if (and (pos? ahead-revn) (pos? behind-revn)) (count (:conflicts fwd)) 0)])))
+
 (sv/defmethod ::get-file-branches
-  "List the branches of a file. `ahead`/`behind` are cheap revn-based
-  approximations (commits made on the branch / commits main advanced
-  since the merge base); the entity-level diff arrives with the merge
-  engine in a later phase."
+  "List the branches of a file. `ahead`/`behind` are entity-level change
+  counts (matching the compare dialog), gated by the cheap revn deltas so
+  in-sync branches skip the diff entirely; `main` is realized once and
+  shared across branches."
   {::doc/added "2.16"
    ::sm/params schema:get-file-branches}
   [cfg {:keys [::rpc/profile-id file-id include-archived]}]
   (check-branching-enabled!)
   (db/run! cfg
-           (fn [{:keys [::db/conn]}]
+           (fn [{:keys [::db/conn] :as cfg}]
              (files/check-read-permissions! conn profile-id file-id)
-             (->> (db/exec! conn [sql:get-file-branches file-id (boolean include-archived)])
-                  (mapv (fn [{:keys [branch-revn source-revn base-revn] :as row}]
-                          (-> row
-                              (assoc :ahead (max 0 (- branch-revn base-revn)))
-                              (assoc :behind (max 0 (- source-revn base-revn)))
-                              (dissoc :branch-revn :source-revn))))))))
+             (let [rows      (db/exec! conn [sql:get-file-branches file-id (boolean include-archived)])
+                   revn-d    (fn [{:keys [branch-revn source-revn base-revn]}]
+                               [(max 0 (- branch-revn base-revn))
+                                (max 0 (- source-revn base-revn))])
+                   ;; realize main once, only if some branch actually diverged
+                   need?     (some (fn [r] (let [[a b] (revn-d r)] (or (pos? a) (pos? b)))) rows)
+                   main-data (when need? (:data (bfc/get-file cfg file-id :realize? true)))]
+               (mapv (fn [{:keys [base-snapshot-id branch-file-id] :as row}]
+                       (let [[ahead-revn behind-revn] (revn-d row)
+                             [ahead behind conflicts]
+                             (branch-diff-counts cfg main-data
+                                                 {:source-file-id file-id
+                                                  :branch-file-id branch-file-id
+                                                  :base-snapshot-id base-snapshot-id
+                                                  :ahead-revn ahead-revn
+                                                  :behind-revn behind-revn})]
+                         (-> row
+                             (assoc :ahead ahead :behind behind :conflicts conflicts)
+                             (dissoc :branch-revn :source-revn :base-snapshot-id))))
+                     rows)))))
 
 ;; --- COMMAND QUERY: get-branch-diff
 
@@ -554,34 +595,16 @@
                (files/check-read-permissions! conn profile-id file-id)
                (when-let [{:keys [branch-revn source-revn base-revn base-snapshot-id source-file-id] :as row}
                           (db/exec-one! conn [sql:get-file-branch-info file-id])]
-                 (let [ahead-revn  (max 0 (- branch-revn base-revn))
-                       behind-revn (max 0 (- source-revn base-revn))
-                       ;; `ahead`/`behind` count the actual entity-level
-                       ;; changes (what the compare dialog lists), NOT the raw
-                       ;; revn delta — a single edit can span many save-revns,
-                       ;; and noise like root-frame churn is filtered out. The
-                       ;; revn deltas are a cheap gate to skip the 3-way diff
-                       ;; entirely when a side hasn't moved.
-                       clean-count (fn [m] (let [s (:stats m)]
-                                             (+ (:added s) (:modified s) (:deleted s))))
-                       [ahead behind conflicts]
-                       (if (and (zero? ahead-revn) (zero? behind-revn))
-                         [0 0 0]
-                         (let [main-data   (:data (bfc/get-file cfg source-file-id :realize? true))
-                               branch-data (:data (bfc/get-file cfg file-id :realize? true))
-                               base-data   (or (when base-snapshot-id
-                                                 (:data (fsnap/get-snapshot cfg source-file-id base-snapshot-id)))
-                                               main-data)
-                               fwd (when (pos? ahead-revn)
-                                     (bm/compute-merge base-data main-data branch-data :branch->main))
-                               bwd (when (pos? behind-revn)
-                                     (bm/compute-merge base-data branch-data main-data :branch->main))]
-                           [(if fwd (clean-count fwd) 0)
-                            (if bwd (clean-count bwd) 0)
-                            ;; conflicts are symmetric; only possible when both diverged
-                            (if (and (pos? ahead-revn) (pos? behind-revn))
-                              (count (:conflicts fwd))
-                              0)]))]
+                 ;; `ahead`/`behind` count actual entity-level changes (what
+                 ;; the compare dialog lists), NOT the raw revn delta — a
+                 ;; single edit can span many save-revns and noise is filtered.
+                 (let [[ahead behind conflicts]
+                       (branch-diff-counts cfg nil
+                                           {:source-file-id source-file-id
+                                            :branch-file-id file-id
+                                            :base-snapshot-id base-snapshot-id
+                                            :ahead-revn (max 0 (- branch-revn base-revn))
+                                            :behind-revn (max 0 (- source-revn base-revn))})]
                    (-> row
                        (assoc :ahead ahead :behind behind :conflicts conflicts)
                        (dissoc :branch-revn :source-revn :base-snapshot-id))))))))

@@ -123,7 +123,9 @@
         [:div
          {:class (stl/css :file-name)
           :title display-name
-          :on-double-click start-editing-name}
+          ;; on a branch the name is fixed ("File (Branch)"); renaming here
+          ;; would be confusing, so double-click editing is disabled.
+          :on-double-click (when-not ^boolean branch? start-editing-name)}
          ;;-- Persistende state widget
          [:div {:class (case persistence-status
                          :pending (stl/css :status-notification :pending-status)
