@@ -155,13 +155,22 @@
        (let [current-id (:current-file-id state)
              from-ws?   (and (nil? file-id) (some? current-id))
              target-id  (or file-id current-id)
-             ;; Force-persist only makes sense for the open file.
-             persist    (if from-ws?
-                          (rx/concat (rx/of ::dwp/force-persist) (dwp/wait-persisted))
+             ;; Wait for persistence only when branching the open file;
+             ;; from the dashboard the file is not open, so there is
+             ;; nothing to flush. Emits exactly one value, so the branch
+             ;; is created exactly once.
+             wait       (if from-ws?
+                          (dwp/wait-persisted)
                           (rx/of :ready))]
          (rx/concat
-          (rx/of (ev/event {::ev/name "create-branch"}))
-          (->> persist
+          ;; Force-persist the open file first so the merge base captures
+          ;; the latest edits. The ::force-persist event must be dispatched
+          ;; at the top level (not piped into the mapcat below); off the
+          ;; workspace there is nothing to persist.
+          (if from-ws?
+            (rx/of ::dwp/force-persist (ev/event {::ev/name "create-branch"}))
+            (rx/of (ev/event {::ev/name "create-branch"})))
+          (->> wait
                (rx/mapcat #(rp/cmd! :create-file-branch
                                     {:file-id target-id
                                      :name name
