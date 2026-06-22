@@ -186,6 +186,13 @@
     (when (and (string? s) (re-matches #"#?[0-9a-fA-F]{3,8}" s))
       (if (str/starts-with? s "#") s (str "#" s)))))
 
+(defn- fmt-number
+  "At most two decimals, trailing zeros stripped (89.99999 -> \"90\",
+  439.4999 -> \"439.5\", 386 -> \"386\")."
+  [v]
+  (-> (.toFixed v 2)
+      (str/replace #"\.?0+$" "")))
+
 (defn- display-val
   "Compact, human-readable rendering of a property value. Raw uuids and
   collections are summarized rather than dumped (they carry no meaning to
@@ -194,7 +201,7 @@
   (cond
     (nil? v)         "—"
     (string? v)      (if (> (count v) 32) (str (subs v 0 32) "…") v)
-    (number? v)      (dm/str v)
+    (number? v)      (fmt-number v)
     (boolean? v)     (if v "true" "false")
     (keyword? v)     (name v)
     (uuid? v)        (str (subs (str v) 0 8) "…")
@@ -836,24 +843,94 @@
 
 ;; --- Resolve conflicts dialog
 
+(def ^:private conflict-reason->label
+  {:modify-modify "workspace.branches.conflicts.reason.modify-modify"
+   :add-add       "workspace.branches.conflicts.reason.add-add"
+   :delete-modify "workspace.branches.conflicts.reason.delete-modify"
+   :modify-delete "workspace.branches.conflicts.reason.modify-delete"})
+
 (mf/defc branch-conflict-item*
   {::mf/private true}
   [{:keys [conflict index selected resolution on-select]}]
-  (let [on-click (mf/use-fn (mf/deps index on-select) #(on-select index))]
-    [:li {:class (stl/css-case :compare-item true
-                               :is-selected (= index selected))
+  (let [on-click  (mf/use-fn (mf/deps index on-select) #(on-select index))
+        resolved? (contains? #{:main :branch} resolution)
+        icon-id   (if (= :shape (:kind conflict))
+                    (shape-icon-id conflict)
+                    (get kind->icon (:kind conflict) i/git-branch))
+        type-lbl  (type-label-key conflict)]
+    [:li {:class (stl/css-case :conflict-item true
+                               :is-selected (= index selected)
+                               :is-pending (not resolved?))
           :role "button"
           :on-click on-click}
-     [:> i/icon* {:icon-id (get kind->icon (:kind conflict) i/git-branch)}]
-     [:span {:class (stl/css :compare-item-label)} (:label conflict)]
+     [:div {:class (stl/css :conflict-item-icon)}
+      [:> i/icon* {:icon-id icon-id}]]
+     [:div {:class (stl/css :conflict-item-body)}
+      [:span {:class (stl/css :conflict-item-label)} (:label conflict)]
+      [:span {:class (stl/css :conflict-item-subtitle)}
+       (cond-> ""
+         type-lbl (str (tr type-lbl) " · ")
+         :always  (str (tr (if resolved?
+                             "workspace.branches.conflicts.state-resolved"
+                             "workspace.branches.conflicts.state-pending"))))]]
      (cond
        (= resolution :main)
-       [:span {:class (stl/css :resolution-badge :resolved-main)} (tr "workspace.branches.conflicts.chosen-main")]
+       [:span {:class (stl/css :conflict-pill :pill-main)}
+        [:span {:class (stl/css :pill-dot)}]
+        (tr "workspace.branches.conflicts.side-main")]
        (= resolution :branch)
-       [:span {:class (stl/css :resolution-badge :resolved-branch)} (tr "workspace.branches.conflicts.chosen-branch")]
+       [:span {:class (stl/css :conflict-pill :pill-branch)}
+        [:span {:class (stl/css :pill-dot)}]
+        (tr "workspace.branches.conflicts.side-branch")]
        :else
-       [:span {:class (stl/css :resolution-badge :resolved-pending)}
+       [:span {:class (stl/css :conflict-pill :pill-pending)}
         [:> i/icon* {:icon-id i/triangle-alert :size "s"}]])]))
+
+(mf/defc branch-conflict-card*
+  {::mf/private true}
+  [{:keys [conflict side label meta selected on-select]}]
+  (let [value       (get conflict side)
+        hex         (hex-color value)
+        attrs       (:changed-attrs conflict)
+        selectable? (some? on-select)]
+    [:div {:class (stl/css-case :conflict-card true
+                                :is-base (not selectable?)
+                                :is-selected (true? selected))}
+     [:div {:class (stl/css :conflict-card-head)}
+      [:div {:class (stl/css :conflict-card-titles)}
+       [:span {:class (stl/css :conflict-card-label)} (tr label)]
+       (when meta
+         [:span {:class (stl/css :conflict-card-meta)} (tr meta)])]
+      (when selectable?
+        [:span {:class (stl/css-case :conflict-radio true :is-on (true? selected))}])]
+
+     [:div {:class (stl/css :conflict-card-body)}
+      (cond
+        (some? hex)
+        [:*
+         [:span {:class (stl/css :conflict-card-swatch)
+                 :style {:background-color hex}}]
+         [:span {:class (stl/css :conflict-card-value)} hex]]
+
+        (seq attrs)
+        [:div {:class (stl/css :conflict-card-attrs)}
+         (for [[attr {:keys [main branch]}] attrs]
+           (let [v (case side :base (get-in conflict [:base attr]) :main main :branch branch)]
+             [:div {:class (stl/css :conflict-attr-row) :key (str attr)}
+              [:span {:class (stl/css :conflict-attr-name)} (attr-label attr)]
+              [:span {:class (stl/css :conflict-attr-val)} (display-val v)]]))]
+
+        :else
+        [:span {:class (stl/css :conflict-card-value)} (display-val value)])]
+
+     (when selectable?
+       [:div {:class (stl/css :conflict-card-action)}
+        (if selected
+          [:span {:class (stl/css :conflict-card-chosen)}
+           [:> i/icon* {:icon-id i/tick :size "s"}]
+           (tr "workspace.branches.conflicts.chosen")]
+          [:> button* {:variant "secondary" :on-click on-select}
+           (tr "workspace.branches.conflicts.use-this")])])]))
 
 (mf/defc branch-conflicts-dialog*
   {::mf/register modal/components
@@ -865,11 +942,17 @@
         resolutions (or resolutions {})
         total       (count conflicts)
         resolved    (count (filterv #(contains? #{:main :branch} (get resolutions (:id %))) conflicts))
-        all-done?   (and (pos? total) (= resolved total))
+        pending     (- total resolved)
+        all-done?   (and (pos? total) (zero? pending))
 
         sel-idx     (min (or selected 0) (max 0 (dec total)))
         sel         (when (seq conflicts) (nth conflicts sel-idx))
         sel-res     (when sel (get resolutions (:id sel)))
+        sel-type    (when sel (type-label-key sel))
+        sel-reason  (when sel (get conflict-reason->label (:reason sel)))
+        sel-icon    (when sel (if (= :shape (:kind sel))
+                                (shape-icon-id sel)
+                                (get kind->icon (:kind sel) i/git-branch)))
 
         on-close      (mf/use-fn #(st/emit! (modal/hide)))
         on-select     (mf/use-fn #(st/emit! (dwb/select-diff-change %)))
@@ -891,8 +974,9 @@
      [:div {:class (stl/css :compare-container)}
       [:div {:class (stl/css :compare-header)}
        [:div {:class (stl/css :compare-title-group)}
-        [:> i/icon* {:icon-id i/triangle-alert}]
-        [:div
+        [:div {:class (stl/css :compare-title-icon :title-icon-warning)}
+         [:> i/icon* {:icon-id i/triangle-alert}]]
+        [:div {:class (stl/css :compare-title-text)}
          [:h2 {:class (stl/css :modal-title)} (tr "workspace.branches.conflicts.title")]
          [:span {:class (stl/css :compare-subtitle)}
           (tr "workspace.branches.conflicts.subtitle" (:name branch))]]]
@@ -903,11 +987,15 @@
                          :aria-label (tr "labels.close")
                          :on-click on-close}]]
 
-      [:div {:class (stl/css :bulk-actions)}
+      [:div {:class (stl/css :conflicts-toolbar)}
+       [:span {:class (stl/css :bulk-label)} (tr "workspace.branches.conflicts.bulk-label")]
        [:> button* {:variant "ghost" :icon i/git-branch :on-click on-all-main}
         (tr "workspace.branches.conflicts.all-main")]
        [:> button* {:variant "ghost" :icon i/git-branch :on-click on-all-branch}
-        (tr "workspace.branches.conflicts.all-branch")]]
+        (tr "workspace.branches.conflicts.all-branch")]
+       (when (pos? pending)
+         [:span {:class (stl/css :conflicts-pending)}
+          (tr "workspace.branches.conflicts.pending" (str pending))])]
 
       (if (empty? conflicts)
         [:div {:class (stl/css :compare-empty)}
@@ -915,32 +1003,65 @@
                            :text (tr "workspace.branches.conflicts.empty")}]]
 
         [:div {:class (stl/css :compare-body)}
-         [:ul {:class (stl/css :compare-list)}
-          (for [[idx c] (map-indexed vector conflicts)]
-            [:> branch-conflict-item* {:key idx
-                                       :conflict c
-                                       :index idx
-                                       :selected sel-idx
-                                       :resolution (get resolutions (:id c))
-                                       :on-select on-select}])]
+         [:div {:class (stl/css :conflicts-list-side)}
+          [:span {:class (stl/css :conflicts-list-head)}
+           (tr "workspace.branches.conflicts.list-head" (str total))]
+          [:ul {:class (stl/css :compare-list)}
+           (for [[idx c] (map-indexed vector conflicts)]
+             [:> branch-conflict-item* {:key idx
+                                        :conflict c
+                                        :index idx
+                                        :selected sel-idx
+                                        :resolution (get resolutions (:id c))
+                                        :on-select on-select}])]]
 
          [:div {:class (stl/css :compare-detail)}
-          [:> branch-compare-detail* {:item sel}]
-          [:div {:class (stl/css :choice-buttons)}
-           [:> button* {:variant (if (= sel-res :main) "primary" "secondary")
-                        :on-click on-use-main}
-            (tr "workspace.branches.conflicts.use-main")]
-           [:> button* {:variant (if (= sel-res :branch) "primary" "secondary")
-                        :on-click on-use-branch}
-            (tr "workspace.branches.conflicts.use-branch")]]]])
+          (when sel
+            [:*
+             [:div {:class (stl/css :conflict-detail-head)}
+              [:div {:class (stl/css :conflict-detail-titlerow)}
+               [:div {:class (stl/css :conflict-detail-icon)}
+                [:> i/icon* {:icon-id sel-icon}]]
+               [:h3 {:class (stl/css :conflict-detail-title)} (:label sel)]]
+              [:span {:class (stl/css :conflict-detail-subtitle)}
+               (cond-> ""
+                 sel-type   (str (tr sel-type))
+                 sel-reason (str " · " (tr sel-reason)))]]
+
+             [:div {:class (stl/css :conflict-cards)}
+              [:> branch-conflict-card* {:conflict sel
+                                         :side :base
+                                         :label "workspace.branches.conflicts.card.base"
+                                         :meta "workspace.branches.conflicts.card.base-meta"}]
+              [:> branch-conflict-card* {:conflict sel
+                                         :side :main
+                                         :label "workspace.branches.conflicts.card.main"
+                                         :selected (= sel-res :main)
+                                         :on-select on-use-main}]
+              [:> branch-conflict-card* {:conflict sel
+                                         :side :branch
+                                         :label "workspace.branches.conflicts.card.branch"
+                                         :selected (= sel-res :branch)
+                                         :on-select on-use-branch}]]])]])
 
       [:div {:class (stl/css :compare-footer)}
-       [:> button* {:variant "ghost" :on-click on-close} (tr "labels.cancel")]
-       [:> button* {:variant "primary"
-                    :icon i/git-merge
-                    :disabled (not all-done?)
-                    :on-click on-apply}
-        (tr "workspace.branches.conflicts.apply")]]]]))
+       [:div {:class (stl/css :compare-footer-info)}
+        (if all-done?
+          [:*
+           [:> i/icon* {:icon-id i/tick :size "s"}]
+           (tr "workspace.branches.conflicts.footer-ready")]
+          [:*
+           [:span {:class (stl/css :compare-footer-conflicts)}
+            [:> i/icon* {:icon-id i/triangle-alert :size "s"}]]
+           [:span {:class (stl/css :compare-footer-conflicts)}
+            (tr "workspace.branches.conflicts.footer-pending" (str pending))]])]
+       [:div {:class (stl/css :compare-footer-actions)}
+        [:> button* {:variant "ghost" :on-click on-close} (tr "labels.cancel")]
+        [:> button* {:variant "primary"
+                     :icon i/git-merge
+                     :disabled (not all-done?)
+                     :on-click on-apply}
+         (tr "workspace.branches.conflicts.apply")]]]]]))
 
 ;; --- Branch context banner (shown while editing a branch)
 

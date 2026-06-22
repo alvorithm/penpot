@@ -503,14 +503,59 @@
   [coll x]
   (first (keep-indexed (fn [i v] (when (= v x) i)) coll)))
 
+(def ^:private structural-set-attrs
+  "Attrs NOT expressible as a plain `:set` op: containment/order are applied
+  via `:mov-objects` and add/del object changes, so setting their raw values
+  would corrupt the tree (leave shapes loose / duplicated)."
+  #{:shapes :parent-id :frame-id})
+
 (defn- shape-set-ops
   "`:set` operations for the attrs that differ between the main and branch
-  shape, excluding `:shapes` (children membership/order is driven by the
-  add/del object changes instead)."
+  shape, excluding the structural ones (see `structural-set-attrs`)."
   [t o]
   (->> (shallow-attr-diff t o)
-       (into [] (comp (remove (fn [[k _]] (= k :shapes)))
+       (into [] (comp (remove (fn [[k _]] (contains? structural-set-attrs k)))
                       (map (fn [[k {:keys [branch]}]] {:type :set :attr k :val branch}))))))
+
+(defn- shape-depth
+  "Depth of a shape in its objects tree (root = 0). Used to order moves so a
+  container is relocated before the shapes the branch moved into it."
+  [objects id]
+  (loop [id id d 0]
+    (let [p (:parent-id (get objects id))]
+      (if (and p (not= p id) (contains? objects p))
+        (recur p (inc d))
+        d))))
+
+(defn- page-move-changes
+  "Emit `:mov-objects` for EXISTING shapes the branch reparented to a
+  different container, when the branch wins (main left the shape untouched,
+  or the conflict was resolved to `:branch`). Reparenting cannot be applied
+  as a `:set :parent-id` op — that only rewrites the attribute and leaves
+  the shape loose in its old parent, duplicated by file repair."
+  [bo to oo resolutions page-id]
+  (->> (keys oo)
+       (keep (fn [id]
+               (let [t (get to id)
+                     o (get oo id)]
+                 (when (and (some? t)                          ; exists on both sides
+                            (not= id uuid/zero)
+                            (or (= (get bo id) t)               ; main untouched -> branch wins
+                                (= :branch (get resolutions id))))
+                   (let [new-parent (:parent-id o)]
+                     (when (not= new-parent (:parent-id t))     ; reparented
+                       {:id id
+                        :parent-id new-parent
+                        :index (index-of (get-in oo [new-parent :shapes]) id)
+                        :depth (shape-depth oo id)}))))))
+       (sort-by :depth)
+       (mapv (fn [{:keys [id parent-id index]}]
+               {:type :mov-objects
+                :page-id page-id
+                :parent-id parent-id
+                :index index
+                :shapes [id]
+                :ignore-touched true}))))
 
 (defn- page-shape-changes
   [base theirs ours resolutions page-id]
@@ -569,8 +614,14 @@
                    :frame-id (:frame-id o)
                    :index index
                    :ignore-touched true}))
-              ordered)]
-    (into mod-del add-changes)))
+              ordered)
+
+        ;; reparenting of EXISTING shapes — applied last, after new
+        ;; containers exist and attr/add changes settled
+        move-changes (page-move-changes bo to oo resolutions page-id)]
+    (-> mod-del
+        (into add-changes)
+        (into move-changes))))
 
 (defn compute-changes
   "Translate the branch→main merge into a vector of raw change maps

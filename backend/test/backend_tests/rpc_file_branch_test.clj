@@ -7,6 +7,7 @@
 (ns backend-tests.rpc-file-branch-test
   (:require
    [app.common.features :as cfeat]
+   [app.common.types.shape :as cts]
    [app.common.uuid :as uuid]
    [app.config :as cf]
    [app.rpc :as-alias rpc]
@@ -267,6 +268,93 @@
                                   :id (:id file)})
               pages (-> out :result :data :pages-index)]
           (t/is (contains? pages new-page-id)))))))
+
+(t/deftest merge-reparents-existing-shape
+  ;; main: a rect at the page root. branch: that rect moved into a new board.
+  ;; after merge main must have the rect INSIDE the board and NOT loose at
+  ;; root (regression: reparenting was applied as :set parent-id, which left
+  ;; the shape duplicated/loose).
+  (with-redefs [cf/flags (conj cf/flags :branching)]
+    (let [profile (th/create-profile* 1 {:is-active true})
+          proj-id (:default-project-id profile)
+          file    (th/create-file* 1 {:profile-id (:id profile)
+                                      :project-id proj-id
+                                      :is-shared false})
+          page-id (-> (th/command! {::th/type :get-file
+                                    ::rpc/profile-id (:id profile)
+                                    :id (:id file)})
+                      :result :data :pages first)
+          rect-id (uuid/random)
+          board-id (uuid/random)]
+
+      (t/testing "add a rect at the root of main"
+        (let [mf  (th/db-get :file {:id (:id file)})
+              out (th/command! {::th/type :update-file
+                                ::rpc/profile-id (:id profile)
+                                :id (:id file)
+                                :session-id (uuid/random)
+                                :revn (:revn mf)
+                                :vern (:vern mf)
+                                :features cfeat/supported-features
+                                :changes [{:type :add-obj
+                                           :page-id page-id
+                                           :id rect-id
+                                           :parent-id uuid/zero
+                                           :frame-id uuid/zero
+                                           :obj (cts/setup-shape
+                                                 {:id rect-id :name "Rect" :type :rect
+                                                  :parent-id uuid/zero :frame-id uuid/zero})}]})]
+          (t/is (nil? (:error out)))))
+
+      (let [create  (:result (th/command! {::th/type :create-file-branch
+                                           ::rpc/profile-id (:id profile)
+                                           :file-id (:id file)
+                                           :name "into-board"}))
+            branch-id      (:id create)
+            branch-file-id (:branch-file-id create)]
+
+        (t/testing "on the branch, move the rect into a new board"
+          (let [bf  (th/db-get :file {:id branch-file-id})
+                out (th/command! {::th/type :update-file
+                                  ::rpc/profile-id (:id profile)
+                                  :id branch-file-id
+                                  :session-id (uuid/random)
+                                  :revn (:revn bf)
+                                  :vern (:vern bf)
+                                  :features cfeat/supported-features
+                                  :changes [{:type :add-obj
+                                             :page-id page-id
+                                             :id board-id
+                                             :parent-id uuid/zero
+                                             :frame-id uuid/zero
+                                             :obj (cts/setup-shape
+                                                   {:id board-id :name "Board" :type :frame
+                                                    :parent-id uuid/zero :frame-id uuid/zero})}
+                                            {:type :mov-objects
+                                             :page-id page-id
+                                             :parent-id board-id
+                                             :shapes [rect-id]
+                                             :index 0}]})]
+            (t/is (nil? (:error out)))))
+
+        (t/testing "merge places the rect inside the board, not loose"
+          (let [out (th/command! {::th/type :merge-file-branch
+                                  ::rpc/profile-id (:id profile)
+                                  :branch-id branch-id})]
+            (t/is (nil? (:error out)))
+            (t/is (= :merged (-> out :result :status))))
+
+          (let [objects (-> (th/command! {::th/type :get-file
+                                          ::rpc/profile-id (:id profile)
+                                          :id (:id file)})
+                            :result :data :pages-index (get page-id) :objects)]
+            ;; the board exists and contains the rect
+            (t/is (contains? objects board-id))
+            (t/is (= [rect-id] (get-in objects [board-id :shapes])))
+            ;; the rect points to the board as its parent
+            (t/is (= board-id (get-in objects [rect-id :parent-id])))
+            ;; and is NOT left loose at the root
+            (t/is (not (contains? (set (get-in objects [uuid/zero :shapes])) rect-id)))))))))
 
 (t/deftest branch-lifecycle
   (with-redefs [cf/flags (conj cf/flags :branching)]

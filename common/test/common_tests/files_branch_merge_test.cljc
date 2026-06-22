@@ -79,9 +79,10 @@
     (t/is (= 0 (-> r :stats :modified)))))
 
 (t/deftest derived-attrs-stripped-containment-kept-and-merged
-  ;; the summary strips only derived/cache attrs (:shapes/:selrect/:points);
-  ;; meaningful attrs incl. reparenting (:parent-id/:frame-id) survive; and
-  ;; the actual merge still applies them all (except :shapes, by design).
+  ;; SUMMARY strips only derived/cache attrs (:shapes/:selrect/:points), so
+  ;; meaningful attrs incl. reparenting (:parent-id/:frame-id) stay visible.
+  ;; MERGE applies scalar attrs via :set, but containment via :mov-objects
+  ;; (never :set parent-id/frame-id — that would corrupt the tree).
   (let [base   (mkdata {:s1 {:id :s1 :name "A" :fill "red"
                              :parent-id :old :frame-id :old
                              :selrect {:x 0} :points [1 2] :shapes [:c1]}})
@@ -93,15 +94,20 @@
         chg    (bm/compute-changes base base branch)
         ops    (->> (:changes chg)
                     (filter #(= :mod-obj (:type %)))
-                    first :operations (map :attr) set)]
+                    first :operations (map :attr) set)
+        movs   (filter #(= :mov-objects (:type %)) (:changes chg))]
     (t/is (= 1 (-> r :stats :modified)))
     ;; summary: meaningful attrs (incl. containment) survive; caches stripped
     (t/is (= #{:fill :parent-id :frame-id} (set (keys (:changed-attrs c)))))
-    ;; merge: the attrs are still applied (not :shapes, by design)
+    ;; merge: scalar attrs are :set; containment is NOT a :set op
     (t/is (contains? ops :fill))
-    (t/is (contains? ops :parent-id))
-    (t/is (contains? ops :frame-id))
-    (t/is (not (contains? ops :shapes)))))
+    (t/is (not (contains? ops :parent-id)))
+    (t/is (not (contains? ops :frame-id)))
+    (t/is (not (contains? ops :shapes)))
+    ;; merge: reparenting is applied via mov-objects to the branch parent
+    (t/is (= 1 (count movs)))
+    (t/is (= :new (:parent-id (first movs))))
+    (t/is (= [:s1] (:shapes (first movs))))))
 
 (t/deftest move-existing-layer-into-board-is-shown
   ;; reparenting an existing layer into a new board must surface as a change
@@ -228,6 +234,36 @@
     (t/is (not (contains? (:obj (second adds)) :shapes)))
     ;; children membership is not re-set via :shapes ops
     (t/is (empty? (filter #(and (= :mod-obj (:type %)) (= :root (:id %))) changes)))))
+
+(t/deftest compute-changes-reparent-existing-shape
+  ;; main: rect R loose at root. branch: R moved into a new group G.
+  ;; the merge must MOVE R into G (mov-objects), not :set its parent-id —
+  ;; otherwise R is left loose at root and duplicated by file repair.
+  (let [base   (mkdata {uuid/zero {:id uuid/zero :type :frame :shapes [:r]}
+                        :r {:id :r :name "Rect" :type :rect
+                            :parent-id uuid/zero :frame-id uuid/zero}})
+        branch (mkdata {uuid/zero {:id uuid/zero :type :frame :shapes [:g]}
+                        :g {:id :g :name "Group" :type :group :shapes [:r]
+                            :parent-id uuid/zero :frame-id uuid/zero}
+                        :r {:id :r :name "Rect" :type :rect
+                            :parent-id :g :frame-id uuid/zero}})
+        {:keys [changes unsupported]} (bm/compute-changes base base branch)
+        adds   (filterv #(= :add-obj (:type %)) changes)
+        movs   (filterv #(= :mov-objects (:type %)) changes)
+        r-mod  (first (filter #(and (= :mod-obj (:type %)) (= :r (:id %))) changes))]
+    (t/is (empty? unsupported))
+    ;; G is added empty
+    (t/is (= [:g] (mapv :id adds)))
+    (t/is (= [] (get-in (first adds) [:obj :shapes])))
+    ;; R is MOVED into G at the right index (not re-added)
+    (t/is (= 1 (count movs)))
+    (t/is (= :g (:parent-id (first movs))))
+    (t/is (= [:r] (:shapes (first movs))))
+    (t/is (= 0 (:index (first movs))))
+    ;; the reparent is NOT emitted as a plain :set op on R
+    (let [set-attrs (set (map :attr (:operations r-mod)))]
+      (t/is (not (contains? set-attrs :parent-id)))
+      (t/is (not (contains? set-attrs :frame-id))))))
 
 
 (t/deftest compute-changes-resolve-shape-conflict
