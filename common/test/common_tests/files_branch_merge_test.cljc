@@ -202,6 +202,48 @@
     (t/is (= :c2 (-> by-type :add-color first :color :id)))
     (t/is (= "A2" (-> by-type :mod-color first :color :name)))))
 
+(t/deftest normalize-component-file-remaps-local-only
+  ;; only the local file id is re-pointed; external-library refs and shapes
+  ;; with no component-file are left untouched.
+  (let [data (mkdata {:s1 {:id :s1 :component-file :branch}
+                      :s2 {:id :s2 :component-file :ext-lib}
+                      :s3 {:id :s3}})
+        objs (-> (bm/normalize-component-file data :branch :main)
+                 (get-in [:pages-index :p1 :objects]))]
+    (t/is (= :main (get-in objs [:s1 :component-file])))
+    (t/is (= :ext-lib (get-in objs [:s2 :component-file])))
+    (t/is (not (contains? (get objs :s3) :component-file)))))
+
+(t/deftest merge-component-keeps-head-and-remaps-file
+  ;; a component created on a branch must merge into main as a VALID head:
+  ;; its main instance keeps component-id/main-instance and its
+  ;; component-file is re-pointed from the branch id to main's id (else main
+  ;; can't resolve the component and repair detaches it).
+  (let [comp-id :c1
+        mi-id   :mi
+        base    (mkdata {uuid/zero {:id uuid/zero :type :frame :shapes []}})
+        branch  (-> (mkdata {uuid/zero {:id uuid/zero :type :frame :shapes [mi-id]}
+                             mi-id {:id mi-id :type :frame :name "Comp" :shapes []
+                                    :parent-id uuid/zero :frame-id uuid/zero
+                                    :component-root true :main-instance true
+                                    :component-id comp-id :component-file :branch}})
+                    (assoc :components {comp-id {:id comp-id :name "Comp" :path ""
+                                                 :main-instance-id mi-id :main-instance-page :p1}}))
+        ;; emulate the RPC: canonicalize the branch's local file id to main's
+        branch'  (bm/normalize-component-file branch :branch :main)
+        {:keys [changes unsupported]} (bm/compute-changes base base branch')
+        add-mi   (first (filter #(and (= :add-obj (:type %)) (= mi-id (:id %))) changes))
+        add-comp (first (filter #(= :add-component (:type %)) changes))]
+    (t/is (empty? unsupported))
+    ;; registry row merged
+    (t/is (= comp-id (:id add-comp)))
+    (t/is (= mi-id (:main-instance-id add-comp)))
+    ;; the merged main instance is still a head, re-pointed to main's id
+    (t/is (= :main (get-in add-mi [:obj :component-file])))
+    (t/is (= comp-id (get-in add-mi [:obj :component-id])))
+    (t/is (true? (get-in add-mi [:obj :main-instance])))
+    (t/is (true? (get-in add-mi [:obj :component-root])))))
+
 (t/deftest compute-changes-shape-mod-del
   (let [base   (mkdata {:s1 {:id :s1 :name "A" :fill "red"}
                         :s2 {:id :s2 :name "B"}})

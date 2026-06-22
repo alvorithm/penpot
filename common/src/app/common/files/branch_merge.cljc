@@ -402,6 +402,42 @@
                       set-ids)]
     (merge-results (concat [presence rename order themes active-paths active-sets] tokens))))
 
+(defn- remap-objects-component-file
+  [objects from to]
+  (persistent!
+   (reduce-kv (fn [acc id shape]
+                (assoc! acc id
+                        (cond-> shape
+                          (= (:component-file shape) from)
+                          (assoc :component-file to))))
+              (transient {})
+              objects)))
+
+(defn normalize-component-file
+  "Rewrite LOCAL `:component-file` references in `data` from `from-id` to
+  `to-id` across every page's shapes.
+
+  A branch is a file copy with its own id, so its local component heads and
+  copies carry the branch file id (set by `duplicate-file`). Before diffing
+  or merging against another file these local references must be re-pointed
+  to a single canonical id (the target file). Otherwise: (a) every
+  local-component shape looks modified because its file id always differs,
+  inflating the diff/conflicts; and (b) merged main instances cannot be
+  resolved in the target file, so file repair detaches them — the component
+  silently stops being a component. External-library references (any other
+  file id) are left untouched."
+  [data from-id to-id]
+  (if (= from-id to-id)
+    data
+    (update data :pages-index
+            (fn [pi]
+              (persistent!
+               (reduce-kv (fn [acc pid page]
+                            (assoc! acc pid (update page :objects
+                                                    remap-objects-component-file from-id to-id)))
+                          (transient {})
+                          (or pi {})))))))
+
 (defn compute-merge
   "Compute the three-way diff between the merge `base`, `main` and
   `branch` file `:data`. Returns:

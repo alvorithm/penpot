@@ -181,7 +181,9 @@
   (if (and (zero? ahead-revn) (zero? behind-revn))
     [0 0 0]
     (let [main-data   (or main-data (:data (bfc/get-file cfg source-file-id :realize? true)))
-          branch-data (:data (bfc/get-file cfg branch-file-id :realize? true))
+          branch-data (bm/normalize-component-file
+                       (:data (bfc/get-file cfg branch-file-id :realize? true))
+                       branch-file-id source-file-id)
           base-data   (or (when base-snapshot-id
                             (:data (fsnap/get-snapshot cfg source-file-id base-snapshot-id)))
                           main-data)
@@ -258,7 +260,9 @@
     (files/check-read-permissions! conn profile-id (:source-file-id branch))
 
     (let [main-data   (:data (bfc/get-file cfg (:source-file-id branch) :realize? true))
-          branch-data (:data (bfc/get-file cfg (:branch-file-id branch) :realize? true))
+          branch-data (bm/normalize-component-file
+                       (:data (bfc/get-file cfg (:branch-file-id branch) :realize? true))
+                       (:branch-file-id branch) (:source-file-id branch))
           base-data   (or (when-let [snap-id (:base-snapshot-id branch)]
                             (:data (fsnap/get-snapshot cfg (:source-file-id branch) snap-id)))
                           main-data)]
@@ -316,7 +320,12 @@
                branch-file (bfc/get-file cfg (:branch-file-id branch) :realize? true)
                base-data   (or (when-let [snap-id (:base-snapshot-id branch)]
                                  (:data (fsnap/get-snapshot cfg main-id snap-id)))
-                               (:data main-file))]
+                               (:data main-file))
+               ;; canonicalize the branch's local component-file refs to
+               ;; main's id (base/main already use it) so local components
+               ;; merge as valid heads instead of being detached by repair.
+               branch-data (bm/normalize-component-file (:data branch-file)
+                                                        (:branch-file-id branch) main-id)]
 
            (when (and (some? expected-main-revn)
                       (not= expected-main-revn (:revn main-file)))
@@ -325,7 +334,7 @@
                        :hint "main was modified, recompute the diff and retry"))
 
            (let [{:keys [conflicts]} (bm/compute-merge base-data (:data main-file)
-                                                       (:data branch-file) :branch->main)
+                                                       branch-data :branch->main)
                  resolved?  (fn [c] (contains? #{:main :branch} (get resolutions (:id c))))
                  unresolved (remove resolved? conflicts)]
              (cond
@@ -334,7 +343,7 @@
 
                :else
                (let [{:keys [changes unsupported]}
-                     (bm/compute-changes base-data (:data main-file) (:data branch-file)
+                     (bm/compute-changes base-data (:data main-file) branch-data
                                          (or resolutions {}))]
                  (cond
                    (seq unsupported)
@@ -454,9 +463,14 @@
 
          (let [main-file   (bfc/get-file cfg main-id :realize? true)
                branch-file (bfc/get-file cfg branch-file-id :realize? true)
-               base-data   (or (when-let [snap-id (:base-snapshot-id branch)]
+               base-raw    (or (when-let [snap-id (:base-snapshot-id branch)]
                                  (:data (fsnap/get-snapshot cfg main-id snap-id)))
                                (:data branch-file))
+               ;; update applies main's changes INTO the branch, so the
+               ;; canonical local id is the branch's: re-point main/base
+               ;; local component-file refs to the branch file id.
+               base-data   (bm/normalize-component-file base-raw main-id branch-file-id)
+               main-data   (bm/normalize-component-file (:data main-file) main-id branch-file-id)
 
                reposition-base!
                (fn [ts]
@@ -473,7 +487,7 @@
                                {::db/return-keys false})))
 
                conflicts
-               (:conflicts (bm/compute-merge base-data (:data main-file)
+               (:conflicts (bm/compute-merge base-data main-data
                                              (:data branch-file) :main->branch))
 
                resolved?  (fn [c] (contains? #{:main :branch} (get resolutions (:id c))))
@@ -494,7 +508,7 @@
              ;; target = branch, source = main -> changes that bring main's
              ;; net changes (and conflicts resolved to main) into the branch
              (let [{:keys [changes unsupported]}
-                   (bm/compute-changes base-data (:data branch-file) (:data main-file)
+                   (bm/compute-changes base-data (:data branch-file) main-data
                                        (or inverted {}))]
                (cond
                  (seq unsupported)

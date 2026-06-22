@@ -356,6 +356,79 @@
             ;; and is NOT left loose at the root
             (t/is (not (contains? (set (get-in objects [uuid/zero :shapes])) rect-id)))))))))
 
+(t/deftest merge-component-stays-a-component
+  ;; create a component on a branch, merge it into main, and verify the
+  ;; merged main instance is still a valid component head (component-id set,
+  ;; component-file re-pointed to main) — regression: it was detached.
+  (with-redefs [cf/flags (conj cf/flags :branching)]
+    (let [profile (th/create-profile* 1 {:is-active true})
+          proj-id (:default-project-id profile)
+          file    (th/create-file* 1 {:profile-id (:id profile)
+                                      :project-id proj-id
+                                      :is-shared false})
+          page-id (-> (th/command! {::th/type :get-file
+                                    ::rpc/profile-id (:id profile)
+                                    :id (:id file)})
+                      :result :data :pages first)
+          create  (:result (th/command! {::th/type :create-file-branch
+                                         ::rpc/profile-id (:id profile)
+                                         :file-id (:id file)
+                                         :name "with-component"}))
+          branch-id      (:id create)
+          branch-file-id (:branch-file-id create)
+          comp-id (uuid/random)
+          mi-id   (uuid/random)]
+
+      (t/testing "create a component on the branch"
+        (let [bf  (th/db-get :file {:id branch-file-id})
+              out (th/command! {::th/type :update-file
+                                ::rpc/profile-id (:id profile)
+                                :id branch-file-id
+                                :session-id (uuid/random)
+                                :revn (:revn bf)
+                                :vern (:vern bf)
+                                :features cfeat/supported-features
+                                :changes
+                                [{:type :add-obj
+                                  :page-id page-id
+                                  :id mi-id
+                                  :parent-id uuid/zero
+                                  :frame-id uuid/zero
+                                  :obj (-> (cts/setup-shape
+                                            {:id mi-id :name "Component 01" :type :frame
+                                             :parent-id uuid/zero :frame-id uuid/zero})
+                                           (assoc :component-root true
+                                                  :main-instance true
+                                                  :component-id comp-id
+                                                  :component-file branch-file-id))}
+                                 {:type :add-component
+                                  :id comp-id
+                                  :name "Component 01"
+                                  :path ""
+                                  :main-instance-id mi-id
+                                  :main-instance-page page-id}]})]
+          (t/is (nil? (:error out)))))
+
+      (t/testing "merge integrates the component into main as a real head"
+        (let [out (th/command! {::th/type :merge-file-branch
+                                ::rpc/profile-id (:id profile)
+                                :branch-id branch-id})]
+          (t/is (nil? (:error out)))
+          (t/is (= :merged (-> out :result :status))))
+
+        (let [data    (-> (th/command! {::th/type :get-file
+                                        ::rpc/profile-id (:id profile)
+                                        :id (:id file)})
+                          :result :data)
+              shape   (get-in data [:pages-index page-id :objects mi-id])]
+          ;; the component registry row landed in main
+          (t/is (contains? (:components data) comp-id))
+          ;; the main instance is NOT detached: still a head pointing at main
+          (t/is (= comp-id (:component-id shape)))
+          (t/is (= (:id file) (:component-file shape)))
+          (t/is (true? (:main-instance shape)))
+          (t/is (true? (:component-root shape))))))))
+
 (t/deftest branch-lifecycle
   (with-redefs [cf/flags (conj cf/flags :branching)]
     (let [profile (th/create-profile* 1 {:is-active true})
