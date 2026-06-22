@@ -304,6 +304,29 @@
                     :on-click on-submit}
         (tr "workspace.branches.create.submit")]]]]))
 
+;; --- Confirmation for relevant branch actions (merge / update)
+
+(defn- confirm-merge!
+  "Ask for confirmation before merging `branch` into main (irreversible)."
+  [branch]
+  (st/emit! (modal/show {:type :confirm
+                         :title (tr "workspace.branches.merge.confirm-title")
+                         :message (tr "workspace.branches.merge.confirm-message" (:name branch))
+                         :accept-label (tr "workspace.branches.merge.confirm-accept")
+                         :accept-style :primary
+                         :on-accept (fn [_] (st/emit! (dwb/merge-branch (:id branch))))})))
+
+(defn- confirm-update!
+  "Ask for confirmation before updating `branch` from main (overwrites
+  conflicting branch changes)."
+  [branch]
+  (st/emit! (modal/show {:type :confirm
+                         :title (tr "workspace.branches.update.confirm-title")
+                         :message (tr "workspace.branches.update.confirm-message" (:name branch))
+                         :accept-label (tr "workspace.branches.update.confirm-accept")
+                         :accept-style :primary
+                         :on-accept (fn [_] (st/emit! (dwb/update-branch-from-main branch)))})))
+
 ;; --- Branch list entry
 
 (mf/defc branch-entry*
@@ -339,7 +362,7 @@
          (fn [event]
            (dom/stop-propagation event)
            (reset! show-menu? false)
-           (st/emit! (dwb/update-branch-from-main entry))))
+           (confirm-update! entry)))
 
         on-open-menu
         (mf/use-fn (fn [event]
@@ -693,7 +716,7 @@
         on-select  (mf/use-fn #(st/emit! (dwb/select-diff-change %)))
         on-filter  (mf/use-fn (fn [f] (reset! active-filter* f)))
         on-merge   (mf/use-fn (mf/deps branch)
-                              #(st/emit! (dwb/merge-branch (:id branch))))
+                              #(confirm-merge! branch))
         on-resolve (mf/use-fn (mf/deps branch)
                               #(modal/show! :branch-conflicts {:branch branch}))
         on-export  (mf/use-fn
@@ -1071,8 +1094,8 @@
         merged? (contains? #{"merged" "archived"} (:status ctx))
 
         on-compare   (mf/use-fn (mf/deps ctx) #(modal/show! :branch-compare {:branch ctx}))
-        on-update    (mf/use-fn (mf/deps ctx) #(st/emit! (dwb/update-branch-from-main ctx)))
-        on-merge     (mf/use-fn (mf/deps ctx) #(st/emit! (dwb/merge-branch (:id ctx))))
+        on-update    (mf/use-fn (mf/deps ctx) #(confirm-update! ctx))
+        on-merge     (mf/use-fn (mf/deps ctx) #(confirm-merge! ctx))
         on-open-main (mf/use-fn (mf/deps ctx) #(st/emit! (dwb/open-branch (:source-file-id ctx))))
         on-resolve   (mf/use-fn (mf/deps ctx) #(modal/show! :branch-conflicts {:branch ctx :mode :merge}))]
 

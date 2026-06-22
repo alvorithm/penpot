@@ -2773,7 +2773,7 @@ msgstr "Blur"
 msgid "labels.blur-effects"
 msgstr "Blur effects"
 
-#: src/app/main/data/common.cljs:119, src/app/main/ui/dashboard/change_owner.cljs:67, src/app/main/ui/dashboard/change_owner.cljs:174, src/app/main/ui/dashboard/import.cljs:541, src/app/main/ui/dashboard/team.cljs:866, src/app/main/ui/dashboard/team.cljs:1345, src/app/main/ui/delete_shared.cljs:36, src/app/main/ui/exports/assets.cljs:163, src/app/main/ui/exports/files.cljs:167, src/app/main/ui/settings/integrations.cljs:233, src/app/main/ui/viewer/share_link.cljs:204, src/app/main/ui/workspace/sidebar/assets/groups.cljs:178, src/app/main/ui/workspace/sidebar/branches.cljs:293, src/app/main/ui/workspace/sidebar/branches.cljs:1051, src/app/main/ui/workspace/tokens/export/modal.cljs:43, src/app/main/ui/workspace/tokens/import/modal.cljs:268, src/app/main/ui/workspace/tokens/import_from_library.cljs:88, src/app/main/ui/workspace/tokens/management/forms/generic_form.cljs:360, src/app/main/ui/workspace/tokens/management/forms/rename_node_modal.cljs:73, src/app/main/ui/workspace/tokens/settings/menu.cljs:104, src/app/main/ui/workspace/tokens/themes/create_modal.cljs:242
+#: src/app/main/data/common.cljs:119, src/app/main/ui/dashboard/change_owner.cljs:67, src/app/main/ui/dashboard/change_owner.cljs:174, src/app/main/ui/dashboard/import.cljs:541, src/app/main/ui/dashboard/team.cljs:866, src/app/main/ui/dashboard/team.cljs:1345, src/app/main/ui/delete_shared.cljs:36, src/app/main/ui/exports/assets.cljs:163, src/app/main/ui/exports/files.cljs:167, src/app/main/ui/settings/integrations.cljs:233, src/app/main/ui/viewer/share_link.cljs:204, src/app/main/ui/workspace/sidebar/assets/groups.cljs:178, src/app/main/ui/workspace/sidebar/branches.cljs:300, src/app/main/ui/workspace/sidebar/branches.cljs:1082, src/app/main/ui/workspace/tokens/export/modal.cljs:43, src/app/main/ui/workspace/tokens/import/modal.cljs:268, src/app/main/ui/workspace/tokens/import_from_library.cljs:88, src/app/main/ui/workspace/tokens/management/forms/generic_form.cljs:360, src/app/main/ui/workspace/tokens/management/forms/rename_node_modal.cljs:73, src/app/main/ui/workspace/tokens/settings/menu.cljs:104, src/app/main/ui/workspace/tokens/themes/create_modal.cljs:242
 msgid "labels.cancel"
 msgstr "Cancel"
 
@@ -2781,7 +2781,7 @@ msgstr "Cancel"
 msgid "labels.canva"
 msgstr "Canva"
 
-#: src/app/main/data/common.cljs:96, src/app/main/ui/confirm.cljs:78, src/app/main/ui/dashboard/comments.cljs:101, src/app/main/ui/dashboard/projects.cljs:98, src/app/main/ui/ds/product/panel_title.cljs:32, src/app/main/ui/exports/files.cljs:192, src/app/main/ui/nitrate/nitrate_code_activation_modal.cljs:72, src/app/main/ui/settings/integrations.cljs:141, src/app/main/ui/settings/integrations.cljs:260, src/app/main/ui/settings/integrations.cljs:300, src/app/main/ui/settings/integrations.cljs:342, src/app/main/ui/settings/subscription.cljs:383, src/app/main/ui/viewer/login.cljs:71, src/app/main/ui/viewer/share_link.cljs:175, src/app/main/ui/workspace/libraries.cljs:683, src/app/main/ui/workspace/sidebar/branches.cljs:260, src/app/main/ui/workspace/sidebar/branches.cljs:746, src/app/main/ui/workspace/sidebar/branches.cljs:979, src/app/main/ui/workspace/sidebar/layers.cljs:579, src/app/main/ui/workspace/sidebar/options/menus/typography.cljs:542, src/app/main/ui/workspace/sidebar/options/menus/typography.cljs:565, src/app/main/ui/workspace/sidebar/options/menus/variants_help_modal.cljs:43, src/app/main/ui/workspace/sidebar.cljs:268, src/app/main/ui/workspace/tokens/export.cljs:25, src/app/main/ui/workspace/tokens/import.cljs:19, src/app/main/ui/workspace/tokens/import_from_library.cljs:63, src/app/main/ui/workspace/tokens/management/forms/modals.cljs:99, src/app/main/ui/workspace/tokens/management/forms/rename_node_modal.cljs:114, src/app/main/ui/workspace/tokens/remapping_modal.cljs:93, src/app/main/ui/workspace/tokens/settings/menu.cljs:77, src/app/main/ui/workspace/tokens/themes/create_modal.cljs:61, src/app/main/ui/workspace/tokens/themes/create_modal.cljs:144, src/app/main/ui/workspace/tokens/themes/create_modal.cljs:458, src/app/main/ui/workspace/webgl_unavailable_modal.cljs:56
+#: src/app/main/data/common.cljs:96, src/app/main/ui/confirm.cljs:78, src/app/main/ui/dashboard/comments.cljs:101, src/app/main/ui/dashboard/projects.cljs:98, src/app/main/ui/ds/product/panel_title.cljs:32, src/app/main/ui/exports/files.cljs:192, src/app/main/ui/nitrate/nitrate_code_activation_modal.cljs:72, src/app/main/ui/settings/integrations.cljs:141, src/app/main/ui/settings/integrations.cljs:260, src/app/main/ui/settings/integrations.cljs:300, src/app/main/ui/settings/integrations.cljs:342, src/app/main/ui/settings/subscription.cljs:383, src/app/main/ui/viewer/login.cljs:71, src/app/main/ui/viewer/share_link.cljs:175, src/app/main/ui/workspace/libraries.cljs:683, src/app/main/ui/workspace/sidebar/branches.cljs:267, src/app/main/ui/workspace/sidebar/branches.cljs:776, src/app/main/ui/workspace/sidebar/branches.cljs:1010, src/app/main/ui/workspace/sidebar/layers.cljs:579, src/app/main/ui/workspace/sidebar/options/menus/typography.cljs:542, src/app/main/ui/workspace/sidebar/options/menus/typography.cljs:565, src/app/main/ui/workspace/sidebar/options/menus/variants_help_modal.cljs:43, src/app/main/ui/workspace/sidebar.cljs:268, src/app/main/ui/workspace/tokens/export.cljs:25, src/app/main/ui/workspace/tokens/import.cljs:19, src/app/main/ui/workspace/tokens/import_from_library.cljs:63, src/app/main/ui/workspace/tokens/management/forms/modals.cljs:99, src/app/main/ui/workspace/tokens/management/forms/rename_node_modal.cljs:114, src/app/main/ui/workspace/tokens/remapping_modal.cljs:93, src/app/main/ui/workspace/tokens/settings/menu.cljs:77, src/app/main/ui/workspace/tokens/themes/create_modal.cljs:61, src/app/main/ui/workspace/tokens/themes/create_modal.cljs:144, src/app/main/ui/workspace/tokens/themes/create_modal.cljs:458, src/app/main/ui/workspace/webgl_unavailable_modal.cljs:56
 msgid "labels.close"
 msgstr "Close"
 
@@ -2881,7 +2881,7 @@ msgstr "Custom fonts"
 msgid "labels.dashboard"
 msgstr "Dashboard"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:349, src/app/main/ui/dashboard/fonts.cljs:286, src/app/main/ui/dashboard/fonts.cljs:363, src/app/main/ui/dashboard/fonts.cljs:397, src/app/main/ui/dashboard/project_menu.cljs:115, src/app/main/ui/dashboard/team.cljs:1379, src/app/main/ui/settings/integrations.cljs:389, src/app/main/ui/settings/profile.cljs:117, src/app/main/ui/settings/profile.cljs:128, src/app/main/ui/settings/profile.cljs:129, src/app/main/ui/workspace/sidebar/assets/common.cljs:231, src/app/main/ui/workspace/sidebar/branches.cljs:382, src/app/main/ui/workspace/sidebar/branches.cljs:446, src/app/main/ui/workspace/sidebar/options/menus/component.cljs:223, src/app/main/ui/workspace/sidebar/versions.cljs:258, src/app/main/ui/workspace/tokens/management/forms/generic_form.cljs:353, src/app/main/ui/workspace/tokens/management/node_context_menu.cljs:111, src/app/main/ui/workspace/tokens/sets/context_menu.cljs:66, src/app/main/ui/workspace/tokens/themes/create_modal.cljs:378
+#: src/app/main/ui/dashboard/file_menu.cljs:349, src/app/main/ui/dashboard/fonts.cljs:286, src/app/main/ui/dashboard/fonts.cljs:363, src/app/main/ui/dashboard/fonts.cljs:397, src/app/main/ui/dashboard/project_menu.cljs:115, src/app/main/ui/dashboard/team.cljs:1379, src/app/main/ui/settings/integrations.cljs:389, src/app/main/ui/settings/profile.cljs:117, src/app/main/ui/settings/profile.cljs:128, src/app/main/ui/settings/profile.cljs:129, src/app/main/ui/workspace/sidebar/assets/common.cljs:231, src/app/main/ui/workspace/sidebar/branches.cljs:412, src/app/main/ui/workspace/sidebar/branches.cljs:476, src/app/main/ui/workspace/sidebar/options/menus/component.cljs:223, src/app/main/ui/workspace/sidebar/versions.cljs:258, src/app/main/ui/workspace/tokens/management/forms/generic_form.cljs:353, src/app/main/ui/workspace/tokens/management/node_context_menu.cljs:111, src/app/main/ui/workspace/tokens/sets/context_menu.cljs:66, src/app/main/ui/workspace/tokens/themes/create_modal.cljs:378
 msgid "labels.delete"
 msgstr "Delete"
 
@@ -3244,7 +3244,7 @@ msgstr "Only yours"
 msgid "labels.open"
 msgstr "Open"
 
-#: src/app/main/ui/comments.cljs:929, src/app/main/ui/comments.cljs:994, src/app/main/ui/settings/integrations.cljs:413, src/app/main/ui/workspace/sidebar/branches.cljs:426, src/app/main/ui/workspace/sidebar/options/menus/interactions.cljs:402, src/app/main/ui/workspace/sidebar/options/menus/text.cljs:579
+#: src/app/main/ui/comments.cljs:929, src/app/main/ui/comments.cljs:994, src/app/main/ui/settings/integrations.cljs:413, src/app/main/ui/workspace/sidebar/branches.cljs:456, src/app/main/ui/workspace/sidebar/options/menus/interactions.cljs:402, src/app/main/ui/workspace/sidebar/options/menus/text.cljs:579
 msgid "labels.options"
 msgstr "Options"
 
@@ -3341,7 +3341,7 @@ msgstr "Remove"
 msgid "labels.remove-member"
 msgstr "Remove member"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:301, src/app/main/ui/dashboard/project_menu.cljs:88, src/app/main/ui/dashboard/sidebar.cljs:564, src/app/main/ui/workspace/sidebar/assets/groups.cljs:186, src/app/main/ui/workspace/sidebar/branches.cljs:440, src/app/main/ui/workspace/sidebar/versions.cljs:229, src/app/main/ui/workspace/tokens/management/forms/rename_node_modal.cljs:76, src/app/main/ui/workspace/tokens/management/node_context_menu.cljs:101, src/app/main/ui/workspace/tokens/sets/context_menu.cljs:63
+#: src/app/main/ui/dashboard/file_menu.cljs:301, src/app/main/ui/dashboard/project_menu.cljs:88, src/app/main/ui/dashboard/sidebar.cljs:564, src/app/main/ui/workspace/sidebar/assets/groups.cljs:186, src/app/main/ui/workspace/sidebar/branches.cljs:470, src/app/main/ui/workspace/sidebar/versions.cljs:229, src/app/main/ui/workspace/tokens/management/forms/rename_node_modal.cljs:76, src/app/main/ui/workspace/tokens/management/node_context_menu.cljs:101, src/app/main/ui/workspace/tokens/sets/context_menu.cljs:63
 msgid "labels.rename"
 msgstr "Rename"
 
@@ -6575,15 +6575,15 @@ msgstr "Text Transform"
 msgid "workspace.assets.ungroup"
 msgstr "Ungroup"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:565
+#: src/app/main/ui/workspace/sidebar/branches.cljs:595
 msgid "workspace.branches.archived"
 msgstr "Archived"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:1113
+#: src/app/main/ui/workspace/sidebar/branches.cljs:1144
 msgid "workspace.branches.banner.conflicts"
 msgstr "%s conflicts"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:1095
+#: src/app/main/ui/workspace/sidebar/branches.cljs:1126
 msgid "workspace.branches.banner.from-main"
 msgstr "from main"
 
@@ -6595,11 +6595,11 @@ msgstr "Merged branch"
 msgid "workspace.branches.banner.on-branch"
 msgstr "On branch"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:1101
+#: src/app/main/ui/workspace/sidebar/branches.cljs:1132
 msgid "workspace.branches.banner.view-main"
 msgstr "View in main"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:434, src/app/main/ui/workspace/sidebar/branches.cljs:1118
+#: src/app/main/ui/workspace/sidebar/branches.cljs:464, src/app/main/ui/workspace/sidebar/branches.cljs:1149
 msgid "workspace.branches.compare"
 msgstr "Compare"
 
@@ -6613,19 +6613,19 @@ msgstr "Property"
 msgid "workspace.branches.compare.branch"
 msgstr "branch"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:763
+#: src/app/main/ui/workspace/sidebar/branches.cljs:793
 msgid "workspace.branches.compare.empty"
 msgstr "No changes between this branch and main"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:825
+#: src/app/main/ui/workspace/sidebar/branches.cljs:855
 msgid "workspace.branches.compare.export"
 msgstr "Export diff"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:817
+#: src/app/main/ui/workspace/sidebar/branches.cljs:847
 msgid "workspace.branches.compare.footer-changes"
 msgstr "%s changes"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:820
+#: src/app/main/ui/workspace/sidebar/branches.cljs:850
 msgid "workspace.branches.compare.footer-conflicts"
 msgstr "%s to resolve before merging"
 
@@ -6653,7 +6653,7 @@ msgstr "Tokens"
 msgid "workspace.branches.compare.group.typographies"
 msgstr "Typographies"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:753
+#: src/app/main/ui/workspace/sidebar/branches.cljs:783
 msgid "workspace.branches.compare.loading"
 msgstr "Computing changes…"
 
@@ -6662,23 +6662,23 @@ msgstr "Computing changes…"
 msgid "workspace.branches.compare.main"
 msgstr "main"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:201
+#: src/app/main/ui/workspace/sidebar/branches.cljs:208
 msgid "workspace.branches.compare.n-items"
 msgstr "%s items"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:202
+#: src/app/main/ui/workspace/sidebar/branches.cljs:209
 msgid "workspace.branches.compare.n-props"
 msgstr "%s properties"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:661
+#: src/app/main/ui/workspace/sidebar/branches.cljs:691
 msgid "workspace.branches.compare.no-props"
 msgstr "No property-level changes"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:651
+#: src/app/main/ui/workspace/sidebar/branches.cljs:681
 msgid "workspace.branches.compare.prop-changes"
 msgstr "Property changes"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:637
+#: src/app/main/ui/workspace/sidebar/branches.cljs:667
 msgid "workspace.branches.compare.select-hint"
 msgstr "Select a change to see its details"
 
@@ -6737,31 +6737,31 @@ msgstr "Text"
 msgid "workspace.branches.compare.shape.variant"
 msgstr "Variant"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:735
+#: src/app/main/ui/workspace/sidebar/branches.cljs:765
 msgid "workspace.branches.compare.stats.added"
 msgstr "added"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:742
+#: src/app/main/ui/workspace/sidebar/branches.cljs:772
 msgid "workspace.branches.compare.stats.conflicts"
 msgstr "conflicts"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:739
+#: src/app/main/ui/workspace/sidebar/branches.cljs:769
 msgid "workspace.branches.compare.stats.deleted"
 msgstr "deleted"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:737
+#: src/app/main/ui/workspace/sidebar/branches.cljs:767
 msgid "workspace.branches.compare.stats.modified"
 msgstr "modified"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:604, src/app/main/ui/workspace/sidebar/branches.cljs:646
+#: src/app/main/ui/workspace/sidebar/branches.cljs:634, src/app/main/ui/workspace/sidebar/branches.cljs:676
 msgid "workspace.branches.compare.subtitle-mods"
 msgstr "%s property changes"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:601
+#: src/app/main/ui/workspace/sidebar/branches.cljs:631
 msgid "workspace.branches.compare.subtitle-new"
 msgstr "New %s"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:722
+#: src/app/main/ui/workspace/sidebar/branches.cljs:752
 msgid "workspace.branches.compare.title"
 msgstr "Compare changes"
 
@@ -6789,19 +6789,19 @@ msgstr "Token"
 msgid "workspace.branches.compare.type.typography"
 msgstr "Typography"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:987
+#: src/app/main/ui/workspace/sidebar/branches.cljs:1018
 msgid "workspace.branches.conflicts.all-branch"
 msgstr "Use branch for all"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:985
+#: src/app/main/ui/workspace/sidebar/branches.cljs:1016
 msgid "workspace.branches.conflicts.all-main"
 msgstr "Use main for all"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:1056
+#: src/app/main/ui/workspace/sidebar/branches.cljs:1087
 msgid "workspace.branches.conflicts.apply"
 msgstr "Apply and merge"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:983
+#: src/app/main/ui/workspace/sidebar/branches.cljs:1014
 msgid "workspace.branches.conflicts.bulk-label"
 msgstr "Bulk actions:"
 
@@ -6821,7 +6821,7 @@ msgstr "Your branch"
 msgid "workspace.branches.conflicts.card.main"
 msgstr "Main"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:923
+#: src/app/main/ui/workspace/sidebar/branches.cljs:954
 msgid "workspace.branches.conflicts.chosen"
 msgstr "Chosen"
 
@@ -6835,27 +6835,27 @@ msgstr "branch"
 msgid "workspace.branches.conflicts.chosen-main"
 msgstr "main"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:995
+#: src/app/main/ui/workspace/sidebar/branches.cljs:1026
 msgid "workspace.branches.conflicts.empty"
 msgstr "No conflicts to resolve"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:1049
+#: src/app/main/ui/workspace/sidebar/branches.cljs:1080
 msgid "workspace.branches.conflicts.footer-pending"
 msgstr "%s conflict(s) pending · resolve all to merge"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:1044
+#: src/app/main/ui/workspace/sidebar/branches.cljs:1075
 msgid "workspace.branches.conflicts.footer-ready"
 msgstr "All conflicts resolved"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:1000
+#: src/app/main/ui/workspace/sidebar/branches.cljs:1031
 msgid "workspace.branches.conflicts.list-head"
 msgstr "%s conflicts"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:990
+#: src/app/main/ui/workspace/sidebar/branches.cljs:1021
 msgid "workspace.branches.conflicts.pending"
 msgstr "%s pending"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:976
+#: src/app/main/ui/workspace/sidebar/branches.cljs:1007
 msgid "workspace.branches.conflicts.progress"
 msgstr "%s of %s resolved"
 
@@ -6875,15 +6875,15 @@ msgstr "edited in the branch, deleted in main"
 msgid "workspace.branches.conflicts.reason.modify-modify"
 msgstr "edited in main and in the branch since the base"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:830, src/app/main/ui/workspace/sidebar/branches.cljs:1125
+#: src/app/main/ui/workspace/sidebar/branches.cljs:860, src/app/main/ui/workspace/sidebar/branches.cljs:1156
 msgid "workspace.branches.conflicts.resolve"
 msgstr "Resolve conflicts"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:877
+#: src/app/main/ui/workspace/sidebar/branches.cljs:907
 msgid "workspace.branches.conflicts.side-branch"
 msgstr "branch"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:873
+#: src/app/main/ui/workspace/sidebar/branches.cljs:903
 msgid "workspace.branches.conflicts.side-main"
 msgstr "main"
 
@@ -6895,11 +6895,11 @@ msgstr "unresolved"
 msgid "workspace.branches.conflicts.state-resolved"
 msgstr "resolved"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:974
+#: src/app/main/ui/workspace/sidebar/branches.cljs:1005
 msgid "workspace.branches.conflicts.subtitle"
 msgstr "Merge %s into main"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:972
+#: src/app/main/ui/workspace/sidebar/branches.cljs:1003
 msgid "workspace.branches.conflicts.title"
 msgstr "Resolve conflicts"
 
@@ -6913,49 +6913,49 @@ msgstr "Use branch"
 msgid "workspace.branches.conflicts.use-main"
 msgstr "Use main"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:925
+#: src/app/main/ui/workspace/sidebar/branches.cljs:956
 msgid "workspace.branches.conflicts.use-this"
 msgstr "Use this"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:280
+#: src/app/main/ui/workspace/sidebar/branches.cljs:287
 msgid "workspace.branches.create.derive-from"
 msgstr "Derive from"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:286
+#: src/app/main/ui/workspace/sidebar/branches.cljs:293
 msgid "workspace.branches.create.derive-from-latest"
 msgstr "latest version"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:284
+#: src/app/main/ui/workspace/sidebar/branches.cljs:291
 msgid "workspace.branches.create.derive-from-main"
 msgstr "main"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:272
+#: src/app/main/ui/workspace/sidebar/branches.cljs:279
 msgid "workspace.branches.create.description-label"
 msgstr "Description (optional)"
 
-#: src/app/main/data/workspace/branches.cljs:192, src/app/main/ui/workspace/sidebar/branches.cljs:758
+#: src/app/main/data/workspace/branches.cljs:192, src/app/main/ui/workspace/sidebar/branches.cljs:788
 msgid "workspace.branches.create.error"
 msgstr "Could not create the branch"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:289
+#: src/app/main/ui/workspace/sidebar/branches.cljs:296
 msgid "workspace.branches.create.info"
 msgstr ""
 "Your branch is a complete, isolated copy. Nothing you do affects main until "
 "you merge it."
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:264
+#: src/app/main/ui/workspace/sidebar/branches.cljs:271
 msgid "workspace.branches.create.name-label"
 msgstr "Branch name"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:266
+#: src/app/main/ui/workspace/sidebar/branches.cljs:273
 msgid "workspace.branches.create.name-placeholder"
 msgstr "e.g. redesign-checkout"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:298
+#: src/app/main/ui/workspace/sidebar/branches.cljs:305
 msgid "workspace.branches.create.submit"
 msgstr "Create branch"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:257
+#: src/app/main/ui/workspace/sidebar/branches.cljs:264
 msgid "workspace.branches.create.subtitle"
 msgstr "Derived from main · %s"
 
@@ -6963,15 +6963,15 @@ msgstr "Derived from main · %s"
 msgid "workspace.branches.create.success"
 msgstr "Branch \"%s\" created"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:255
+#: src/app/main/ui/workspace/sidebar/branches.cljs:262
 msgid "workspace.branches.create.title"
 msgstr "Create branch"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:381
+#: src/app/main/ui/workspace/sidebar/branches.cljs:411
 msgid "workspace.branches.delete.message"
 msgstr "Delete branch \"%s\"? This cannot be undone."
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:380
+#: src/app/main/ui/workspace/sidebar/branches.cljs:410
 msgid "workspace.branches.delete.title"
 msgstr "Delete branch"
 
@@ -6992,11 +6992,11 @@ msgstr "Branch deleted"
 msgid "workspace.branches.lifecycle.error"
 msgstr "The branch operation could not be completed"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:537
+#: src/app/main/ui/workspace/sidebar/branches.cljs:567
 msgid "workspace.branches.loading"
 msgstr "Loading branches…"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:469, src/app/main/ui/workspace/sidebar/branches.cljs:498
+#: src/app/main/ui/workspace/sidebar/branches.cljs:499, src/app/main/ui/workspace/sidebar/branches.cljs:528
 msgid "workspace.branches.main"
 msgstr "Main"
 
@@ -7004,7 +7004,7 @@ msgstr "Main"
 msgid "workspace.branches.main-advanced"
 msgstr "main has new changes — you can update this branch"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:410
+#: src/app/main/ui/workspace/sidebar/branches.cljs:440
 msgid "workspace.branches.main-subtitle"
 msgstr "Default branch"
 
@@ -7020,8 +7020,22 @@ msgstr "Archive"
 msgid "workspace.branches.menu.restore"
 msgstr "Restore"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:835, src/app/main/ui/workspace/sidebar/branches.cljs:1137
+#: src/app/main/ui/workspace/sidebar/branches.cljs:865, src/app/main/ui/workspace/sidebar/branches.cljs:1168
 msgid "workspace.branches.merge.action"
+msgstr "Merge into main"
+
+#: src/app/main/ui/workspace/sidebar/branches.cljs:315
+msgid "workspace.branches.merge.confirm-accept"
+msgstr "Merge"
+
+#: src/app/main/ui/workspace/sidebar/branches.cljs:314
+msgid "workspace.branches.merge.confirm-message"
+msgstr ""
+"Merge \"%s\" into main? This applies the branch's changes to main and can't "
+"be undone."
+
+#: src/app/main/ui/workspace/sidebar/branches.cljs:313
+msgid "workspace.branches.merge.confirm-title"
 msgstr "Merge into main"
 
 #: src/app/main/data/workspace/branches.cljs:363
@@ -7042,19 +7056,19 @@ msgstr ""
 "This branch changes elements that can't be merged automatically yet "
 "(components, pages or tokens)"
 
-#: src/app/main/ui/dashboard/branches_popover.cljs:81, src/app/main/ui/workspace/sidebar/branches.cljs:531
+#: src/app/main/ui/dashboard/branches_popover.cljs:81, src/app/main/ui/workspace/sidebar/branches.cljs:561
 msgid "workspace.branches.new"
 msgstr "New"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:525
+#: src/app/main/ui/workspace/sidebar/branches.cljs:555
 msgid "workspace.branches.search.placeholder"
 msgstr "Search branch…"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:543
+#: src/app/main/ui/workspace/sidebar/branches.cljs:573
 msgid "workspace.branches.section.current"
 msgstr "Current branch"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:551
+#: src/app/main/ui/workspace/sidebar/branches.cljs:581
 msgid "workspace.branches.section.others"
 msgstr "Other branches"
 
@@ -7078,8 +7092,22 @@ msgstr "Modified"
 msgid "workspace.branches.tab"
 msgstr "Branches"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:437, src/app/main/ui/workspace/sidebar/branches.cljs:1131
+#: src/app/main/ui/workspace/sidebar/branches.cljs:467, src/app/main/ui/workspace/sidebar/branches.cljs:1162
 msgid "workspace.branches.update"
+msgstr "Update from main"
+
+#: src/app/main/ui/workspace/sidebar/branches.cljs:326
+msgid "workspace.branches.update.confirm-accept"
+msgstr "Update"
+
+#: src/app/main/ui/workspace/sidebar/branches.cljs:325
+msgid "workspace.branches.update.confirm-message"
+msgstr ""
+"Update \"%s\" with the latest changes from main? This may overwrite "
+"conflicting changes on the branch."
+
+#: src/app/main/ui/workspace/sidebar/branches.cljs:324
+msgid "workspace.branches.update.confirm-title"
 msgstr "Update from main"
 
 #, unused
@@ -7100,7 +7128,7 @@ msgstr ""
 "main changed elements that can't be brought in automatically yet "
 "(components, pages or token structure)"
 
-#: src/app/main/ui/workspace/sidebar/branches.cljs:409
+#: src/app/main/ui/workspace/sidebar/branches.cljs:439
 msgid "workspace.branches.you-editing"
 msgstr "%s · editing now"
 
