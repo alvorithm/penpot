@@ -56,6 +56,80 @@
     (t/is (= :modified (:status c)))
     (t/is (= {:main "red" :branch "blue"} (get-in c [:changed-attrs :fill])))))
 
+(t/deftest root-frame-and-shapes-churn-hidden
+  ;; adding a top-level shape mutates the root frame's `:shapes`; that churn
+  ;; (and the root frame itself) must NOT show up as a change — only the new shape.
+  (let [base   (mkdata {uuid/zero {:id uuid/zero :name "Root Frame" :shapes [:s1]}
+                        :s1 {:id :s1 :name "A"}})
+        branch (mkdata {uuid/zero {:id uuid/zero :name "Root Frame" :shapes [:s1 :s2]}
+                        :s1 {:id :s1 :name "A"}
+                        :s2 {:id :s2 :name "B"}})
+        r      (bm/compute-merge base base branch :branch->main)]
+    (t/is (= #{:s2} (set (map :id (:changes r)))))
+    (t/is (= 1 (-> r :stats :added)))
+    (t/is (= 0 (-> r :stats :modified)))))
+
+(t/deftest shape-with-only-structural-change-hidden
+  ;; a shape whose ONLY diff is structural/derived (here children reorder)
+  ;; is not reported as modified in the summary.
+  (let [base   (mkdata {:s1 {:id :s1 :name "A" :shapes [:c1 :c2]}})
+        branch (mkdata {:s1 {:id :s1 :name "A" :shapes [:c2 :c1]}})
+        r      (bm/compute-merge base base branch :branch->main)]
+    (t/is (= [] (:changes r)))
+    (t/is (= 0 (-> r :stats :modified)))))
+
+(t/deftest derived-attrs-stripped-containment-kept-and-merged
+  ;; the summary strips only derived/cache attrs (:shapes/:selrect/:points);
+  ;; meaningful attrs incl. reparenting (:parent-id/:frame-id) survive; and
+  ;; the actual merge still applies them all (except :shapes, by design).
+  (let [base   (mkdata {:s1 {:id :s1 :name "A" :fill "red"
+                             :parent-id :old :frame-id :old
+                             :selrect {:x 0} :points [1 2] :shapes [:c1]}})
+        branch (mkdata {:s1 {:id :s1 :name "A" :fill "blue"
+                             :parent-id :new :frame-id :new
+                             :selrect {:x 9} :points [3 4] :shapes [:c1 :c2]}})
+        r      (bm/compute-merge base base branch :branch->main)
+        c      (first (:changes r))
+        chg    (bm/compute-changes base base branch)
+        ops    (->> (:changes chg)
+                    (filter #(= :mod-obj (:type %)))
+                    first :operations (map :attr) set)]
+    (t/is (= 1 (-> r :stats :modified)))
+    ;; summary: meaningful attrs (incl. containment) survive; caches stripped
+    (t/is (= #{:fill :parent-id :frame-id} (set (keys (:changed-attrs c)))))
+    ;; merge: the attrs are still applied (not :shapes, by design)
+    (t/is (contains? ops :fill))
+    (t/is (contains? ops :parent-id))
+    (t/is (contains? ops :frame-id))
+    (t/is (not (contains? ops :shapes)))))
+
+(t/deftest move-existing-layer-into-board-is-shown
+  ;; reparenting an existing layer into a new board must surface as a change
+  ;; on that layer (the user's "I moved the text into the board" action).
+  (let [base   (mkdata {:t1 {:id :t1 :name "Text" :type :text
+                             :parent-id uuid/zero :frame-id uuid/zero}})
+        branch (mkdata {:t1 {:id :t1 :name "Text" :type :text
+                             :parent-id :board :frame-id :board}
+                        :board {:id :board :name "Board" :type :frame :shapes [:t1]}})
+        r      (bm/compute-merge base base branch :branch->main)
+        moved  (first (filter #(and (= :modified (:status %)) (= :t1 (:id %))) (:changes r)))]
+    (t/is (some? moved))
+    (t/is (contains? (:changed-attrs moved) :frame-id))))
+
+(t/deftest shape-entries-carry-type-metadata
+  ;; diff entries expose the shape type / component nature so the compare
+  ;; view can pick a type-accurate icon and label.
+  (let [base   (mkdata {})
+        branch (mkdata {:t1 {:id :t1 :name "Title" :type :text}
+                        :r1 {:id :r1 :name "Box" :type :rect}
+                        :c1 {:id :c1 :name "Btn" :type :frame
+                             :component-id (uuid/random) :main-instance true}})
+        r      (bm/compute-merge base base branch :branch->main)
+        by-id  (into {} (map (juxt :id identity)) (:changes r))]
+    (t/is (= :text (get-in by-id [:t1 :shape-type])))
+    (t/is (= :rect (get-in by-id [:r1 :shape-type])))
+    (t/is (true? (get-in by-id [:c1 :component?])))))
+
 (t/deftest deleted-in-branch
   (let [base   (mkdata {:s1 {:id :s1 :name "A"} :s2 {:id :s2 :name "B"}})
         branch (mkdata {:s1 {:id :s1 :name "A"}})

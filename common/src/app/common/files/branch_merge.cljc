@@ -17,7 +17,9 @@
   Direction `:branch->main` (merge/compare) treats main as `theirs` and
   branch as `ours`; `:main->branch` (update from main) swaps them."
   (:require
+   [app.common.types.component :as ctk]
    [app.common.types.tokens-lib :as ctob]
+   [app.common.uuid :as uuid]
    [clojure.set :as set]
    [clojure.string :as str]))
 
@@ -45,6 +47,31 @@
               ks))
     {}))
 
+(def ^:private shape-ignored-attrs
+  "Purely derived/structural shape attrs that are noise in the compare
+  summary: children membership/order (`:shapes`, redundant with the
+  child's own add/move), the sync flag (`:touched`) and geometry caches
+  (`:selrect`, `:points`, recomputed from position/size). Containment
+  (`:parent-id`/`:frame-id`) is deliberately NOT here: reparenting a layer
+  into a board is a real, user-meaningful change worth surfacing. Hiding
+  these from the summary never affects merge correctness (the merge drives
+  them through add/del/move ops regardless)."
+  #{:shapes :touched :selrect :points})
+
+(defn- shape-display-meta
+  "Display-only metadata for a shape diff entry — its type and component
+  nature — so the compare view can pick a type-accurate icon and label
+  instead of a generic one."
+  [shape]
+  (when (map? shape)
+    (cond-> {:shape-type (:type shape)}
+      (ctk/main-instance? shape)            (assoc :component? true)
+      (and (ctk/instance-head? shape)
+           (not (ctk/main-instance? shape))) (assoc :component-copy? true)
+      (ctk/is-variant? shape)               (assoc :variant? true)
+      (= :bool (:type shape))               (assoc :bool-type (:bool-type shape))
+      (:masked-group shape)                 (assoc :masked? true))))
+
 (defn three-way-entities
   "Diff one indexed entity collection (id->value) across base/theirs/ours.
 
@@ -52,10 +79,20 @@
   branch's net additions/modifications/deletions that apply cleanly to
   main, and conflicts are entities both sides diverged on.
 
-  `ctx`: `{:kind <keyword> :page-id <optional uuid>}`."
-  [base theirs ours {:keys [kind] :as ctx}]
-  (let [extras (dissoc ctx :kind)
-        ids (set/union (set (keys base)) (set (keys theirs)) (set (keys ours)))
+  `ctx`: `{:kind <keyword> :page-id <optional uuid>}`. Optional display
+  knobs (do NOT affect the actual merge, only this summary):
+    `:ignore-ids`   ids skipped entirely (e.g. the page root frame);
+    `:ignore-attrs` attr keys stripped from `:changed-attrs` (structural
+                    noise like `:shapes` whose merge is driven by other ops);
+    `:drop-empty-modified?` when a `:modified` entry's `:changed-attrs`
+                    becomes empty after stripping, omit it altogether."
+  [base theirs ours {:keys [kind ignore-ids ignore-attrs drop-empty-modified?] :as ctx}]
+  (let [extras (dissoc ctx :kind :ignore-ids :ignore-attrs :drop-empty-modified?)
+        attr-diff (fn [t o]
+                    (let [d (shallow-attr-diff t o)]
+                      (if (seq ignore-attrs) (apply dissoc d ignore-attrs) d)))
+        ids (cond-> (set/union (set (keys base)) (set (keys theirs)) (set (keys ours)))
+              (seq ignore-ids) (set/difference (set ignore-ids)))
         mk  (fn [status extra]
               (merge extra extras {:kind kind :status status}))]
     (reduce
@@ -100,7 +137,7 @@
            (and (not in-b?) in-o? in-t? (not= o t))       ; both added, different
            (update acc :conflicts conj (mk :conflict {:id id :reason :add-add
                                                       :label (entity-label kind o)
-                                                      :changed-attrs (shallow-attr-diff t o)
+                                                      :changed-attrs (attr-diff t o)
                                                       :base nil :main t :branch o}))
 
            ;; --- present in all three ---
@@ -108,8 +145,11 @@
            acc
 
            (= t b)                                        ; main didn't touch, branch did
-           (update acc :changes conj (mk :modified {:id id :label (entity-label kind o)
-                                                    :changed-attrs (shallow-attr-diff t o)}))
+           (let [ca (attr-diff t o)]
+             (if (and drop-empty-modified? (map? o) (empty? ca))
+               acc
+               (update acc :changes conj (mk :modified {:id id :label (entity-label kind o)
+                                                        :changed-attrs ca}))))
 
            (= o t)                                        ; both reached the same value
            acc
@@ -117,7 +157,7 @@
            :else                                          ; both diverged differently
            (update acc :conflicts conj (mk :conflict {:id id :reason :modify-modify
                                                       :label (entity-label kind o)
-                                                      :changed-attrs (shallow-attr-diff t o)
+                                                      :changed-attrs (attr-diff t o)
                                                       :base b :main t :branch o})))))
      {:changes [] :conflicts []}
      ids)))
@@ -204,12 +244,28 @@
                                                  (plugin-of ours pid)
                                                  {:kind :page-plugin :page-id pid}))
                            common)
-        ;; objects (shapes) on common pages (mergeable: :shape)
+        ;; objects (shapes) on common pages (mergeable: :shape). The page
+        ;; root frame (uuid/zero) is skipped and structural attrs are
+        ;; stripped: they are pure noise in the summary (their merge is
+        ;; driven by add/del/move ops, not by these values).
         obj-diffs (map (fn [pid]
-                         (three-way-entities (get-in base [:pages-index pid :objects] {})
-                                             (get-in theirs [:pages-index pid :objects] {})
-                                             (get-in ours [:pages-index pid :objects] {})
-                                             {:kind :shape :page-id pid}))
+                         (let [bo  (get-in base [:pages-index pid :objects] {})
+                               to  (get-in theirs [:pages-index pid :objects] {})
+                               oo  (get-in ours [:pages-index pid :objects] {})
+                               res (three-way-entities bo to oo
+                                                       {:kind :shape :page-id pid
+                                                        :ignore-ids #{uuid/zero}
+                                                        :ignore-attrs shape-ignored-attrs
+                                                        :drop-empty-modified? true})
+                               ;; enrich each entry with the shape's type/component
+                               ;; nature, read from whichever side still has it
+                               enrich (fn [e]
+                                        (merge e (shape-display-meta
+                                                  (or (get oo (:id e))
+                                                      (get to (:id e))
+                                                      (get bo (:id e))))))]
+                           {:changes   (mapv enrich (:changes res))
+                            :conflicts (mapv enrich (:conflicts res))}))
                        common)]
     (merge-results (concat [presence meta-diff extra-diff order]
                            guides-diffs flows-diffs grids-diffs plugins-diffs obj-diffs))))

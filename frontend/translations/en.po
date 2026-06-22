@@ -6666,6 +6666,58 @@ msgstr "main"
 msgid "workspace.branches.compare.no-props"
 msgstr "No property-level changes"
 
+#: src/app/main/ui/workspace/sidebar/branches.cljs:130
+msgid "workspace.branches.compare.n-items"
+msgstr "%s items"
+
+#: src/app/main/ui/workspace/sidebar/branches.cljs:131
+msgid "workspace.branches.compare.n-props"
+msgstr "%s properties"
+
+#: src/app/main/ui/workspace/sidebar/branches.cljs:140
+msgid "workspace.branches.compare.shape.board"
+msgstr "Board"
+
+#: src/app/main/ui/workspace/sidebar/branches.cljs:141
+msgid "workspace.branches.compare.shape.rect"
+msgstr "Rectangle"
+
+#: src/app/main/ui/workspace/sidebar/branches.cljs:142
+msgid "workspace.branches.compare.shape.ellipse"
+msgstr "Ellipse"
+
+#: src/app/main/ui/workspace/sidebar/branches.cljs:143
+msgid "workspace.branches.compare.shape.path"
+msgstr "Path"
+
+#: src/app/main/ui/workspace/sidebar/branches.cljs:144
+msgid "workspace.branches.compare.shape.text"
+msgstr "Text"
+
+#: src/app/main/ui/workspace/sidebar/branches.cljs:145
+msgid "workspace.branches.compare.shape.image"
+msgstr "Image"
+
+#: src/app/main/ui/workspace/sidebar/branches.cljs:146
+msgid "workspace.branches.compare.shape.group"
+msgstr "Group"
+
+#: src/app/main/ui/workspace/sidebar/branches.cljs:147
+msgid "workspace.branches.compare.shape.bool"
+msgstr "Boolean"
+
+#: src/app/main/ui/workspace/sidebar/branches.cljs:148
+msgid "workspace.branches.compare.shape.component"
+msgstr "Component"
+
+#: src/app/main/ui/workspace/sidebar/branches.cljs:149
+msgid "workspace.branches.compare.shape.component-copy"
+msgstr "Component copy"
+
+#: src/app/main/ui/workspace/sidebar/branches.cljs:150
+msgid "workspace.branches.compare.shape.variant"
+msgstr "Variant"
+
 #: src/app/main/ui/workspace/sidebar/branches.cljs:575
 msgid "workspace.branches.compare.prop-changes"
 msgstr "Property changes"

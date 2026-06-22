@@ -74,6 +74,22 @@
       (str (subs s 0 40) "…")
       s)))
 
+(def ^:private attr->label
+  "Friendlier names for attrs whose raw key is unclear; every other attr
+  is humanized generically (kebab-case -> Capitalized words)."
+  {:rx "Corner radius" :ry "Corner radius"
+   :grow-type "Text auto-grow" :blend-mode "Blend mode"
+   :shape-ref "Component reference" :component-id "Component"
+   :component-file "Component library" :hidden "Visibility"
+   :blocked "Locked" :proportion-lock "Lock proportions"
+   :parent-id "Parent" :frame-id "Container"})
+
+(defn- attr-label
+  "Human-readable label for a changed property key."
+  [attr]
+  (or (get attr->label attr)
+      (-> (name attr) (str/replace #"-" " ") str/capital)))
+
 ;; --- Compare: grouping by category + per-item type labels
 
 (def ^:private kind->category
@@ -108,28 +124,83 @@
    :media "workspace.branches.compare.type.media"
    :token "workspace.branches.compare.type.token"})
 
+(def ^:private shape-type->icon
+  {:frame "board" :rect "rectangle" :line "rectangle" :circle "ellipse"
+   :path "path" :text "text" :image "img" :svg-raw "img" :group "group"
+   :bool "boolean-union"})
+
+(defn- shape-icon-id
+  "Type-accurate icon for a shape diff entry (component nature wins over
+  raw type), falling back to the board icon for unknown types."
+  [{:keys [shape-type component? component-copy? variant? masked?]}]
+  (cond
+    variant?        "variant"
+    component?      "component"
+    component-copy? "component-copy"
+    (and (= :group shape-type) masked?) "mask"
+    :else           (get shape-type->icon shape-type "board")))
+
+(def ^:private shape-type->label
+  {:frame "workspace.branches.compare.shape.board"
+   :rect "workspace.branches.compare.shape.rect"
+   :line "workspace.branches.compare.shape.rect"
+   :circle "workspace.branches.compare.shape.ellipse"
+   :path "workspace.branches.compare.shape.path"
+   :text "workspace.branches.compare.shape.text"
+   :image "workspace.branches.compare.shape.image"
+   :svg-raw "workspace.branches.compare.shape.image"
+   :group "workspace.branches.compare.shape.group"
+   :bool "workspace.branches.compare.shape.bool"})
+
+(defn- type-label-key
+  "i18n key for an item's specific type — type-accurate for shapes
+  (board/text/rectangle/component/…), generic for other kinds."
+  [item]
+  (if (= :shape (:kind item))
+    (let [{:keys [component? component-copy? variant? shape-type]} item]
+      (cond
+        variant?        "workspace.branches.compare.shape.variant"
+        component?      "workspace.branches.compare.shape.component"
+        component-copy? "workspace.branches.compare.shape.component-copy"
+        :else           (get shape-type->label shape-type
+                             "workspace.branches.compare.type.shape")))
+    (get kind->type-label (:kind item))))
+
 (defn- item-status
   "Conflicts carry `:conflict`; otherwise the regular add/mod/del status."
   [item]
   (if (= :conflict (:status item)) :conflict (:status item)))
 
 (defn- hex-color
-  "Return a usable hex string when `v` looks like a color, else nil."
+  "Return a usable hex string when `v` looks like a color (a hex string, a
+  color map, or a fills/strokes vector), else nil."
   [v]
-  (let [s (cond (string? v) v
-                (and (map? v) (string? (:color v))) (:color v)
-                :else nil)]
-    (when (and s (re-matches #"#?[0-9a-fA-F]{3,8}" s))
+  (let [s (cond
+            (string? v) v
+            (and (map? v) (string? (:color v))) (:color v)
+            (and (map? v) (string? (:fill-color v))) (:fill-color v)
+            (and (map? v) (string? (:stroke-color v))) (:stroke-color v)
+            (and (sequential? v) (map? (first v)))
+            (or (:fill-color (first v)) (:stroke-color (first v)) (:color (first v)))
+            :else nil)]
+    (when (and (string? s) (re-matches #"#?[0-9a-fA-F]{3,8}" s))
       (if (str/starts-with? s "#") s (str "#" s)))))
 
 (defn- display-val
+  "Compact, human-readable rendering of a property value. Raw uuids and
+  collections are summarized rather than dumped (they carry no meaning to
+  the user as raw data)."
   [v]
   (cond
-    (nil? v)     "—"
-    (string? v)  (if (> (count v) 32) (str (subs v 0 32) "…") v)
-    (number? v)  (dm/str v)
-    (keyword? v) (name v)
-    :else        (short-str v)))
+    (nil? v)         "—"
+    (string? v)      (if (> (count v) 32) (str (subs v 0 32) "…") v)
+    (number? v)      (dm/str v)
+    (boolean? v)     (if v "true" "false")
+    (keyword? v)     (name v)
+    (uuid? v)        (str (subs (str v) 0 8) "…")
+    (sequential? v)  (tr "workspace.branches.compare.n-items" (dm/str (count v)))
+    (map? v)         (tr "workspace.branches.compare.n-props" (dm/str (count v)))
+    :else            (short-str v)))
 
 (defn- status-matches?
   [filter status]
@@ -512,7 +583,9 @@
      (when hex
        [:span {:class (stl/css :value-swatch)
                :style {:background-color hex}}])
-     (display-val value)]))
+     (if (and hex (not (sequential? value)))
+       hex
+       (display-val value))]))
 
 (mf/defc branch-compare-item*
   {::mf/private true}
@@ -520,7 +593,10 @@
   (let [on-click (mf/use-fn (mf/deps index on-select) #(on-select index))
         status   (item-status item)
         attrs    (:changed-attrs item)
-        type-lbl (get kind->type-label (:kind item))
+        type-lbl (type-label-key item)
+        icon-id  (if (= :shape (:kind item))
+                   (shape-icon-id item)
+                   (get kind->icon (:kind item) i/git-branch))
         subtitle (cond
                    (= :added status)   (tr "workspace.branches.compare.subtitle-new"
                                            (if type-lbl (tr type-lbl) ""))
@@ -537,7 +613,7 @@
           :role "button"
           :on-click on-click}
      [:div {:class (stl/css :compare-item-icon)}
-      [:> i/icon* {:icon-id (get kind->icon (:kind item) i/git-branch)}]]
+      [:> i/icon* {:icon-id icon-id}]]
      [:div {:class (stl/css :compare-item-body)}
       [:span {:class (stl/css :compare-item-label)} (:label item)]
       (when subtitle
@@ -553,7 +629,7 @@
   {::mf/private true}
   [{:keys [item]}]
   (let [attrs    (:changed-attrs item)
-        type-lbl (get kind->type-label (:kind item))]
+        type-lbl (type-label-key item)]
     (cond
       (nil? item)
       [:div {:class (stl/css :compare-detail-empty)}
@@ -576,7 +652,7 @@
            [:span {:class (stl/css :prop-changes-count)} (dm/str (count attrs))]]
           (for [[attr {:keys [main branch]}] attrs]
             [:div {:class (stl/css :prop-row) :key (str attr)}
-             [:span {:class (stl/css :prop-name)} (name attr)]
+             [:span {:class (stl/css :prop-name)} (attr-label attr)]
              [:div {:class (stl/css :prop-values)}
               [:> compare-value-chip* {:value main :tone :main}]
               [:> i/icon* {:icon-id i/arrow-up-right :size "s"}]

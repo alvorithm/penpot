@@ -147,6 +147,15 @@
                                 :changes [{:type :add-color :color color}]})]
           (t/is (nil? (:error out)))))
 
+      (t/testing "branch info reports diff-based ahead/behind"
+        ;; one logical change on the branch (the added color), main untouched
+        (let [info (:result (th/command! {::th/type :get-file-branch-info
+                                          ::rpc/profile-id (:id profile)
+                                          :file-id branch-file-id}))]
+          (t/is (= 1 (:ahead info)))
+          (t/is (= 0 (:behind info)))
+          (t/is (= 0 (:conflicts info)))))
+
       (t/testing "merge brings the new color into main"
         (let [out (th/command! {::th/type :merge-file-branch
                                 ::rpc/profile-id (:id profile)
