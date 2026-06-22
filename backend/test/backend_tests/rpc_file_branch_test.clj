@@ -83,6 +83,7 @@
           (t/is (= "redesign-checkout" (:name info)))
           (t/is (= "open" (:status info)))
           (t/is (= (:id file) (:source-file-id info)))
+          (t/is (= (:name file) (:source-name info)))
           (t/is (= 0 (:ahead info)))
           (t/is (= 0 (:behind info))))
         ;; the main file is not a branch -> nil

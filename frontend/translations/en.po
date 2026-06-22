@@ -6837,6 +6837,10 @@ msgstr "Delete branch"
 msgid "workspace.branches.empty"
 msgstr "No branches yet"
 
+#: src/app/main/ui/workspace/left_header.cljs:131
+msgid "workspace.branches.header-badge-tooltip"
+msgstr "On branch %s from main"
+
 #: src/app/main/data/workspace/branches.cljs:112
 msgid "workspace.branches.lifecycle.deleted"
 msgstr "Branch deleted"

@@ -35,6 +35,9 @@
 (def current-page-id
   (l/derived (l/key :current-page-id) st/state))
 
+(def branch-context
+  (l/derived (l/key :workspace-branch-context) st/state))
+
 (def team
   (l/derived (fn [state]
                (let [team-id (:current-team-id state)
