@@ -368,14 +368,10 @@
   display: inline-flex;
   align-items: center;
   gap: var(--sp-xxs);
+  padding: var(--sp-xxs) var(--sp-s);
+  border-radius: 8px;
+  background-color: var(--color-background-tertiary);
   color: var(--color-foreground-secondary);
-}
-
-.breadcrumb-dot {
-  inline-size: 6px;
-  block-size: 6px;
-  border-radius: 50%;
-  background-color: var(--color-foreground-secondary);
 }
 
 .compare-stats {
@@ -984,6 +980,9 @@
 .conflict-card-label {
   @include t.use-typography("body-small");
 
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-xxs);
   color: var(--color-foreground-secondary);
   font-weight: 600;
   text-transform: uppercase;

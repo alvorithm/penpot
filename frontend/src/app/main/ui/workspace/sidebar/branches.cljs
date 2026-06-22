@@ -299,7 +299,7 @@
        [:> button* {:variant "ghost" :on-click on-close}
         (tr "labels.cancel")]
        [:> button* {:variant "primary"
-                    :icon i/git-branch
+                    :icon i/git-branch-plus
                     :disabled (not valid?)
                     :on-click on-submit}
         (tr "workspace.branches.create.submit")]]]]))
@@ -420,7 +420,7 @@
           :role "button"
           :on-click (when-not current on-open)}
      [:div {:class (stl/css :branch-entry-icon)}
-      [:> i/icon* {:icon-id i/git-branch}]]
+      [:> i/icon* {:icon-id (if main? i/git-commit-vertical i/git-branch)}]]
 
      [:div {:class (stl/css :branch-entry-body)}
       (if (deref editing?)
@@ -556,7 +556,7 @@
                   :value filter-v
                   :on-change on-filter-change}]
       [:> button* {:variant "primary"
-                   :icon i/add
+                   :icon i/git-branch-plus
                    :on-click on-create}
        (tr "workspace.branches.new")]]
 
@@ -756,7 +756,7 @@
            (:name branch)]
           [:> i/icon* {:icon-id i/arrow-up-right :size "s"}]
           [:span {:class (stl/css :breadcrumb-main)}
-           [:span {:class (stl/css :breadcrumb-dot)}]
+           [:> i/icon* {:icon-id i/git-commit-vertical :size "s"}]
            "main"]]]]
 
        (when stats
@@ -911,7 +911,7 @@
 
 (mf/defc branch-conflict-card*
   {::mf/private true}
-  [{:keys [conflict side label meta selected on-select]}]
+  [{:keys [conflict side label meta icon selected on-select]}]
   (let [value       (get conflict side)
         hex         (hex-color value)
         attrs       (:changed-attrs conflict)
@@ -921,7 +921,9 @@
                                 :is-selected (true? selected))}
      [:div {:class (stl/css :conflict-card-head)}
       [:div {:class (stl/css :conflict-card-titles)}
-       [:span {:class (stl/css :conflict-card-label)} (tr label)]
+       [:span {:class (stl/css :conflict-card-label)}
+        (when icon [:> i/icon* {:icon-id icon :size "s"}])
+        (tr label)]
        (when meta
          [:span {:class (stl/css :conflict-card-meta)} (tr meta)])]
       (when selectable?
@@ -1055,15 +1057,18 @@
               [:> branch-conflict-card* {:conflict sel
                                          :side :base
                                          :label "workspace.branches.conflicts.card.base"
-                                         :meta "workspace.branches.conflicts.card.base-meta"}]
+                                         :meta "workspace.branches.conflicts.card.base-meta"
+                                         :icon i/git-commit}]
               [:> branch-conflict-card* {:conflict sel
                                          :side :main
                                          :label "workspace.branches.conflicts.card.main"
+                                         :icon i/git-commit-vertical
                                          :selected (= sel-res :main)
                                          :on-select on-use-main}]
               [:> branch-conflict-card* {:conflict sel
                                          :side :branch
                                          :label "workspace.branches.conflicts.card.branch"
+                                         :icon i/git-branch
                                          :selected (= sel-res :branch)
                                          :on-select on-use-branch}]]])]])
 
