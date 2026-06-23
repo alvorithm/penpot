@@ -17,6 +17,29 @@
   font-weight: 600;
 }
 
+// --- Light-theme semantic tints
+//
+// The DS exposes the same lightened `--color-foreground-{success,error,warning,
+// info}` in both themes. That tint reads well over the dark tint backgrounds of
+// the default (dark) theme, but washes out over the pale pastel backgrounds the
+// light theme uses (see the success/info/error/warning chips and badges). For
+// this feature's surfaces we re-point those foregrounds to the more saturated
+// `--color-accent-*` tokens in the light theme only — reusing existing DS
+// variables, so there are no new variables, no global override and the dark
+// theme is untouched.
+.compare-overlay,
+.branches-toolbox,
+.branch-banner {
+  :global(.light) & {
+    --color-foreground-success: var(--color-accent-success);
+    --color-foreground-error: var(--color-accent-error);
+    // accent-warning is a bright orange that still washes out over the pale
+    // warning background; darken it a touch (toward black) so it reads.
+    --color-foreground-warning: color-mix(in srgb, var(--color-accent-warning) 60%, black);
+    --color-foreground-info: var(--color-accent-info);
+  }
+}
+
 // --- Panel
 
 .branches-toolbox {
@@ -714,7 +737,7 @@
 .prop-name {
   @include t.use-typography("body-medium");
 
-  color: var(--color-foreground-primary);
+  color: var(--color-foreground-secondary);
 }
 
 .prop-values {
@@ -729,8 +752,8 @@
 
   display: inline-flex;
   align-items: center;
-  gap: var(--sp-xxs);
-  padding: var(--sp-xxs) var(--sp-s);
+  gap: var(--sp-s);
+  padding: var(--sp-xxs) var(--sp-xs);
   border-radius: var(--sp-xs);
 }
 
@@ -742,6 +765,11 @@
 .value-branch {
   color: var(--color-foreground-success);
   background-color: var(--color-background-success);
+}
+
+.value-base {
+  color: var(--color-foreground-secondary);
+  background-color: var(--color-background-tertiary);
 }
 
 .value-swatch {
@@ -990,6 +1018,8 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--sp-xs);
+  padding-block-end: var(--sp-s);
+  border-block-end: 1px solid var(--color-background-quaternary);
 }
 
 .conflict-card-titles {
@@ -1005,7 +1035,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--sp-xxs);
-  color: var(--color-foreground-secondary);
+  color: var(--color-foreground-primary);
   font-weight: 600;
   text-transform: uppercase;
 
@@ -1037,8 +1067,8 @@
 .conflict-card-body {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-s);
-  align-items: center;
+  gap: var(--sp-m);
+  align-items: stretch;
   min-height: 0;
 }
 
@@ -1059,14 +1089,15 @@
 .conflict-card-attrs {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-xs);
+  gap: var(--sp-m);
   inline-size: 100%;
 }
 
+// each property stacks its label above its value chip, left-aligned
 .conflict-attr-row {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: flex-start;
   gap: var(--sp-xs);
 }
 
@@ -1074,14 +1105,6 @@
   @include t.use-typography("body-small");
 
   color: var(--color-foreground-secondary);
-}
-
-.conflict-attr-val {
-  @include branch-count;
-
-  color: var(--color-foreground-primary);
-  word-break: break-all;
-  text-align: end;
 }
 
 .conflict-card-action {

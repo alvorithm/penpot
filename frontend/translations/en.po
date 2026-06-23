@@ -6833,6 +6833,10 @@ msgstr "Your branch"
 msgid "workspace.branches.conflicts.card.main"
 msgstr "Main"
 
+#, unused
+msgid "workspace.branches.conflicts.card.you"
+msgstr "You"
+
 #: src/app/main/ui/workspace/sidebar/branches.cljs:992
 msgid "workspace.branches.conflicts.chosen"
 msgstr "Chosen"

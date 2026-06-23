@@ -103,11 +103,16 @@
         (let [out   (th/command! {::th/type :get-branch-diff
                                   ::rpc/profile-id (:id profile)
                                   :branch-id @branch-meta-id})
-              stats (-> out :result :stats)]
+              stats (-> out :result :stats)
+              meta  (-> out :result :meta)]
           (t/is (nil? (:error out)))
           (t/is (map? stats))
           ;; base == main == branch at fork -> nothing to merge, no conflicts
-          (t/is (= 0 (:conflicts stats)))))
+          (t/is (= 0 (:conflicts stats)))
+          ;; the resolution UI gets the "when" of each side
+          (t/is (some? (:main-at meta)))
+          (t/is (some? (:branch-at meta)))
+          (t/is (some? (:base-at meta)))))
 
       (t/testing "merge branch into main (clean, no-op)"
         (let [out (th/command! {::th/type :merge-file-branch

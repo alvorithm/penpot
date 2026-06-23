@@ -262,14 +262,23 @@
 
     (files/check-read-permissions! conn profile-id (:source-file-id branch))
 
-    (let [main-data   (:data (bfc/get-file cfg (:source-file-id branch) :realize? true))
+    (let [main-file   (bfc/get-file cfg (:source-file-id branch) :realize? true)
+          branch-file (bfc/get-file cfg (:branch-file-id branch) :realize? true)
+          main-data   (:data main-file)
           branch-data (bm/normalize-component-file
-                       (:data (bfc/get-file cfg (:branch-file-id branch) :realize? true))
+                       (:data branch-file)
                        (:branch-file-id branch) (:source-file-id branch))
           base-data   (or (when-let [snap-id (:base-snapshot-id branch)]
                             (:data (fsnap/get-snapshot cfg (:source-file-id branch) snap-id)))
                           main-data)]
-      (bm/compute-merge base-data main-data branch-data (or direction :branch->main)))))
+      ;; `:meta` carries the "when" of each side so the resolution UI can show
+      ;; how recent main/branch are (base is pinned at branch creation). The
+      ;; last editor's identity is intentionally omitted: files do not store a
+      ;; reliable "modified-by", so we surface time only.
+      (-> (bm/compute-merge base-data main-data branch-data (or direction :branch->main))
+          (assoc :meta {:base-at   (:created-at branch)
+                        :main-at   (:modified-at main-file)
+                        :branch-at (:modified-at branch-file)})))))
 
 ;; --- COMMAND: merge-file-branch
 

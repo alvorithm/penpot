@@ -611,7 +611,8 @@
   (let [hex (hex-color value)]
     [:span {:class (stl/css-case :value-chip true
                                  :value-main (= tone :main)
-                                 :value-branch (= tone :branch))}
+                                 :value-branch (= tone :branch)
+                                 :value-base (= tone :base))}
      (when hex
        [:span {:class (stl/css :value-swatch)
                :style {:background-color hex}}])
@@ -951,11 +952,13 @@
 
 (mf/defc branch-conflict-card*
   {::mf/private true}
-  [{:keys [conflict side label meta icon selected on-select]}]
+  [{:keys [conflict side label subtitle icon selected on-select]}]
   (let [value       (get conflict side)
         hex         (hex-color value)
         attrs       (:changed-attrs conflict)
-        selectable? (some? on-select)]
+        selectable? (some? on-select)
+        ;; chip tint follows the column: base = neutral, main = error, branch = success
+        tone        side]
     [:div {:class (stl/css-case :conflict-card true
                                 :is-base (not selectable?)
                                 :is-selected (true? selected))}
@@ -964,8 +967,8 @@
        [:span {:class (stl/css :conflict-card-label)}
         (when icon [:> i/icon* {:icon-id icon :size "s"}])
         (tr label)]
-       (when meta
-         [:span {:class (stl/css :conflict-card-meta)} (tr meta)])]
+       (when (seq subtitle)
+         [:span {:class (stl/css :conflict-card-meta)} subtitle])]
       (when selectable?
         [:span {:class (stl/css-case :conflict-radio true :is-on (true? selected))}])]
 
@@ -983,10 +986,10 @@
            (let [v (case side :base (get-in conflict [:base attr]) :main main :branch branch)]
              [:div {:class (stl/css :conflict-attr-row) :key (str attr)}
               [:span {:class (stl/css :conflict-attr-name)} (attr-label attr)]
-              [:span {:class (stl/css :conflict-attr-val)} (display-val v)]]))]
+              [:> compare-value-chip* {:value v :tone tone}]]))]
 
         :else
-        [:span {:class (stl/css :conflict-card-value)} (display-val value)])]
+        [:> compare-value-chip* {:value value :tone tone}])]
 
      (when selectable?
        [:div {:class (stl/css :conflict-card-action)}
@@ -1002,6 +1005,16 @@
    ::mf/register-as :branch-conflicts}
   [{:keys [branch mode]}]
   (let [{:keys [diff selected resolutions]} (mf/deref branch-diff)
+
+        diff-meta   (:meta diff)
+        ;; per-side header subtitle: base is pinned at branch creation, main
+        ;; and branch show how recent each one is ("3 hours ago"); the branch
+        ;; also names the author as "you" (it's always the current user).
+        base-sub    (tr "workspace.branches.conflicts.card.base-meta")
+        main-sub    (some-> (:main-at diff-meta) ct/inst ct/timeago)
+        branch-sub  (let [ago (some-> (:branch-at diff-meta) ct/inst ct/timeago)
+                          you (tr "workspace.branches.conflicts.card.you")]
+                      (if ago (str ago " · " you) you))
 
         conflicts   (:conflicts diff)
         resolutions (or resolutions {})
@@ -1097,17 +1110,19 @@
               [:> branch-conflict-card* {:conflict sel
                                          :side :base
                                          :label "workspace.branches.conflicts.card.base"
-                                         :meta "workspace.branches.conflicts.card.base-meta"
+                                         :subtitle base-sub
                                          :icon i/git-commit}]
               [:> branch-conflict-card* {:conflict sel
                                          :side :main
                                          :label "workspace.branches.conflicts.card.main"
+                                         :subtitle main-sub
                                          :icon i/git-commit-vertical
                                          :selected (= sel-res :main)
                                          :on-select on-use-main}]
               [:> branch-conflict-card* {:conflict sel
                                          :side :branch
                                          :label "workspace.branches.conflicts.card.branch"
+                                         :subtitle branch-sub
                                          :icon i/git-branch
                                          :selected (= sel-res :branch)
                                          :on-select on-use-branch}]]])]])
