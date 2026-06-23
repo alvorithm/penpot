@@ -1,0 +1,441 @@
+---
+title: 3.12. Branching
+desc: Learn how Penpot file branching works — isolated file copies, a three-way entity-level merge engine, conflict resolution, the RPC API and the workspace UI. View Penpot's technical guide for self-hosting, configuration and developer insights.
+---
+
+# File branching
+
+Branching lets a user take an isolated, editable copy of a file (a **branch**),
+work on it without touching the original (**main**), and later bring the changes
+back through a **merge**. It is conceptually the same idea Git offers for source
+code, applied to design files: the workspace even reuses a small set of `git-*`
+icons (`git-branch`, `git-branch-plus`, `git-commit`, `git-merge`) to make the
+mental model obvious.
+
+The whole feature is gated behind the `:branching` product flag and was added in
+the `2.16` API generation (all the RPC methods carry `::doc/added "2.16"`).
+
+## Conceptual model
+
+Branching always reasons about **three** versions of the same file:
+
+ * **main** — the source file, the one everybody else keeps editing.
+ * **branch** — the isolated copy the user works on.
+ * **merge base** — a frozen snapshot of main taken at the exact moment the
+   branch was created.
+
+Comparing two versions is not enough to decide who is right when a value
+differs. With the third (the base) the engine can tell *who* changed *what*:
+
+ * if main still equals the base, then the **branch** is the one that changed it;
+ * if the branch still equals the base, then **main** is the one that changed it;
+ * if **both** changed it, to different values, that is a **conflict** and a
+   human must pick a side.
+
+This is the classic **three-way merge** algorithm, applied at the granularity of
+individual *entities* (a color, a shape, a typography, a token, …) rather than to
+the file blob as a whole.
+
+A second, subtler property makes the whole thing possible: a branch is a copy
+that **preserves the internal `:data` ids** of every entity. Because "color X" in
+the branch and "color X" in main share the same id, the engine can pair them up
+and diff them. Without stable ids an id-based merge would be impossible.
+
+## Where the code lives
+
+The feature spans the three subsystems. The core, shared logic lives in
+`common` so it can run identically in the JVM and in JavaScript test runners.
+
+```text
+common/src/app/common/files/branch_merge.cljc          ; three-way diff + merge->changes engine
+backend/src/app/rpc/commands/files_branch.clj          ; RPC commands (create/list/diff/merge/update)
+backend/src/app/migrations/sql/0150-add-file-branch-table.sql  ; schema (file_branch table + is_branch)
+frontend/src/app/main/data/workspace/branches.cljs     ; frontend state + RPC calls (ptk events)
+frontend/src/app/main/ui/workspace/sidebar/branches.cljs       ; panels & dialogs
+frontend/src/app/main/ui/dashboard/branches_popover.cljs       ; dashboard file-card popover
+```
+
+Tests:
+
+```text
+common/test/common_tests/files_branch_merge_test.cljc  ; unit tests for the diff/merge engine
+backend/test/backend_tests/rpc_file_branch_test.clj    ; integration tests for the RPC commands
+```
+
+The branching commands closely mirror the patterns in
+`app.rpc.commands.files-snapshot`, and reuse the production change pipeline
+(`app.common.files.changes/process-changes`), the file snapshot machinery
+(`app.features.file-snapshots`) and the file-duplication pipeline
+(`app.rpc.commands.management/duplicate-file`).
+
+## Data model
+
+The migration adds one column to `file` and one new table.
+
+```sql
+ALTER TABLE file
+  ADD COLUMN is_branch boolean NOT NULL DEFAULT false;
+
+CREATE TABLE file_branch (
+  id               uuid PRIMARY KEY,
+  created_at       timestamptz NOT NULL DEFAULT clock_timestamp(),
+  updated_at       timestamptz NOT NULL DEFAULT clock_timestamp(),
+
+  branch_file_id   uuid NOT NULL REFERENCES file(id) ON DELETE CASCADE DEFERRABLE,
+  source_file_id   uuid NOT NULL REFERENCES file(id) ON DELETE CASCADE DEFERRABLE,
+
+  base_snapshot_id uuid NULL,
+  base_revn        bigint NOT NULL,
+
+  created_by       uuid NULL REFERENCES profile(id) ON DELETE SET NULL,
+
+  name             text NOT NULL,
+  description      text NULL,
+
+  status           text NOT NULL DEFAULT 'open'
+                      CHECK (status IN ('open', 'merged', 'archived')),
+
+  merged_at        timestamptz NULL,
+  merged_by        uuid NULL REFERENCES profile(id) ON DELETE SET NULL,
+  deleted_at       timestamptz NULL
+);
+```
+
+Key points:
+
+ * **`is_branch`** on `file` flags the branch copy so it is hidden from the
+   normal project/team file listings — you don't want every branch mixed in
+   with real files.
+ * **`branch_file_id`** points to the file row that *is* the branch copy;
+   **`source_file_id`** points to main. A `UNIQUE` index on `branch_file_id`
+   guarantees a file can be the branch of at most one source.
+ * **`base_snapshot_id`** references the merge-base snapshot, and **`base_revn`**
+   records main's revision number at creation time. The revn is used later as a
+   cheap "did anything change?" gate (see *ahead/behind* below).
+ * **`status`** moves through `open` → `merged` (after a successful integration)
+   or `open` ↔ `archived` (a reversible "hide it" state). Logical deletion is
+   handled the standard Penpot way via `deleted_at` rather than a hard delete.
+
+## Lifecycle of a branch
+
+### Creating a branch
+
+The `::create-file-branch` command (`files_branch.clj`) runs everything inside a
+single transaction (with `SET CONSTRAINTS ALL DEFERRED`, because the new file and
+its branch row reference each other):
+
+ 1. **Materialize the merge base.** `fsnap/create!` takes a *system* snapshot of
+    main labelled `branch-base/<name>`, with a `deleted-at` 3650 days in the
+    future. The far-future deletion date keeps the snapshot from being pruned by
+    the snapshot GC while the branch is open — the diff needs it for as long as
+    the branch lives.
+ 2. **Duplicate main into the branch file.** `mgmt/duplicate-file` is run with
+    `bfc/*state*` bound to `{:index {file-id branch-id}}` and
+    `:reset-shared-flag true`. The duplicate pipeline remaps the
+    file/media/library ids but **preserves the internal `:data` ids** — the
+    precondition for the id-based merge.
+ 3. **Mark the new file as a branch** (`is_branch = true`) so it stays out of the
+    listings.
+ 4. **Insert the `file_branch` row** with `status = 'open'`, the base snapshot id
+    and `base_revn = (:revn file)`.
+
+Before any of this it enforces edition permissions on main and checks two quotas:
+`::quotes/branches-per-file` and `::quotes/branches-per-team`.
+
+On the frontend, `create-branch` (in `branches.cljs`) first force-persists any
+pending local changes, then calls `:create-file-branch`, so the branch starts
+from a fully-saved state of main.
+
+### Working on a branch
+
+Once created, main and the branch are two live, independent files. When a branch
+file is opened, the frontend fetches its context via `:get-file-branch-info`
+(events `fetch-branches` / `fetch-branch-context`) and shows a
+`branch-context-banner*` at the top of the workspace indicating "you are on a
+branch", together with its *ahead* / *behind* counts and the merge / update
+actions.
+
+### Ahead / behind counts
+
+`::get-file-branches` lists a file's branches and annotates each with
+entity-level `ahead` / `behind` / `conflicts` counts — the same numbers the
+compare dialog shows.
+
+Computing these means running the full three-way diff, which is expensive, so
+there is a two-level gate (`branch-diff-counts`):
+
+ * Each file carries a monotonically increasing `revn`. The command first
+   computes cheap revn deltas: `ahead-revn = branch_revn - base_revn`,
+   `behind-revn = source_revn - base_revn`.
+ * If **both deltas are zero**, the branch is in sync and the diff is skipped
+   entirely (`[0 0 0]`).
+ * Otherwise main's `:data` is realized **once** and shared across all branches
+   of the same source. `ahead` is the count of clean changes in the
+   `:branch->main` direction, `behind` the count in the reverse direction, and
+   `conflicts` is only non-zero when *both* sides diverged.
+
+## The three-way diff engine
+
+`app.common.files.branch-merge` is the heart of the feature. It is a pure,
+side-effect-free engine: it reads three `:data` blobs and returns a serializable
+summary. It never mutates anything.
+
+### `three-way-entities` — the per-entity truth table
+
+`three-way-entities` diffs one indexed collection (`id -> value`) across
+base / theirs / ours and returns `{:changes [...] :conflicts [...]}`. For each id
+it applies this decision table (`theirs` is main, `ours` is the branch, in the
+default `:branch->main` direction):
+
+| Situation                                   | Outcome                                  |
+| ------------------------------------------- | ---------------------------------------- |
+| deleted in both                             | nothing                                  |
+| deleted in branch, main intact (`= base`)   | clean `:deleted`                         |
+| deleted in main, branch intact (`= base`)   | nothing (already gone in main)           |
+| deleted in branch / modified in main        | **conflict** `:delete-modify`            |
+| modified in branch / deleted in main        | **conflict** `:modify-delete`            |
+| new in branch only                          | clean `:added`                           |
+| new in main only                            | nothing                                  |
+| added on both, same value                   | nothing                                  |
+| added on both, different value              | **conflict** `:add-add`                  |
+| present in all three, branch `= base`       | nothing (main wins)                      |
+| present in all three, main `= base`         | clean `:modified` (branch wins)          |
+| present in all three, branch `= main`       | nothing (converged)                      |
+| present in all three, all three differ      | **conflict** `:modify-modify`            |
+
+So there are exactly **four conflict reasons**: `:delete-modify`,
+`:modify-delete`, `:add-add` and `:modify-modify`. Every conflict descriptor
+carries `:base`, `:main` and `:branch` values plus a `:changed-attrs` map
+(attribute → `{:main v :branch v}`) so the UI can render a side-by-side diff.
+
+A few display-only knobs (`:ignore-ids`, `:ignore-attrs`, `:drop-empty-modified?`)
+let callers strip structural noise from the *summary* without affecting merge
+correctness. For shapes, for example, the page root frame (`uuid/zero`) is
+ignored and derived/structural attrs (`:shapes`, `:touched`, `:selrect`,
+`:points`) are stripped — their merge is driven by add/del/move ops, not by their
+raw values.
+
+### `compute-merge` — across the whole file
+
+`compute-merge` runs `three-way-entities` over every mergeable collection in the
+file and concatenates the results:
+
+ * **colors**, **typographies**, **components** (row metadata), **media** —
+   straightforward indexed collections.
+ * **pages** (`diff-pages`) — page add/delete, page metadata
+   (name/background/grid), per-page guides, flows, default-grids, plugin-data,
+   and the shapes (`:objects`) of every common page. Residual page attributes
+   that no pass handles are surfaced under the `:page-attrs` kind so they are
+   *refused* rather than silently dropped.
+ * **tokens** (`diff-tokens`) — token-set add/delete, set rename, set order,
+   themes, active theme paths, active-set toggles, and per-token values.
+
+The result is `{:changes [...] :conflicts [...] :stats {...}}`, where `:stats`
+counts added / modified / deleted / conflicts. The direction argument swaps which
+side is "theirs" and which is "ours": `:branch->main` (merge / compare) vs
+`:main->branch` (update from main).
+
+### `normalize-component-file` — the local-component fix-up
+
+A branch is a file copy with its own id, so its **local** component heads and
+copies carry the *branch* file id (set by `duplicate-file`), while base and main
+carry the *source* file id. If diffed as-is, every local-component shape would
+look modified (its `:component-file` always differs), inflating the diff and
+conflicts; worse, after a merge the main instances could not be resolved in the
+target file and file repair would silently *detach* them — the shape would stop
+being a component.
+
+`normalize-component-file` rewrites only the **local** `:component-file`
+references from one file id to a single canonical id (the target file) before
+diffing or merging. External-library references (any other file id) are left
+untouched. The canonical id differs by direction: a merge re-points the branch's
+refs to main's id; an update-from-main re-points main/base refs to the branch's
+id.
+
+## Merging a branch into main
+
+`::merge-file-branch` integrates the branch back into main. Only an **editor of
+main** may do it (same rule as Figma). The whole operation runs in a transaction
+guarded by `db/xact-lock!` on the main file id — the same advisory lock the normal
+update-file path takes — so it serializes against concurrent edits and merges.
+
+The flow:
+
+ 1. **Load** main, the branch (normalized), and the base (from the snapshot).
+ 2. **Optimistic concurrency check.** If the caller passed `expected-main-revn`
+    and it no longer matches main's `revn`, it raises `:file-modified` ("recompute
+    the diff and retry").
+ 3. **Conflict gate.** `compute-merge` is run; any conflict not resolved in the
+    `resolutions` map aborts with `{:status :conflicts :conflicts [...]}`.
+ 4. **Unsupported gate.** `compute-changes` is run; if it reports any
+    `:unsupported` kinds it aborts with `{:status :unsupported :kinds [...]}` —
+    nothing is applied, so no change is ever silently lost.
+ 5. **No-op shortcut.** If there are no changes to apply (the branch already
+    matches main), the branch is marked `merged` without touching main.
+ 6. **Apply.** Otherwise it:
+     * takes a **safety snapshot** of pre-merge main (`pre-merge/<name>`, with the
+       team's normal deletion delay) so the merge can be rolled back via the
+       version history;
+     * applies the change vector through `cpc/process-changes`, bumping `revn`;
+     * **validates** the merged file (`cfv/validate-file`) and, if it finds
+       problems, runs `cfr/repair-file` and applies the repair changes;
+     * writes a `file_change` (xlog) row, persists the file
+       (`fupd/persist-file!`), marks the branch `merged`;
+     * publishes a `:file-merged` message on the msgbus topic of main so every
+       open client reloads the file in real time.
+
+### Resolutions
+
+Conflict resolutions are a simple map of **entity id → `:main` | `:branch`**.
+The id is usually a uuid, but structural conflicts use keyword ids
+(`:active-themes`, `:active-sets`, `:page-order`, `:order`). `:branch` takes the
+branch side, `:main` (or absent) leaves main untouched. The frontend builds this
+map through `set-conflict-resolution` (one entity) and `set-all-resolutions`
+(bulk), then passes it to the merge command.
+
+## From merge to change ops: `compute-changes`
+
+A diff summary is not directly applicable; it has to become the same kind of raw
+change maps the editor produces. `compute-changes` does that translation and
+returns `{:changes [...] :unsupported #{...}}`.
+
+### Mergeable vs. unsupported kinds
+
+`mergeable-kinds` is the source of truth for what can be translated:
+
+```clojure
+#{:color :typography :media :shape :token :token-set :token-set-rename :token-set-order
+  :token-theme :token-active-themes :token-active-sets
+  :page :page-order :page-guide :page-flow :page-grid :page-plugin :component}
+```
+
+`unsupported-kinds` returns any kind present in the diff that is *not* in this set
+(notably `:page-attrs`, the residual page attributes). When that set is non-empty
+the merge is refused — the engine prefers to refuse rather than drop a change it
+cannot faithfully reproduce.
+
+### Per-kind translation
+
+`flat-changes` is the shared helper that walks a flat `id -> value` collection and
+emits add / modify / delete ops, honouring resolutions (a conflicting entity is
+emitted only when its resolution is `:branch`). The concrete op types it produces:
+
+ * **colors / typographies / media** — `:add-color` / `:mod-color` /
+   `:del-color`, and the analogous `:*-typography` / `:*-media` ops.
+ * **shapes** (`page-shape-changes`) — the most involved pass:
+     * modifications become `:mod-obj` with `:set` operations for the attrs that
+       differ (structural attrs `:shapes` / `:parent-id` / `:frame-id` are
+       excluded — they are applied via moves, not plain sets);
+     * deletions become `:del-obj`;
+     * additions become `:add-obj`, emitted in **topological order** so a newly
+       added parent is created before its newly added children;
+     * reparenting of existing shapes becomes `:mov-objects`, emitted **last**
+       (after new containers exist) and ordered by depth so a container moves
+       before the shapes moved into it. Reparenting cannot be a `:set :parent-id`
+       op — that would leave the shape loose in its old parent and let file repair
+       duplicate it.
+ * **pages** — `:add-page` (full page incl. objects) / `:del-page`, `:mod-page`
+   (name/background/grid), `:mov-page` (reorder), plus per-page `:set-guide`,
+   `:set-flow`, `:set-default-grid` and `:set-plugin-data`.
+ * **components** — `:add-component` / `:mod-component` / `:del-component` (a
+   branch soft-delete, `:deleted true`, is surfaced as a real `:del-component`).
+   Components are emitted *before* shapes so `:del-component` can capture the
+   main-instance objects before `:del-obj` removes them.
+ * **tokens** — `:set-token` (per-token values), `:set-token-set` (create/delete
+   and rename), `:move-token-set` (reorder), `:set-token-theme`,
+   `:set-active-token-themes`.
+
+## Updating a branch from main
+
+`::update-branch-from-main` is the **reverse** direction: it brings into the
+branch the changes main received since the merge base. It needs edition
+permissions on the *branch* file, locks the *branch* file id, and applies main's
+changes (plus any conflicts resolved to `:main`) into the branch.
+
+It works like a merge with `compute-merge`/`compute-changes` run with the sides
+swapped, the same `:conflicts` / `:unsupported` gates, and the same safety
+snapshot. The one extra step at the end is that it **repositions the merge base**:
+the base snapshot is moved forward to the current state of main, so subsequent
+diffs start from a more recent common ancestor.
+
+## RPC API summary
+
+All commands live in `app.rpc.commands.files-branch`, are gated by
+`check-branching-enabled!`, and were added in `2.16`.
+
+| Command                       | Kind     | Purpose                                              |
+| ----------------------------- | -------- | --------------------------------------------------- |
+| `::create-file-branch`        | mutation | Snapshot main + duplicate it into a branch          |
+| `::get-file-branches`         | query    | List branches with ahead/behind/conflicts counts    |
+| `::get-branch-diff`           | query    | Read-only three-way diff (either direction)         |
+| `::merge-file-branch`         | mutation | Integrate a branch into main (with resolutions)     |
+| `::update-branch-from-main`   | mutation | Pull main's changes into the branch                 |
+| `::get-file-branch-info`      | query    | Branch metadata when opening a branch file          |
+| `::update-file-branch`        | mutation | Rename / edit description                            |
+| `::archive-file-branch`       | mutation | Archive / restore a branch                          |
+| `::delete-file-branch`        | mutation | Logically delete a branch                           |
+
+## Frontend integration
+
+### State and events
+
+`app.main.data.workspace.branches` holds the state and wraps the RPC calls as
+`ptk` events. The relevant pieces:
+
+ * State keys: `workspace-branches` (the list + status), `workspace-branch-diff`
+   (the diff result + selected change + resolutions) and `workspace-branch-context`
+   (metadata when editing a branch).
+ * Events: `fetch-branches`, `create-branch`, `open-branch`, `fetch-branch-diff`,
+   `set-conflict-resolution`, `set-all-resolutions`, `merge-branch`,
+   `update-branch-from-main`, `fetch-branch-context`, plus `rename-branch`,
+   `archive-branch`, `delete-branch`. Each maps to the matching `rp/cmd!` call
+   (`:create-file-branch`, `:get-file-branches`, `:get-branch-diff`,
+   `:merge-file-branch`, `:update-branch-from-main`, …).
+ * `reload-file-window` / `show-merge-result` handle the post-merge UX (reacting
+   to the `:file-merged` msgbus notification and showing the result).
+
+### UI components
+
+`app.main.ui.workspace.sidebar.branches` provides the workspace UI:
+
+ * **`branches-toolbox*`** — the sidebar panel listing the current, open and
+   archived branches; **`branch-entry*`** is a single branch card with rename /
+   archive / delete actions.
+ * **`create-branch-dialog*`** — the create modal (name + description).
+ * **`branch-compare-dialog*`** — a read-only diff viewer, filterable by category
+   (pages / components / colors / tokens) and status (added / modified / deleted).
+ * **`branch-conflicts-dialog*`** — the conflict-resolution UI, showing
+   base / main / branch side by side and letting the user pick a side per
+   conflict.
+ * **`branch-context-banner*`** — the top-of-workspace banner shown while editing
+   a branch, with the ahead/behind counts and the merge / update actions.
+ * `confirm-merge!` / `confirm-update!` guard the irreversible operations with a
+   confirmation modal.
+
+`app.main.ui.dashboard.branches_popover` adds a popover to the dashboard file
+card so branches can be opened or created without entering the file.
+
+## Testing
+
+The pure engine is covered by `common-tests.files-branch-merge-test`, which
+exercises `three-way-entities` and `compute-merge` across the add / modify /
+delete / conflict scenarios and can be run in both the JVM and JavaScript
+runners. The RPC layer is covered end-to-end by
+`backend-tests.rpc-file-branch-test` (create / list / diff / merge). See the
+[Unit tests](/technical-guide/developer/common/#unit-tests) section for how to run
+them.
+
+## Current scope and limitations
+
+The feature was built in phases, and the engine refuses anything it cannot yet
+reproduce faithfully rather than risk losing work:
+
+ * The merge is **id-based** and assumes base, main and branch share the same file
+   data version; explicit data-version normalization before diffing is a later
+   refinement.
+ * Residual page attributes (`:page-attrs`) are surfaced but **refused**, so a
+   merge that touches them returns `{:status :unsupported}`.
+ * Comments / comment-thread positions are deliberately **not** migrated across a
+   merge (the same choice Figma makes).
+ * The merge base snapshot is kept alive for the whole life of the branch; the
+   far-future `deleted-at` is what protects it from the snapshot GC.
