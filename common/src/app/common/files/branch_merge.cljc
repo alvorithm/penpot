@@ -438,6 +438,30 @@
                           (transient {})
                           (or pi {})))))))
 
+(def ^:private component-ignored-attrs
+  "Derived bookkeeping attrs on a component row that carry no user-meaningful
+  change. `:modified-at` is a \"last touched\" timestamp refreshed on every edit
+  (see `components-list/touch`); diffing it flags spurious `:modified` entries
+  and, when both sides edited the same component, spurious `:modify-modify`
+  conflicts whose only difference is the timestamp. Stripping it before the
+  diff is the component analogue of `shape-ignored-attrs`. Note this even
+  matches how the change pipeline itself treats the attr: `mod-component`
+  excludes `:modified-at` from the set that marks a component touched, and both
+  `add-component`/`mod-component` regenerate the timestamp on apply — so
+  dropping it from the diff (and from the resulting change payload) is safe."
+  #{:modified-at})
+
+(defn- strip-component-attrs
+  "Remove `component-ignored-attrs` from every component in a `:components`
+  index, so the three-way diff classifies and reports components by their
+  meaningful attributes only."
+  [components]
+  (persistent!
+   (reduce-kv (fn [acc id c]
+                (assoc! acc id (apply dissoc c component-ignored-attrs)))
+              (transient {})
+              (or components {}))))
+
 (defn compute-merge
   "Compute the three-way diff between the merge `base`, `main` and
   `branch` file `:data`. Returns:
@@ -454,7 +478,9 @@
                                       {:kind :color})
                   (three-way-entities (:typographies base) (:typographies theirs) (:typographies ours)
                                       {:kind :typography})
-                  (three-way-entities (:components base) (:components theirs) (:components ours)
+                  (three-way-entities (strip-component-attrs (:components base))
+                                      (strip-component-attrs (:components theirs))
+                                      (strip-component-attrs (:components ours))
                                       {:kind :component})
                   (three-way-entities (:media base) (:media theirs) (:media ours)
                                       {:kind :media})
@@ -769,7 +795,9 @@
          ;; components: row metadata (shapes handled by the shape/page passes).
          ;; A branch soft-delete keeps the row with `:deleted true`; surface it
          ;; as a proper del-component so the deletion propagates.
-         components (flat-changes (:components base) (:components main) (:components branch) resolutions
+         components (flat-changes (strip-component-attrs (:components base))
+                                  (strip-component-attrs (:components main))
+                                  (strip-component-attrs (:components branch)) resolutions
                                   (fn [_ c] (assoc c :type :add-component))
                                   (fn [id c] (if (:deleted c)
                                                {:type :del-component :id id}

@@ -8,6 +8,7 @@
   (:require-macros [app.main.style :as stl])
   (:require
    [app.common.data.macros :as dm]
+   [app.common.time :as ct]
    [app.config :as cf]
    [app.main.data.modal :as modal]
    [app.main.data.workspace.branches :as dwb]
@@ -204,6 +205,7 @@
     (number? v)      (fmt-number v)
     (boolean? v)     (if v "true" "false")
     (keyword? v)     (name v)
+    (ct/inst? v)     (ct/format-inst v :localized-date-time)
     (uuid? v)        (str (subs (str v) 0 8) "…")
     (sequential? v)  (tr "workspace.branches.compare.n-items" (dm/str (count v)))
     (map? v)         (tr "workspace.branches.compare.n-props" (dm/str (count v)))

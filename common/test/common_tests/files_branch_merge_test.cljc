@@ -190,6 +190,52 @@
     (t/is (= :added (:status c)))
     (t/is (= "Primary" (:label c)))))
 
+;; --- component :modified-at noise (bookkeeping timestamp)
+
+(defn- comp-data
+  [components]
+  {:pages-index  {:p1 {:id :p1 :name "Page 1" :objects {}}}
+   :colors {} :typographies {} :media {}
+   :components components})
+
+(t/deftest component-modified-at-only-change-is-ignored
+  ;; editing a component bumps its `:modified-at`; if that timestamp is the
+  ;; ONLY difference it must not surface as a change or conflict, and must not
+  ;; emit a spurious :mod-component.
+  (let [cid    (uuid/random)
+        base   (comp-data {cid {:id cid :name "Button" :path "" :modified-at "t0"}})
+        branch (comp-data {cid {:id cid :name "Button" :path "" :modified-at "t1"}})
+        r      (bm/compute-merge base base branch :branch->main)
+        {:keys [changes unsupported]} (bm/compute-changes base base branch)]
+    (t/is (= [] (:changes r)))
+    (t/is (= [] (:conflicts r)))
+    (t/is (= 0 (-> r :stats :modified)))
+    (t/is (empty? (filter #(= :mod-component (:type %)) changes)))
+    (t/is (empty? unsupported))))
+
+(t/deftest component-modified-at-no-spurious-conflict
+  ;; both sides edited the component (different timestamps) but nothing else;
+  ;; the differing :modified-at must NOT create a modify-modify conflict.
+  (let [cid    (uuid/random)
+        base   (comp-data {cid {:id cid :name "Button" :path "" :modified-at "t0"}})
+        main   (comp-data {cid {:id cid :name "Button" :path "" :modified-at "t1"}})
+        branch (comp-data {cid {:id cid :name "Button" :path "" :modified-at "t2"}})
+        r      (bm/compute-merge base main branch :branch->main)]
+    (t/is (= [] (:conflicts r)))
+    (t/is (= 0 (-> r :stats :conflicts)))))
+
+(t/deftest component-real-change-excludes-modified-at
+  ;; a genuine metadata change (rename) is reported, but the timestamp churn
+  ;; is stripped from the property changes shown to the user.
+  (let [cid    (uuid/random)
+        base   (comp-data {cid {:id cid :name "Button" :path "" :modified-at "t0"}})
+        branch (comp-data {cid {:id cid :name "Primary Button" :path "" :modified-at "t1"}})
+        r      (bm/compute-merge base base branch :branch->main)
+        c      (first (filter #(= :component (:kind %)) (:changes r)))]
+    (t/is (= :modified (:status c)))
+    (t/is (= {:main "Button" :branch "Primary Button"} (get-in c [:changed-attrs :name])))
+    (t/is (not (contains? (:changed-attrs c) :modified-at)))))
+
 ;; --- compute-changes (merge -> change maps)
 
 (t/deftest compute-changes-colors
