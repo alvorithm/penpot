@@ -434,13 +434,14 @@
                  :on-key-down on-rename-key-down}]
         [:span {:class (stl/css :branch-entry-name)} (:name entry)])
       [:div {:class (stl/css :branch-entry-meta)}
-       (when author
+       ;; Main is the default branch: always show it the same way (no avatar,
+       ;; just the "Default branch" subtitle), even when it's the current branch
+       (when (and author (not main?))
          [:> avatar* {:profile author :variant "S"}])
        [:span {:class (stl/css :branch-entry-author)}
-        (cond
-          (and main? current) (tr "workspace.branches.you-editing" (:fullname author))
-          main?               (tr "workspace.branches.main-subtitle")
-          :else               (:fullname author))]]]
+        (if main?
+          (tr "workspace.branches.main-subtitle")
+          (:fullname author))]]]
 
      [:div {:class (stl/css :branch-entry-aside)}
       (when (and (not archived?) (not main?))
