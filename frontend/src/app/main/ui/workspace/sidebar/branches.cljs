@@ -298,7 +298,7 @@
         (tr "workspace.branches.create.info")]]
 
       [:div {:class (stl/css :modal-footer)}
-       [:> button* {:variant "ghost" :on-click on-close}
+       [:> button* {:variant "secondary" :on-click on-close}
         (tr "labels.cancel")]
        [:> button* {:variant "primary"
                     :icon i/git-branch-plus
@@ -879,7 +879,7 @@
               [:span {:class (stl/css :compare-footer-conflicts)}
                (dm/str " · " (tr "workspace.branches.compare.footer-conflicts" conflicts))])]
            [:div {:class (stl/css :compare-footer-actions)}
-            [:> button* {:variant "ghost"
+            [:> button* {:variant "secondary"
                          :icon i/download
                          :on-click on-export}
              (tr "workspace.branches.compare.export")]
@@ -1068,9 +1068,9 @@
 
       [:div {:class (stl/css :conflicts-toolbar)}
        [:span {:class (stl/css :bulk-label)} (tr "workspace.branches.conflicts.bulk-label")]
-       [:> button* {:variant "ghost" :icon i/git-branch :on-click on-all-main}
+       [:> button* {:variant "secondary" :icon i/git-branch :on-click on-all-main}
         (tr "workspace.branches.conflicts.all-main")]
-       [:> button* {:variant "ghost" :icon i/git-branch :on-click on-all-branch}
+       [:> button* {:variant "secondary" :icon i/git-branch :on-click on-all-branch}
         (tr "workspace.branches.conflicts.all-branch")]
        (when (pos? pending)
          [:span {:class (stl/css :conflicts-pending)}
@@ -1140,7 +1140,7 @@
            [:span {:class (stl/css :compare-footer-conflicts)}
             (tr "workspace.branches.conflicts.footer-pending" (str pending))]])]
        [:div {:class (stl/css :compare-footer-actions)}
-        [:> button* {:variant "ghost" :on-click on-close} (tr "labels.cancel")]
+        [:> button* {:variant "secondary" :on-click on-close} (tr "labels.cancel")]
         [:> button* {:variant "primary"
                      :icon i/git-merge
                      :disabled (not all-done?)
