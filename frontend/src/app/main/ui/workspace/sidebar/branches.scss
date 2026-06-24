@@ -137,7 +137,6 @@
   @include t.use-typography("body-medium");
 
   color: var(--color-foreground-primary);
-  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -348,7 +347,7 @@
   block-size: 36px;
   border-radius: 8px;
   background-color: var(--color-background-tertiary);
-  color: var(--color-accent-primary);
+  color: var(--color-foreground-secondary);
 }
 
 .compare-title-text {
@@ -1132,16 +1131,15 @@
 
 .branch-banner {
   position: absolute;
-  z-index: 10;
   inset-block-end: var(--sp-m);
   inset-inline-start: 50%;
   transform: translateX(-50%);
   max-inline-size: 90vw;
-  border-radius: 12px;
-  border: 1px solid var(--color-background-quaternary);
-  background-color: var(--color-background-secondary);
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
+  border-radius: deprecated.$s-8;
+  border: deprecated.$s-2 solid var(--panel-border-color);
+  background-color: var(--color-background-primary);
   overflow: hidden;
+  z-index: deprecated.$z-index-1;
   transition:
     inset-block-end 0.2s,
     block-size 0.2s;
