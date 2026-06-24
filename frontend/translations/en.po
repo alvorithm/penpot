@@ -7047,12 +7047,25 @@ msgstr "Merge"
 #: src/app/main/ui/workspace/sidebar/branches.cljs:314
 msgid "workspace.branches.merge.confirm-message"
 msgstr ""
-"Merge \"%s\" into main? This applies the branch's changes to main and can't "
-"be undone."
+"Merge %s into %s? This applies the branch's changes to main and can't be "
+"undone."
 
 #: src/app/main/ui/workspace/sidebar/branches.cljs:313
 msgid "workspace.branches.merge.confirm-title"
 msgstr "Merge into main"
+
+msgid "workspace.branches.merge.archive-label"
+msgstr "Archive this branch"
+
+msgid "workspace.branches.merge.archive-warning"
+msgstr ""
+"Archived branches keep a full copy of the file so they can be restored "
+"later. Keeping many archived branches can take up a lot of storage."
+
+msgid "workspace.branches.merge.delete-info"
+msgstr ""
+"After merging, this branch and its file will be deleted to free up storage. "
+"Archive it if you might need to restore it later."
 
 #: src/app/main/data/workspace/branches.cljs:368
 msgid "workspace.branches.merge.conflicts"

@@ -202,6 +202,7 @@
 .modal-header {
   display: flex;
   align-items: flex-start;
+  justify-content: space-between;
   gap: var(--sp-s);
   margin-bottom: deprecated.$s-24;
 }
@@ -241,6 +242,22 @@
 
   gap: deprecated.$s-16;
   margin-bottom: deprecated.$s-24;
+}
+
+// Merge-dialog confirmation prompt: a regular-weight, secondary-color
+// paragraph sitting between the title and the archive controls, with a
+// touch more breathing room before the checkbox.
+.modal-message {
+  @include t.use-typography("body-large");
+
+  margin: 0;
+  margin-block-end: var(--sp-s);
+  color: var(--color-foreground-secondary);
+}
+
+// The branch name and "main" stand out from the secondary-colored prompt.
+.modal-message-emphasis {
+  color: var(--color-foreground-primary);
 }
 
 .field {

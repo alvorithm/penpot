@@ -18,6 +18,7 @@
                                                  dropdown-menu-item*]]
    [app.main.ui.ds.buttons.button :refer [button*]]
    [app.main.ui.ds.buttons.icon-button :refer [icon-button*]]
+   [app.main.ui.ds.controls.checkbox :refer [checkbox*]]
    [app.main.ui.ds.controls.input :refer [input*]]
    [app.main.ui.ds.foundations.assets.icon :as i]
    [app.main.ui.ds.notifications.context-notification :refer [context-notification*]]
@@ -306,17 +307,82 @@
                     :on-click on-submit}
         (tr "workspace.branches.create.submit")]]]]))
 
+;; --- Merge confirmation dialog (modal)
+
+(mf/defc merge-branch-dialog*
+  {::mf/register modal/components
+   ::mf/register-as :merge-branch}
+  [{:keys [branch]}]
+  (let [archive?* (mf/use-state false)
+        archive?  (deref archive?*)
+
+        ;; The branch name and "main" are highlighted (foreground-primary)
+        ;; within the otherwise secondary-colored prompt. We wrap each of
+        ;; them with a sentinel in the `tr` args and split on it, so the
+        ;; whole sentence stays in a single translation and the (user
+        ;; controlled) branch name is rendered as escaped text, not HTML.
+        message-parts
+        (let [sep "\uE000"
+              msg (tr "workspace.branches.merge.confirm-message"
+                      (str sep "\"" (:name branch) "\"" sep)
+                      (str sep "main" sep))]
+          (str/split msg sep))
+
+        on-toggle-archive
+        (mf/use-fn #(swap! archive?* not))
+
+        on-close
+        (mf/use-fn #(st/emit! (modal/hide)))
+
+        on-submit
+        (mf/use-fn
+         (mf/deps branch archive?)
+         (fn [_]
+           (st/emit! (dwb/merge-branch (:id branch) nil archive?)
+                     (modal/hide))))]
+
+    [:div {:class (stl/css :modal-overlay)}
+     [:div {:class (stl/css :modal-container)}
+      [:div {:class (stl/css :modal-header)}
+       [:h2 {:class (stl/css :modal-title)} (tr "workspace.branches.merge.confirm-title")]
+       [:> button* {:variant "ghost"
+                    :icon i/close
+                    :aria-label (tr "labels.close")
+                    :on-click on-close}]]
+
+      [:div {:class (stl/css :modal-content)}
+       [:p {:class (stl/css :modal-message)}
+        (for [[idx part] (map-indexed vector message-parts)]
+          (if (odd? idx)
+            [:span {:key idx :class (stl/css :modal-message-emphasis)} part]
+            [:span {:key idx} part]))]
+
+       [:> checkbox* {:id "merge-archive-branch"
+                      :label (tr "workspace.branches.merge.archive-label")
+                      :checked archive?
+                      :on-change on-toggle-archive}]
+
+       (if archive?
+         [:> context-notification* {:level :warning :type :context}
+          (tr "workspace.branches.merge.archive-warning")]
+         [:> context-notification* {:level :info :type :context}
+          (tr "workspace.branches.merge.delete-info")])]
+
+      [:div {:class (stl/css :modal-footer)}
+       [:> button* {:variant "secondary" :on-click on-close}
+        (tr "labels.cancel")]
+       [:> button* {:variant "primary"
+                    :icon i/git-merge
+                    :on-click on-submit}
+        (tr "workspace.branches.merge.confirm-accept")]]]]))
+
 ;; --- Confirmation for relevant branch actions (merge / update)
 
 (defn- confirm-merge!
-  "Ask for confirmation before merging `branch` into main (irreversible)."
+  "Open the merge dialog for `branch` (merge into main is irreversible; the
+  dialog also lets the user choose whether to keep the branch archived)."
   [branch]
-  (st/emit! (modal/show {:type :confirm
-                         :title (tr "workspace.branches.merge.confirm-title")
-                         :message (tr "workspace.branches.merge.confirm-message" (:name branch))
-                         :accept-label (tr "workspace.branches.merge.confirm-accept")
-                         :accept-style :primary
-                         :on-accept (fn [_] (st/emit! (dwb/merge-branch (:id branch))))})))
+  (modal/show! :merge-branch {:branch branch}))
 
 (defn- confirm-update!
   "Ask for confirmation before updating `branch` from main (overwrites

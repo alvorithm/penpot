@@ -346,9 +346,16 @@
   and not-yet-supported change kinds surface as notifications.
 
   `resolutions` is an optional `{entity-id (:main|:branch)}` map used to
-  resolve conflicts before integrating."
-  ([branch-id] (merge-branch branch-id nil))
-  ([branch-id resolutions]
+  resolve conflicts before integrating.
+
+  `archive?` controls what happens to the branch once it is merged. When
+  true the branch is kept (it shows up under \"Archived\" and can be
+  restored). When false (the default) the branch and its branch file are
+  deleted right after the merge, so merged copies do not pile up and eat
+  disk space."
+  ([branch-id] (merge-branch branch-id nil false))
+  ([branch-id resolutions] (merge-branch branch-id resolutions false))
+  ([branch-id resolutions archive?]
    (assert (uuid? branch-id) "expected valid uuid for `branch-id`")
    (ptk/reify ::merge-branch
      ptk/WatchEvent
@@ -363,10 +370,19 @@
                   ;; the merged result lives in main: take the user there to
                   ;; see it (navigate if elsewhere, hard-reload if already on
                   ;; main). Other clients reload via the `:file-merged` event.
-                  :merged      (rx/of (ntf/success (tr "workspace.branches.merge.success"))
-                                      (show-merge-result source-file-id))
+                  ;; Unless the user opted to archive it, drop the now-merged
+                  ;; branch (and its file) first so it does not occupy disk.
+                  :merged      (rx/concat
+                                (if archive?
+                                  (rx/empty)
+                                  (->> (rp/cmd! :delete-file-branch {:id branch-id})
+                                       (rx/ignore)
+                                       (rx/catch (fn [_] (rx/empty)))))
+                                (rx/of (ntf/success (tr "workspace.branches.merge.success"))
+                                       (show-merge-result source-file-id)))
                   :conflicts   (rx/of (ntf/warn (tr "workspace.branches.merge.conflicts")))
                   :unsupported (rx/of (ntf/warn (tr "workspace.branches.merge.unsupported")))
                   (rx/of (ntf/error (tr "workspace.branches.merge.error"))))))
              (rx/catch (fn [_]
                          (rx/of (ntf/error (tr "workspace.branches.merge.error")))))))))))
+
