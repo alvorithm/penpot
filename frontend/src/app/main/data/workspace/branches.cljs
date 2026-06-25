@@ -323,12 +323,32 @@
                          (rx/of (ntf/error (tr "workspace.branches.update.error")))))))))))
 
 (defn set-conflict-resolution
-  "Choose `:main` or `:branch` for a single conflicting entity (by id)."
+  "Choose `:main` or `:branch` for a whole conflicting entity (by id). This
+  is the per-element \"Use this\" action; it overwrites any per-attr map."
   [id choice]
   (ptk/reify ::set-conflict-resolution
     ptk/UpdateEvent
     (update [_ state]
       (assoc-in state [:workspace-branch-diff :resolutions id] choice))))
+
+(defn set-conflict-attr-resolution
+  "Choose `:main` or `:branch` for a single attribute `attr` of a
+  conflicting entity, leaving the other attributes as they were. `attrs`
+  is the full set of the conflict's changed-attr keys, used to seed a
+  complete resolution map the first time a property is toggled (so the
+  conflict counts as resolved, with untouched attrs defaulting to the safe
+  `:main` side). Promotes a prior whole-entity keyword to a per-attr map."
+  [id attr choice attrs]
+  (ptk/reify ::set-conflict-attr-resolution
+    ptk/UpdateEvent
+    (update [_ state]
+      (update-in state [:workspace-branch-diff :resolutions id]
+                 (fn [cur]
+                   (let [seed (cond
+                                (map? cur)      cur
+                                (= cur :branch) (zipmap attrs (repeat :branch))
+                                :else           (zipmap attrs (repeat :main)))]
+                     (assoc seed attr choice)))))))
 
 (defn set-all-resolutions
   "Bulk-resolve every current conflict to `:main` or `:branch`."

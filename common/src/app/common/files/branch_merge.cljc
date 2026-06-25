@@ -47,6 +47,52 @@
               ks))
     {}))
 
+;; --- Per-property conflict resolution ---
+;;
+;; A resolution value for a conflicting entity is one of:
+;;   :main            keep main entirely
+;;   :branch          take branch entirely
+;;   {attr -> side}   per-property: choose :main or :branch for each
+;;                    changed attribute independently
+;; The per-attr map only applies to conflicts that carry `:changed-attrs`
+;; (modify-modify / add-add). Structural conflicts (delete/modify, order,
+;; presence, …) stay keyword-only.
+
+(defn- attr-side
+  "Resolved side (`:main`/`:branch`) for attribute `k` under resolution
+  `res`. `:branch` keyword -> branch for every attr; a map -> its per-attr
+  choice (defaulting to `:main`); anything else (`:main`, nil) -> main."
+  [res k]
+  (cond
+    (= res :branch) :branch
+    (map? res)      (if (= :branch (get res k)) :branch :main)
+    :else           :main))
+
+(defn- merge-attrs
+  "Entity to apply for a per-attr resolution: start from main (`t`) and
+  overlay branch's value for each differing attr resolved to `:branch`.
+  For `res = :branch` this equals `o`; for `:main`/nil it equals `t`."
+  [t o res]
+  (reduce (fn [acc [k {:keys [branch]}]]
+            (if (= :branch (attr-side res k))
+              (assoc acc k branch)
+              acc))
+          t
+          (shallow-attr-diff t o)))
+
+(defn conflict-resolved?
+  "True when `res` fully resolves `conflict`. A keyword `:main`/`:branch`
+  always resolves it; a per-attr map resolves it only when it carries a
+  choice for every key in the conflict's `:changed-attrs` (and the
+  conflict actually has changed-attrs)."
+  [conflict res]
+  (cond
+    (contains? #{:main :branch} res) true
+    (map? res) (let [attrs (keys (:changed-attrs conflict))]
+                 (boolean (and (seq attrs)
+                               (every? #(contains? res %) attrs))))
+    :else false))
+
 (def ^:private shape-ignored-attrs
   "Purely derived/structural shape attrs that are noise in the compare
   summary: children membership/order (`:shapes`, redundant with the
@@ -535,6 +581,8 @@
                (= t b) (conj acc (mod-fn id o))     ; main didn't touch, branch did
                (= o t) acc                          ; both reached same value
                (= res :branch) (conj acc (mod-fn id o)) ; modify/modify -> branch
+               (map? res) (let [eff (merge-attrs t o res)] ; modify/modify -> per-attr
+                            (if (= eff t) acc (conj acc (mod-fn id eff))))
                :else acc)
 
          ;; deleted in branch, still in main
@@ -555,7 +603,10 @@
 
          ;; added on both sides with different values (add/add)
          (and (not in-b?) in-o? in-t? (not= o t))
-         (cond (= res :branch) (conj acc (mod-fn id o)) :else acc)
+         (cond (= res :branch) (conj acc (mod-fn id o))
+               (map? res) (let [eff (merge-attrs t o res)]
+                            (if (= eff t) acc (conj acc (mod-fn id eff))))
+               :else acc)
 
          :else acc)))
    []
@@ -603,7 +654,7 @@
                  (when (and (some? t)                          ; exists on both sides
                             (not= id uuid/zero)
                             (or (= (get bo id) t)               ; main untouched -> branch wins
-                                (= :branch (get resolutions id))))
+                                (= :branch (attr-side (get resolutions id) :parent-id))))
                    (let [new-parent (:parent-id o)]
                      (when (not= new-parent (:parent-id t))     ; reparented
                        {:id id

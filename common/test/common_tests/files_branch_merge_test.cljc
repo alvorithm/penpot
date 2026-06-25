@@ -376,6 +376,59 @@
         {:keys [changes]} (bm/compute-changes base main branch {:c1 :branch})]
     (t/is (= "Branch" (-> (group-by :type changes) :mod-color first :color :name)))))
 
+;; --- per-property (per-attr) conflict resolution
+
+(t/deftest conflict-resolved?-predicate
+  (let [cf {:changed-attrs {:fill {:main "g" :branch "b"}
+                            :rx   {:main 0 :branch 8}}}]
+    ;; whole-entity keyword always resolves
+    (t/is (true? (bm/conflict-resolved? cf :main)))
+    (t/is (true? (bm/conflict-resolved? cf :branch)))
+    ;; a full per-attr map resolves
+    (t/is (true? (bm/conflict-resolved? cf {:fill :branch :rx :main})))
+    ;; a partial map does not
+    (t/is (false? (bm/conflict-resolved? cf {:fill :branch})))
+    ;; nil / empty map do not
+    (t/is (false? (bm/conflict-resolved? cf nil)))
+    (t/is (false? (bm/conflict-resolved? cf {})))
+    ;; a map for a conflict without changed-attrs does not resolve
+    (t/is (false? (bm/conflict-resolved? {} {:fill :branch})))))
+
+(t/deftest compute-changes-resolve-shape-per-attr
+  ;; both fill and rx conflict; keep branch fill, keep main rx -> only the
+  ;; fill set op is emitted (rx resolved to main is a no-op against main)
+  (let [base   (mkdata {:s1 {:id :s1 :name "A" :fill "red"   :rx 0}})
+        main   (mkdata {:s1 {:id :s1 :name "A" :fill "green" :rx 4}})
+        branch (mkdata {:s1 {:id :s1 :name "A" :fill "blue"  :rx 8}})
+        {:keys [changes]} (bm/compute-changes base main branch {:s1 {:fill :branch :rx :main}})
+        ops (-> (group-by :type changes) :mod-obj first :operations)]
+    (t/is (= [{:type :set :attr :fill :val "blue"}] ops))))
+
+(t/deftest compute-changes-resolve-shape-per-attr-both-branch
+  ;; per-attr map selecting branch for every attr equals the whole `:branch`
+  ;; resolution
+  (let [base   (mkdata {:s1 {:id :s1 :name "A" :fill "red"   :rx 0}})
+        main   (mkdata {:s1 {:id :s1 :name "A" :fill "green" :rx 4}})
+        branch (mkdata {:s1 {:id :s1 :name "A" :fill "blue"  :rx 8}})
+        per    (-> (bm/compute-changes base main branch {:s1 {:fill :branch :rx :branch}})
+                   :changes (->> (group-by :type)) :mod-obj first :operations set)
+        whole  (-> (bm/compute-changes base main branch {:s1 :branch})
+                   :changes (->> (group-by :type)) :mod-obj first :operations set)]
+    (t/is (= whole per))
+    (t/is (= #{{:type :set :attr :fill :val "blue"}
+               {:type :set :attr :rx :val 8}} per))))
+
+(t/deftest compute-changes-resolve-color-per-attr
+  ;; color conflict on two attrs; take branch name, keep main description ->
+  ;; merged color carries branch name + main description
+  (let [base   (mkdata {} :colors {:c1 {:id :c1 :name "A"    :opacity 1}})
+        main   (mkdata {} :colors {:c1 {:id :c1 :name "Main" :opacity 1}})
+        branch (mkdata {} :colors {:c1 {:id :c1 :name "Brnc" :opacity 0.5}})
+        {:keys [changes]} (bm/compute-changes base main branch {:c1 {:name :branch :opacity :main}})
+        color (-> (group-by :type changes) :mod-color first :color)]
+    (t/is (= "Brnc" (:name color)))
+    (t/is (= 1 (:opacity color)))))
+
 ;; --- tokens
 
 (defn- token-lib

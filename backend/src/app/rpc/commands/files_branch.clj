@@ -286,8 +286,9 @@
   [:map {:title "merge-file-branch"}
    [:branch-id ::sm/uuid]
    ;; conflict resolutions keyed by entity id (uuid) or, for structural
-   ;; conflicts, a keyword id like :active-themes
-   [:resolutions {:optional true} [:map-of :any :keyword]]
+   ;; conflicts, a keyword id like :active-themes. A resolution is either a
+   ;; whole-entity choice (:main/:branch) or a per-attr map {attr -> side}.
+   [:resolutions {:optional true} [:map-of :any [:or :keyword [:map-of :keyword :keyword]]]]
    [:expected-main-revn {:optional true} ::sm/int]])
 
 (sv/defmethod ::merge-file-branch
@@ -347,7 +348,7 @@
 
            (let [{:keys [conflicts]} (bm/compute-merge base-data (:data main-file)
                                                        branch-data :branch->main)
-                 resolved?  (fn [c] (contains? #{:main :branch} (get resolutions (:id c))))
+                 resolved?  (fn [c] (bm/conflict-resolved? c (get resolutions (:id c))))
                  unresolved (remove resolved? conflicts)]
              (cond
                (seq unresolved)
@@ -439,8 +440,9 @@
 (def ^:private schema:update-branch-from-main
   [:map {:title "update-branch-from-main"}
    [:branch-id ::sm/uuid]
-   ;; resolutions in UI terms: id -> :main (take main) | :branch (keep branch)
-   [:resolutions {:optional true} [:map-of :any :keyword]]])
+   ;; resolutions in UI terms: id -> :main (take main) | :branch (keep
+   ;; branch) | {attr -> side} (per-attr)
+   [:resolutions {:optional true} [:map-of :any [:or :keyword [:map-of :keyword :keyword]]]]])
 
 (sv/defmethod ::update-branch-from-main
   "Bring the changes main received since the merge base into the branch
@@ -502,14 +504,18 @@
                (:conflicts (bm/compute-merge base-data main-data
                                              (:data branch-file) :main->branch))
 
-               resolved?  (fn [c] (contains? #{:main :branch} (get resolutions (:id c))))
+               resolved?  (fn [c] (bm/conflict-resolved? c (get resolutions (:id c))))
                unresolved (remove resolved? conflicts)
 
                ;; UI resolutions are in main/branch terms; the update applies
                ;; main->branch (compute-changes target=branch, source=main),
-               ;; where :branch means "take the source (main)". So invert.
+               ;; where :branch means "take the source (main)". So invert each
+               ;; side — including the per-attr maps, value by value.
+               flip     (fn [v] (case v :main :branch, :branch :main, v))
                inverted (into {} (map (fn [[k v]]
-                                        [k (case v :main :branch, :branch :main, v)]))
+                                        [k (if (map? v)
+                                             (update-vals v flip)
+                                             (flip v))]))
                               resolutions)]
 
            (cond

@@ -8,11 +8,13 @@
   (:require-macros [app.main.style :as stl])
   (:require
    [app.common.data.macros :as dm]
+   [app.common.files.branch-merge :as bm]
    [app.common.time :as ct]
    [app.config :as cf]
    [app.main.data.modal :as modal]
    [app.main.data.workspace.branches :as dwb]
    [app.main.refs :as refs]
+   [app.main.render :as render]
    [app.main.store :as st]
    [app.main.ui.components.dropdown-menu :refer [dropdown-menu*
                                                  dropdown-menu-item*]]
@@ -24,6 +26,7 @@
    [app.main.ui.ds.notifications.context-notification :refer [context-notification*]]
    [app.main.ui.ds.product.avatar :refer [avatar*]]
    [app.main.ui.ds.product.empty-state :refer [empty-state*]]
+   [app.util.color :as uc]
    [app.util.dom :as dom]
    [app.util.globals :as globals]
    [app.util.i18n :refer [tr]]
@@ -984,7 +987,8 @@
   {::mf/private true}
   [{:keys [conflict index selected resolution on-select]}]
   (let [on-click  (mf/use-fn (mf/deps index on-select) #(on-select index))
-        resolved? (contains? #{:main :branch} resolution)
+        resolved? (bm/conflict-resolved? conflict resolution)
+        mixed?    (map? resolution)
         icon-id   (if (= :shape (:kind conflict))
                     (shape-icon-id conflict)
                     (get kind->icon (:kind conflict) i/git-branch))
@@ -1005,67 +1009,173 @@
                              "workspace.branches.conflicts.state-resolved"
                              "workspace.branches.conflicts.state-pending"))))]]
      (cond
+       (not resolved?)
+       [:span {:class (stl/css :conflict-pill :pill-pending)}
+        [:> i/icon* {:icon-id i/triangle-alert :size "s"}]]
+       mixed?
+       [:span {:class (stl/css :conflict-pill :pill-mixed)}
+        [:span {:class (stl/css :pill-dot)}]
+        (tr "workspace.branches.conflicts.side-mixed")]
        (= resolution :main)
        [:span {:class (stl/css :conflict-pill :pill-main)}
         [:span {:class (stl/css :pill-dot)}]
         (tr "workspace.branches.conflicts.side-main")]
-       (= resolution :branch)
+       :else
        [:span {:class (stl/css :conflict-pill :pill-branch)}
         [:span {:class (stl/css :pill-dot)}]
-        (tr "workspace.branches.conflicts.side-branch")]
-       :else
-       [:span {:class (stl/css :conflict-pill :pill-pending)}
-        [:> i/icon* {:icon-id i/triangle-alert :size "s"}]])]))
+        (tr "workspace.branches.conflicts.side-branch")])]))
 
-(mf/defc branch-conflict-card*
+;; --- Per-element visual previews ---
+
+(def ^:private renderable-shape-types
+  "Shape types we can faithfully render to SVG from a standalone shape map.
+  Images / svg-raw reference (possibly cross-file) media and fall back to a
+  type icon instead."
+  #{:rect :circle :frame :path :bool :text :group})
+
+(def ^:private geometry-attrs
+  "Attrs whose change invalidates the cached `:selrect`/`:points`; when any
+  of them is taken from the branch in a per-attr resolution, the result
+  preview must adopt the branch's geometry so the framing stays correct."
+  #{:x :y :width :height :rotation :transform :transform-inverse :flip-x :flip-y})
+
+(defn- shape-bounds
+  "Axis-aligned bounds framing a shape, taken from its rotated corner
+  `:points` when present, else its `:selrect`."
+  [shape]
+  (let [pts (:points shape)]
+    (if (and (sequential? pts) (seq pts))
+      (let [xs (keep :x pts) ys (keep :y pts)
+            x (apply min xs) y (apply min ys)]
+        {:x x :y y :width (- (apply max xs) x) :height (- (apply max ys) y)})
+      (let [sr (:selrect shape)]
+        {:x (:x sr 0) :y (:y sr 0) :width (:width sr 1) :height (:height sr 1)}))))
+
+(mf/defc shape-preview*
+  "Renders a single shape map to a small, fitted SVG using the real shape
+  renderers (so fills, gradients, strokes, corner radii, opacity and text
+  are accurate), without needing any workspace/objects context."
   {::mf/private true}
-  [{:keys [conflict side label subtitle icon selected on-select]}]
-  (let [value       (get conflict side)
-        hex         (hex-color value)
-        attrs       (:changed-attrs conflict)
-        selectable? (some? on-select)
-        ;; chip tint follows the column: base = neutral, main = error, branch = success
-        tone        side]
-    [:div {:class (stl/css-case :conflict-card true
-                                :is-base (not selectable?)
-                                :is-selected (true? selected))}
-     [:div {:class (stl/css :conflict-card-head)}
-      [:div {:class (stl/css :conflict-card-titles)}
-       [:span {:class (stl/css :conflict-card-label)}
-        (when icon [:> i/icon* {:icon-id icon :size "s"}])
-        (tr label)]
-       (when (seq subtitle)
-         [:span {:class (stl/css :conflict-card-meta)} subtitle])]
-      (when selectable?
-        [:span {:class (stl/css-case :conflict-radio true :is-on (true? selected))}])]
+  [{:keys [shape]}]
+  (let [{:keys [x y width height]} (shape-bounds shape)
+        width   (max 1 width)
+        height  (max 1 height)
+        objects (mf/with-memo [shape] {(:id shape) shape})
+        wrapper (mf/with-memo [objects] (render/shape-wrapper-factory objects))]
+    [:svg {:class (stl/css :preview-svg)
+           :viewBox (dm/str x " " y " " width " " height)
+           :preserveAspectRatio "xMidYMid meet"
+           :xmlns "http://www.w3.org/2000/svg"
+           :fill "none"}
+     [:> wrapper {:shape shape}]]))
 
-     [:div {:class (stl/css :conflict-card-body)}
-      (cond
-        (some? hex)
-        [:*
-         [:span {:class (stl/css :conflict-card-swatch)
-                 :style {:background-color hex}}]
-         [:span {:class (stl/css :conflict-card-value)} hex]]
+(mf/defc entity-preview*
+  "Visual preview of one side of a conflict, dispatching on entity kind:
+  shapes render to SVG, library colors to a swatch, typographies to a text
+  sample; everything else (and a nil/deleted side) shows a placeholder."
+  {::mf/private true}
+  [{:keys [kind value]}]
+  (cond
+    (nil? value)
+    [:div {:class (stl/css :preview-empty)}
+     [:> i/icon* {:icon-id i/delete :size "s"}]]
 
-        (seq attrs)
-        [:div {:class (stl/css :conflict-card-attrs)}
-         (for [[attr {:keys [main branch]}] attrs]
-           (let [v (case side :base (get-in conflict [:base attr]) :main main :branch branch)]
-             [:div {:class (stl/css :conflict-attr-row) :key (str attr)}
-              [:span {:class (stl/css :conflict-attr-name)} (attr-label attr)]
-              [:> compare-value-chip* {:value v :tone tone}]]))]
+    (= kind :shape)
+    (if (contains? renderable-shape-types (:type value))
+      [:> shape-preview* {:shape value}]
+      [:div {:class (stl/css :preview-empty)}
+       [:> i/icon* {:icon-id (shape-icon-id value)}]])
 
-        :else
-        [:> compare-value-chip* {:value value :tone tone}])]
+    (= kind :color)
+    [:div {:class (stl/css :preview-swatch)
+           :style {:background (or (uc/color->background value)
+                                   (hex-color value)
+                                   "transparent")}}]
 
-     (when selectable?
-       [:div {:class (stl/css :conflict-card-action)}
-        (if selected
-          [:span {:class (stl/css :conflict-card-chosen)}
-           [:> i/icon* {:icon-id i/tick :size "s"}]
-           (tr "workspace.branches.conflicts.chosen")]
-          [:> button* {:variant "secondary" :on-click on-select}
-           (tr "workspace.branches.conflicts.use-this")])])]))
+    (= kind :typography)
+    [:div {:class (stl/css :preview-type-sample)
+           :style {:font-family (:font-family value)
+                   :font-weight (:font-weight value)
+                   :font-style (:font-style value)}}
+     "Ag"]
+
+    :else
+    [:div {:class (stl/css :preview-empty)}
+     [:> i/icon* {:icon-id (get kind->icon kind i/git-branch)}]]))
+
+(defn- merged-entity
+  "Synthesize the resulting entity for the RESULT preview from the `main`
+  and `branch` entities, the conflict's changed-attr keys and the current
+  `res` (a `:main`/`:branch` keyword or a per-attr `{attr -> side}` map)."
+  [main branch attrs res]
+  (cond
+    (= res :branch) branch
+    (or (nil? res) (= res :main)) main
+    (map? res)
+    (let [merged (reduce (fn [acc k]
+                           (if (= :branch (get res k))
+                             (assoc acc k (get branch k))
+                             acc))
+                         main attrs)]
+      (if (and (map? main) (map? branch)
+               (some (fn [k] (and (contains? geometry-attrs k) (= :branch (get res k)))) attrs))
+        (assoc merged
+               :selrect (:selrect branch)
+               :points (:points branch)
+               :transform (:transform branch)
+               :transform-inverse (:transform-inverse branch))
+        merged))
+    :else main))
+
+(defn- attr-choice
+  "Currently-selected side (`:main`/`:branch`) for `attr` under resolution
+  `res`, or nil when undecided (so the property row shows no selection until
+  the user acts)."
+  [res attr]
+  (cond
+    (= res :branch) :branch
+    (= res :main)   :main
+    (map? res)      (get res attr)
+    :else           nil))
+
+(mf/defc conflict-preview-row*
+  "The BASE · MAIN · BRANCH · RESULT preview strip on top of the detail
+  panel. RESULT updates live as per-property choices change."
+  {::mf/private true}
+  [{:keys [conflict resolution base-sub main-sub branch-sub]}]
+  (let [kind   (:kind conflict)
+        attrs  (keys (:changed-attrs conflict))
+        result (merged-entity (:main conflict) (:branch conflict) attrs resolution)
+        cols   [[:base   "workspace.branches.conflicts.card.base"   base-sub   (:base conflict)]
+                [:main   "workspace.branches.conflicts.card.main"   main-sub   (:main conflict)]
+                [:branch "workspace.branches.conflicts.card.branch" branch-sub (:branch conflict)]
+                [:result "workspace.branches.conflicts.card.result" nil        result]]]
+    [:div {:class (stl/css :preview-row)}
+     (for [[col-key label sub value] cols]
+       [:div {:class (stl/css-case :preview-col true :is-result (= col-key :result))
+              :key (name col-key)}
+        [:span {:class (stl/css :preview-col-label)} (tr label)]
+        [:div {:class (stl/css :preview-box)}
+         [:> entity-preview* {:kind kind :value value}]]
+        (when sub [:span {:class (stl/css :preview-col-sub)} sub])])]))
+
+(mf/defc conflict-prop-row*
+  "One property of a conflict: its label and two clickable value chips
+  (MAIN / BRANCH). Clicking a chip keeps that side for this property only."
+  {::mf/private true}
+  [{:keys [id attr main branch choice attrs]}]
+  (let [on-main   (mf/use-fn (mf/deps id attr attrs)
+                             #(st/emit! (dwb/set-conflict-attr-resolution id attr :main attrs)))
+        on-branch (mf/use-fn (mf/deps id attr attrs)
+                             #(st/emit! (dwb/set-conflict-attr-resolution id attr :branch attrs)))]
+    [:div {:class (stl/css :prop-pick-row)}
+     [:span {:class (stl/css :prop-pick-name)} (attr-label attr)]
+     [:button {:class (stl/css-case :prop-pick true :is-chosen (= choice :main))
+               :on-click on-main}
+      [:> compare-value-chip* {:value main :tone :main}]]
+     [:button {:class (stl/css-case :prop-pick true :is-chosen (= choice :branch))
+               :on-click on-branch}
+      [:> compare-value-chip* {:value branch :tone :branch}]]]))
 
 (mf/defc branch-conflicts-dialog*
   {::mf/register modal/components
@@ -1086,7 +1196,7 @@
         conflicts   (:conflicts diff)
         resolutions (or resolutions {})
         total       (count conflicts)
-        resolved    (count (filterv #(contains? #{:main :branch} (get resolutions (:id %))) conflicts))
+        resolved    (count (filterv #(bm/conflict-resolved? % (get resolutions (:id %))) conflicts))
         pending     (- total resolved)
         all-done?   (and (pos? total) (zero? pending))
 
@@ -1162,37 +1272,53 @@
 
          [:div {:class (stl/css :compare-detail)}
           (when sel
-            [:*
-             [:div {:class (stl/css :conflict-detail-head)}
-              [:div {:class (stl/css :conflict-detail-titlerow)}
-               [:div {:class (stl/css :conflict-detail-icon)}
-                [:> i/icon* {:icon-id sel-icon}]]
-               [:h3 {:class (stl/css :conflict-detail-title)} (:label sel)]]
-              [:span {:class (stl/css :conflict-detail-subtitle)}
-               (cond-> ""
-                 sel-type   (str (tr sel-type))
-                 sel-reason (str " · " (tr sel-reason)))]]
+            (let [sel-attrs (:changed-attrs sel)
+                  attr-keys (keys sel-attrs)
+                  has-attrs? (seq sel-attrs)]
+              [:*
+               [:div {:class (stl/css :conflict-detail-head)}
+                [:div {:class (stl/css :conflict-detail-titlerow)}
+                 [:div {:class (stl/css :conflict-detail-icon)}
+                  [:> i/icon* {:icon-id sel-icon}]]
+                 [:h3 {:class (stl/css :conflict-detail-title)} (:label sel)]
+                 [:div {:class (stl/css :conflict-global-actions)}
+                  [:> button* {:variant (if (= sel-res :main) "primary" "secondary")
+                               :on-click on-use-main}
+                   (tr "workspace.branches.conflicts.use-main")]
+                  [:> button* {:variant (if (= sel-res :branch) "primary" "secondary")
+                               :on-click on-use-branch}
+                   (tr "workspace.branches.conflicts.use-branch")]]]
+                [:span {:class (stl/css :conflict-detail-subtitle)}
+                 (cond-> ""
+                   sel-type   (str (tr sel-type))
+                   sel-reason (str " · " (tr sel-reason)))]]
 
-             [:div {:class (stl/css :conflict-cards)}
-              [:> branch-conflict-card* {:conflict sel
-                                         :side :base
-                                         :label "workspace.branches.conflicts.card.base"
-                                         :subtitle base-sub
-                                         :icon i/git-commit}]
-              [:> branch-conflict-card* {:conflict sel
-                                         :side :main
-                                         :label "workspace.branches.conflicts.card.main"
-                                         :subtitle main-sub
-                                         :icon i/git-commit-vertical
-                                         :selected (= sel-res :main)
-                                         :on-select on-use-main}]
-              [:> branch-conflict-card* {:conflict sel
-                                         :side :branch
-                                         :label "workspace.branches.conflicts.card.branch"
-                                         :subtitle branch-sub
-                                         :icon i/git-branch
-                                         :selected (= sel-res :branch)
-                                         :on-select on-use-branch}]]])]])
+               [:> conflict-preview-row* {:conflict sel
+                                          :resolution sel-res
+                                          :base-sub base-sub
+                                          :main-sub main-sub
+                                          :branch-sub branch-sub}]
+
+               (if has-attrs?
+                 [:div {:class (stl/css :prop-table)}
+                  [:div {:class (stl/css :prop-table-head)}
+                   [:span {:class (stl/css :prop-table-th)}
+                    (tr "workspace.branches.conflicts.prop-header")]
+                   [:span {:class (stl/css :prop-table-th)}
+                    (tr "workspace.branches.conflicts.card.main")]
+                   [:span {:class (stl/css :prop-table-th)}
+                    (tr "workspace.branches.conflicts.card.branch")]]
+                  (for [[attr {:keys [main branch]}] sel-attrs]
+                    [:> conflict-prop-row* {:key (str attr)
+                                            :id (:id sel)
+                                            :attr attr
+                                            :main main
+                                            :branch branch
+                                            :choice (attr-choice sel-res attr)
+                                            :attrs attr-keys}])]
+
+                 [:p {:class (stl/css :conflict-whole-hint)}
+                  (tr "workspace.branches.conflicts.whole-hint")])]))]])
 
       [:div {:class (stl/css :compare-footer)}
        [:div {:class (stl/css :compare-footer-info)}
