@@ -934,7 +934,6 @@
   @include t.use-typography("body-small");
 
   display: flex;
-  align-items: center;
   gap: var(--sp-xs);
   color: var(--color-foreground-secondary);
 }
@@ -1148,6 +1147,7 @@
   grid-template-columns: repeat(4, 1fr);
   gap: var(--sp-s);
   align-items: start;
+  margin: var(--sp-l) 0;
 }
 
 .preview-col {
@@ -1192,7 +1192,7 @@
   aspect-ratio: 1;
   padding: var(--sp-s);
   border-radius: 8px;
-  border: 1px solid var(--color-background-quaternary);
+  border: 2px solid var(--color-background-quaternary);
   background-color: var(--color-background-primary);
 
   // checkerboard so transparency / light fills read clearly
@@ -1284,7 +1284,7 @@
   justify-content: flex-start;
   padding: var(--sp-xs);
   border-radius: 8px;
-  border: 1px solid transparent;
+  border: 2px solid transparent;
   cursor: pointer;
 
   &:hover {

@@ -1443,7 +1443,7 @@
                 [:span {:class (stl/css :conflict-detail-subtitle)}
                  (cond-> ""
                    sel-type   (str (tr sel-type))
-                   sel-reason (str " · " (tr sel-reason)))]]
+                   sel-reason (str " - " (tr sel-reason)))]]
 
                [:> conflict-preview-row* {:conflict sel
                                           :resolution sel-res
