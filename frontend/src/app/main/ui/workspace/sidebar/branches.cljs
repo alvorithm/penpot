@@ -527,14 +527,13 @@
 
 (mf/defc branch-entry*
   {::mf/private true}
-  [{:keys [entry profiles current]}]
+  [{:keys [entry profiles current menu-open? on-set-menu]}]
   (let [author    (get profiles (:created-by entry))
         ahead     (:ahead entry)
         behind    (:behind entry)
         main?     (:is-main entry)
         archived? (contains? #{"archived" "merged"} (:status entry))
 
-        show-menu? (mf/use-state false)
         editing?   (mf/use-state false)
 
         on-open
@@ -549,7 +548,7 @@
          (mf/deps entry)
          (fn [event]
            (dom/stop-propagation event)
-           (reset! show-menu? false)
+           (on-set-menu false)
            (modal/show! :branch-compare {:branch entry})))
 
         on-update
@@ -557,27 +556,28 @@
          (mf/deps entry)
          (fn [event]
            (dom/stop-propagation event)
-           (reset! show-menu? false)
+           (on-set-menu false)
            (confirm-update! entry)))
 
         on-open-menu
-        (mf/use-fn (fn [event]
+        (mf/use-fn (mf/deps on-set-menu)
+                   (fn [event]
                      (dom/stop-propagation event)
-                     (reset! show-menu? true)))
-        on-close-menu (mf/use-fn #(reset! show-menu? false))
+                     (on-set-menu true)))
+        on-close-menu (mf/use-fn (mf/deps on-set-menu) #(on-set-menu false))
 
         on-info
         (mf/use-fn
          (mf/deps entry)
          (fn [event]
            (dom/stop-propagation event)
-           (reset! show-menu? false)
+           (on-set-menu false)
            (modal/show! :branch-info {:branch entry})))
 
         on-start-rename
         (mf/use-fn (fn [event]
                      (dom/stop-propagation event)
-                     (reset! show-menu? false)
+                     (on-set-menu false)
                      (reset! editing? true)))
 
         on-rename-commit
@@ -601,7 +601,7 @@
         (mf/use-fn (mf/deps entry archived?)
                    (fn [event]
                      (dom/stop-propagation event)
-                     (reset! show-menu? false)
+                     (on-set-menu false)
                      (st/emit! (dwb/archive-branch (:id entry) (not archived?)))))
 
         on-delete
@@ -609,7 +609,7 @@
          (mf/deps entry)
          (fn [event]
            (dom/stop-propagation event)
-           (reset! show-menu? false)
+           (on-set-menu false)
            (st/emit! (modal/show {:type :confirm
                                   :title (tr "workspace.branches.delete.title")
                                   :message (tr "workspace.branches.delete.message" (:name entry))
@@ -620,7 +620,7 @@
     [:li {:class (stl/css-case :branch-entry true
                                :is-archived archived?
                                :is-current current
-                               :is-menu-open (deref show-menu?))
+                               :is-menu-open menu-open?)
           :role "button"
           :on-click (when-not current on-open)}
      [:div {:class (stl/css :branch-entry-icon)}
@@ -661,7 +661,7 @@
                           :aria-label (tr "labels.options")
                           :on-click on-open-menu}])
 
-      [:> dropdown-menu* {:show (and (not main?) (deref show-menu?))
+      [:> dropdown-menu* {:show (and (not main?) menu-open?)
                           :on-close on-close-menu
                           :class (stl/css :branch-options-dropdown)}
        [:> dropdown-menu-item* {:class (stl/css :menu-option) :on-click on-info}
@@ -713,6 +713,14 @@
         filter-v (deref filter*)
 
         show-archived? (mf/use-state false)
+
+        ;; only one entry's options dropdown may be open at a time; the open
+        ;; entry's key lives here (in the parent) so opening one closes any
+        ;; other. nil = none open.
+        open-menu*  (mf/use-state nil)
+        open-menu   (deref open-menu*)
+        entry-key   (fn [entry] (dm/str (or (:id entry) (:branch-file-id entry))))
+        set-menu    (mf/use-fn (fn [k open?] (reset! open-menu* (when open? k))))
 
         entries
         (mf/with-memo [data filter-v]
@@ -779,9 +787,12 @@
         [:div {:class (stl/css :branches-section-header)}
          [:span (tr "workspace.branches.section.current")]]
         [:ul {:class (stl/css :branches-entries)}
-         [:> branch-entry* {:entry current-entry
-                            :profiles profiles
-                            :current true}]]
+         (let [k (entry-key current-entry)]
+           [:> branch-entry* {:entry current-entry
+                              :profiles profiles
+                              :current true
+                              :menu-open? (= open-menu k)
+                              :on-set-menu (partial set-menu k)}])]
 
         (when (seq other-entries)
           [:div {:class (stl/css :branches-section-header)}
@@ -790,9 +801,12 @@
         (when (seq other-entries)
           [:ul {:class (stl/css :branches-entries)}
            (for [entry other-entries]
-             [:> branch-entry* {:key (dm/str (or (:id entry) (:branch-file-id entry)))
-                                :entry entry
-                                :profiles profiles}])])
+             (let [k (entry-key entry)]
+               [:> branch-entry* {:key k
+                                  :entry entry
+                                  :profiles profiles
+                                  :menu-open? (= open-menu k)
+                                  :on-set-menu (partial set-menu k)}]))])
 
         (when (seq archived-entries)
           [:div {:class (stl/css :branches-archived)}
@@ -804,9 +818,12 @@
            (when (deref show-archived?)
              [:ul {:class (stl/css :branches-entries)}
               (for [entry archived-entries]
-                [:> branch-entry* {:key (dm/str (:id entry))
-                                   :entry entry
-                                   :profiles profiles}])])])])]))
+                (let [k (entry-key entry)]
+                  [:> branch-entry* {:key k
+                                     :entry entry
+                                     :profiles profiles
+                                     :menu-open? (= open-menu k)
+                                     :on-set-menu (partial set-menu k)}]))])])])]))
 
 ;; --- Compare changes dialog (read-only 3-way diff)
 
