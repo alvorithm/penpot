@@ -161,7 +161,8 @@
           fb.base_revn,
           fb.base_snapshot_id,
           bf.revn AS branch_revn,
-          sf.revn AS source_revn
+          sf.revn AS source_revn,
+          sf.name AS source_name
      FROM file_branch AS fb
      JOIN file AS bf ON (bf.id = fb.branch_file_id)
      JOIN file AS sf ON (sf.id = fb.source_file_id)
@@ -603,6 +604,7 @@
           fb.status,
           fb.created_by,
           fb.created_at,
+          fb.updated_at,
           fb.base_revn,
           fb.base_snapshot_id,
           bf.revn AS branch_revn,

@@ -320,6 +320,132 @@
   gap: var(--sp-s);
 }
 
+// --- Branch info dialog
+
+.info-container {
+  min-width: deprecated.$s-456;
+}
+
+// status chip sits between the title block and the close button
+.info-status {
+  @include t.use-typography("body-small");
+
+  align-self: flex-start;
+  padding: var(--sp-xxs) var(--sp-s);
+  border-radius: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+  white-space: nowrap;
+
+  &.status-open {
+    color: var(--color-foreground-info);
+    background-color: var(--color-background-info);
+  }
+
+  &.status-merged {
+    color: var(--color-accent-primary);
+    background-color: var(--color-background-tertiary);
+  }
+
+  &.status-archived {
+    color: var(--color-foreground-secondary);
+    background-color: var(--color-background-tertiary);
+  }
+}
+
+.info-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+}
+
+.info-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-s);
+  min-block-size: 28px;
+}
+
+.info-desc {
+  @include t.use-typography("body-medium");
+
+  margin: 0;
+  padding: var(--sp-s);
+  border-radius: 8px;
+  background-color: var(--color-background-tertiary);
+  color: var(--color-foreground-primary);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.info-desc-empty {
+  @include t.use-typography("body-medium");
+
+  margin: 0;
+  padding: var(--sp-s);
+  border-radius: 8px;
+  border: 1px dashed var(--color-background-quaternary);
+  color: var(--color-foreground-secondary);
+  font-style: italic;
+}
+
+.info-desc-edit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-s);
+}
+
+.info-desc-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-s);
+}
+
+.info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  border-radius: 8px;
+  border: 1px solid var(--color-background-quaternary);
+  overflow: hidden;
+}
+
+.info-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.5fr) 1fr;
+  align-items: center;
+  gap: var(--sp-s);
+  padding: var(--sp-s);
+
+  &:not(:last-child) {
+    border-block-end: 1px solid var(--color-background-quaternary);
+  }
+}
+
+.info-key {
+  @include t.use-typography("body-small");
+
+  margin: 0;
+  color: var(--color-foreground-secondary);
+}
+
+.info-val {
+  @include t.use-typography("body-medium");
+
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  margin: 0;
+  color: var(--color-foreground-primary);
+  min-width: 0;
+}
+
+.info-counts {
+  gap: var(--sp-s);
+}
+
 // --- Compare changes dialog
 
 .compare-overlay {

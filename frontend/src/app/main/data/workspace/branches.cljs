@@ -121,6 +121,18 @@
            (rx/mapcat (fn [_] (rx/of (fetch-branches) (fetch-branch-context))))
            (rx/catch (fn [_] (rx/of (ntf/error (tr "workspace.branches.lifecycle.error")))))))))
 
+(defn set-branch-description
+  "Update a branch's free-text description (shown in the Branch info modal).
+  Refreshes the panel and the on-branch banner so the new value is visible."
+  [id description]
+  (assert (uuid? id) "expected valid uuid for `id`")
+  (ptk/reify ::set-branch-description
+    ptk/WatchEvent
+    (watch [_ _ _]
+      (->> (rp/cmd! :update-file-branch {:id id :description description})
+           (rx/mapcat (fn [_] (rx/of (fetch-branches) (fetch-branch-context))))
+           (rx/catch (fn [_] (rx/of (ntf/error (tr "workspace.branches.lifecycle.error")))))))))
+
 (defn archive-branch
   ([id] (archive-branch id true))
   ([id archived?]

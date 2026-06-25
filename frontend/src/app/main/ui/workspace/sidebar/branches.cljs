@@ -398,6 +398,131 @@
                          :accept-style :primary
                          :on-accept (fn [_] (st/emit! (dwb/update-branch-from-main branch)))})))
 
+;; --- Branch info dialog (read-only info card + editable description)
+
+(mf/defc branch-info-dialog*
+  {::mf/register modal/components
+   ::mf/register-as :branch-info}
+  [{:keys [branch]}]
+  (let [profile   (mf/deref refs/profile)
+        profiles  (mf/deref refs/profiles)
+        author    (or (get profiles (:created-by branch))
+                      (when (= (:created-by branch) (:id profile)) profile))
+        author?   (= (:created-by branch) (:id profile))
+        status    (:status branch)
+        merged?   (= "merged" status)
+        archived? (contains? #{"archived" "merged"} status)
+
+        editing?  (mf/use-state false)
+        desc*     (mf/use-state (or (:description branch) ""))
+        desc      (deref desc*)
+
+        on-close       (mf/use-fn #(st/emit! (modal/hide)))
+        on-edit        (mf/use-fn #(reset! editing? true))
+        on-desc-change (mf/use-fn #(reset! desc* (dom/get-target-val %)))
+        on-cancel      (mf/use-fn (mf/deps branch)
+                                  (fn [_]
+                                    (reset! desc* (or (:description branch) ""))
+                                    (reset! editing? false)))
+        on-save        (mf/use-fn (mf/deps branch desc)
+                                  (fn [_]
+                                    (st/emit! (dwb/set-branch-description (:id branch) (str/trim desc)))
+                                    (reset! editing? false)))
+        on-compare     (mf/use-fn (mf/deps branch)
+                                  #(modal/show! :branch-compare {:branch branch}))]
+    [:div {:class (stl/css :modal-overlay)}
+     [:div {:class (stl/css :modal-container :info-container)}
+      [:div {:class (stl/css :modal-header)}
+       [:div {:class (stl/css :modal-header-icon)}
+        [:> i/icon* {:icon-id i/git-branch}]]
+       [:div {:class (stl/css :modal-header-text)}
+        [:h2 {:class (stl/css :modal-title)} (tr "workspace.branches.info.title")]
+        [:span {:class (stl/css :modal-subtitle)} (:name branch)]]
+       [:span {:class (stl/css-case :info-status true
+                                    :status-merged merged?
+                                    :status-archived (= "archived" status)
+                                    :status-open (= "open" status))}
+        (tr (case status
+              "merged"   "workspace.branches.info.status.merged"
+              "archived" "workspace.branches.info.status.archived"
+              "workspace.branches.info.status.open"))]
+       [:> button* {:variant "ghost"
+                    :icon i/close
+                    :aria-label (tr "labels.close")
+                    :on-click on-close}]]
+
+      [:div {:class (stl/css :modal-content)}
+       ;; description: shown read-only, editable inline by the author
+       [:div {:class (stl/css :info-section)}
+        [:div {:class (stl/css :info-section-head)}
+         [:span {:class (stl/css :field-label)} (tr "workspace.branches.info.description")]
+         (when (and author? (not (deref editing?)))
+           [:> button* {:variant "ghost" :on-click on-edit} (tr "labels.edit")])]
+        (if (deref editing?)
+          [:div {:class (stl/css :info-desc-edit)}
+           [:textarea {:class (stl/css :textarea)
+                       :value desc
+                       :on-change on-desc-change
+                       :rows 3
+                       :auto-focus true
+                       :placeholder (tr "workspace.branches.info.description-placeholder")}]
+           [:div {:class (stl/css :info-desc-actions)}
+            [:> button* {:variant "secondary" :on-click on-cancel} (tr "labels.cancel")]
+            [:> button* {:variant "primary" :on-click on-save} (tr "labels.save")]]]
+          (if (str/blank? (:description branch))
+            [:p {:class (stl/css :info-desc-empty)} (tr "workspace.branches.info.description-empty")]
+            [:p {:class (stl/css :info-desc)} (:description branch)]))]
+
+       ;; metadata
+       [:dl {:class (stl/css :info-grid)}
+        [:div {:class (stl/css :info-row)}
+         [:dt {:class (stl/css :info-key)} (tr "workspace.branches.info.author")]
+         [:dd {:class (stl/css :info-val)}
+          (when author [:> avatar* {:profile author :variant "S"}])
+          [:span (or (:fullname author) "—")]]]
+
+        [:div {:class (stl/css :info-row)}
+         [:dt {:class (stl/css :info-key)} (tr "workspace.branches.info.derived-from")]
+         [:dd {:class (stl/css :info-val)}
+          [:> i/icon* {:icon-id i/git-commit-vertical :size "s"}]
+          [:span (or (:source-name branch) (tr "workspace.branches.main"))]]]
+
+        (when (:created-at branch)
+          [:div {:class (stl/css :info-row)}
+           [:dt {:class (stl/css :info-key)} (tr "workspace.branches.info.created")]
+           [:dd {:class (stl/css :info-val)}
+            (-> (:created-at branch) ct/inst (ct/format-inst :localized-date-time))]])
+
+        (when (:updated-at branch)
+          [:div {:class (stl/css :info-row)}
+           [:dt {:class (stl/css :info-key)} (tr "workspace.branches.info.updated")]
+           [:dd {:class (stl/css :info-val)}
+            (some-> (:updated-at branch) ct/inst ct/timeago)]])
+
+        (when-not archived?
+          [:div {:class (stl/css :info-row)}
+           [:dt {:class (stl/css :info-key)} (tr "workspace.branches.info.changes")]
+           [:dd {:class (stl/css :info-val :info-counts)}
+            [:span {:class (stl/css :count-ahead)}
+             [:> i/icon* {:icon-id i/arrow-up :size "s"}] (dm/str (:ahead branch 0))]
+            [:span {:class (stl/css :count-behind)}
+             [:> i/icon* {:icon-id i/arrow-down :size "s"}] (dm/str (:behind branch 0))]
+            (when (pos? (:conflicts branch 0))
+              [:span {:class (stl/css :item-badge :badge-conflict)}
+               (tr "workspace.branches.banner.conflicts" (dm/str (:conflicts branch)))])]])
+
+        (when (:merged-at branch)
+          [:div {:class (stl/css :info-row)}
+           [:dt {:class (stl/css :info-key)} (tr "workspace.branches.info.merged")]
+           [:dd {:class (stl/css :info-val)}
+            (-> (:merged-at branch) ct/inst (ct/format-inst :localized-date-time))]])]]
+
+      [:div {:class (stl/css :modal-footer)}
+       (when-not archived?
+         [:> button* {:variant "secondary" :icon i/switch :on-click on-compare}
+          (tr "workspace.branches.compare")])
+       [:> button* {:variant "primary" :on-click on-close} (tr "labels.close")]]]]))
+
 ;; --- Branch list entry
 
 (mf/defc branch-entry*
@@ -440,6 +565,14 @@
                      (dom/stop-propagation event)
                      (reset! show-menu? true)))
         on-close-menu (mf/use-fn #(reset! show-menu? false))
+
+        on-info
+        (mf/use-fn
+         (mf/deps entry)
+         (fn [event]
+           (dom/stop-propagation event)
+           (reset! show-menu? false)
+           (modal/show! :branch-info {:branch entry})))
 
         on-start-rename
         (mf/use-fn (fn [event]
@@ -531,6 +664,8 @@
       [:> dropdown-menu* {:show (and (not main?) (deref show-menu?))
                           :on-close on-close-menu
                           :class (stl/css :branch-options-dropdown)}
+       [:> dropdown-menu-item* {:class (stl/css :menu-option) :on-click on-info}
+        (tr "workspace.branches.menu.info")]
        (when-not archived?
          [:> dropdown-menu-item* {:class (stl/css :menu-option) :on-click on-compare}
           (tr "workspace.branches.compare")])
