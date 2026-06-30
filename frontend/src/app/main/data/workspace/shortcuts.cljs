@@ -17,6 +17,7 @@
    [app.main.data.workspace :as dw]
    [app.main.data.workspace.branches :as dwb]
    [app.main.data.workspace.colors :as mdc]
+   [app.main.data.workspace.comments :as dwcm]
    [app.main.data.workspace.drawing :as dwd]
    [app.main.data.workspace.layers :as dwly]
    [app.main.data.workspace.libraries :as dwl]
@@ -313,6 +314,16 @@
                           :subsections [:tools]
                           :fn #(emit-when-no-readonly (dwd/select-for-drawing :path))}
 
+   :draw-line            {:tooltip "L"
+                          :command "l"
+                          :subsections [:tools]
+                          :fn #(emit-when-no-readonly (dwd/select-for-drawing :line))}
+
+   :draw-arrow           {:tooltip (ds/shift "L")
+                          :command "shift+l"
+                          :subsections [:tools]
+                          :fn #(emit-when-no-readonly (dwd/select-for-drawing :arrow))}
+
    :draw-curve           {:tooltip (ds/shift "C")
                           :command "shift+c"
                           :subsections [:tools]
@@ -322,6 +333,12 @@
                           :command "c"
                           :subsections [:tools]
                           :fn #(st/emit! (dwd/select-for-drawing :comments))}
+
+   :toggle-comments-visibility
+   {:tooltip (ds/meta-shift "C")
+    :command (ds/c-mod "shift+c")
+    :subsections [:main-menu]
+    :fn #(st/emit! (dwcm/toggle-comments-visibility {:origin "workspace-shortcuts"}))}
 
    :insert-image         {:tooltip (ds/shift "K")
                           :command "shift+k"
