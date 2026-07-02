@@ -17,6 +17,8 @@
   Direction `:branch->main` (merge/compare) treats main as `theirs` and
   branch as `ours`; `:main->branch` (update from main) swaps them."
   (:require
+   [app.common.data :as d]
+   [app.common.files.helpers :as cfh]
    [app.common.types.component :as ctk]
    [app.common.types.tokens-lib :as ctob]
    [app.common.uuid :as uuid]
@@ -94,15 +96,32 @@
     :else false))
 
 (def ^:private shape-ignored-attrs
-  "Purely derived/structural shape attrs that are noise in the compare
-  summary: children membership/order (`:shapes`, redundant with the
-  child's own add/move), the sync flag (`:touched`) and geometry caches
-  (`:selrect`, `:points`, recomputed from position/size). Containment
-  (`:parent-id`/`:frame-id`) is deliberately NOT here: reparenting a layer
-  into a board is a real, user-meaningful change worth surfacing. Hiding
-  these from the summary never affects merge correctness (the merge drives
-  them through add/del/move ops regardless)."
+  "Purely derived/structural shape attrs excluded from the shape diff
+  CLASSIFICATION (and thus from the compare summary): children
+  membership/order (`:shapes`, redundant with the child's own add/move),
+  the sync flag (`:touched`) and geometry caches (`:selrect`, `:points`,
+  recomputed from position/size). Containment (`:parent-id`/`:frame-id`)
+  is deliberately NOT here: reparenting a layer into a board is a real,
+  user-meaningful change worth surfacing.
+
+  Classifying on stripped shapes is what prevents FALSE conflicts: both
+  sides adding children to the same frame only differ on `:shapes`, and a
+  library sync on main only flips `:touched` — neither is a user change,
+  so neither may turn a clean branch edit into a modify-modify/delete
+  conflict. The merge still applies the real values: containment through
+  add/del/move ops, geometry caches piggybacked on the geometry attrs
+  (see `page-shape-changes`)."
   #{:shapes :touched :selrect :points})
+
+(defn- strip-shapes
+  "Remove `shape-ignored-attrs` from every shape of an `:objects` map, for
+  diff classification purposes."
+  [objects]
+  (persistent!
+   (reduce-kv (fn [acc id shape]
+                (assoc! acc id (apply dissoc shape shape-ignored-attrs)))
+              (transient {})
+              (or objects {}))))
 
 (defn- shape-display-meta
   "Display-only metadata for a shape diff entry — its type and component
@@ -213,9 +232,16 @@
   {:changes   (into [] (mapcat :changes) results)
    :conflicts (into [] (mapcat :conflicts) results)})
 
-(defn- present-map
-  [ids]
-  (zipmap ids (repeat true)))
+(defn- presence-only
+  "Keep only the existence-level results of a CONTENT-valued presence diff:
+  added/deleted changes and delete conflicts. Content modifications of
+  entities present on both sides are covered by the granular passes, so
+  they are dropped here. Diffing presence over content (instead of `true`)
+  is what turns \"one side deleted it, the other edited it\" into a proper
+  delete conflict instead of a silent clean delete."
+  [{:keys [changes conflicts]}]
+  {:changes   (filterv #(contains? #{:added :deleted} (:status %)) changes)
+   :conflicts (filterv #(contains? #{:delete-modify :modify-delete} (:reason %)) conflicts)})
 
 (defn- page-meta
   "Page attrs mergeable via `:mod-page` (name/background/pixel-grid)."
@@ -233,6 +259,32 @@
           :guides :flows :default-grids :plugin-data
           :index :comment-thread-positions))
 
+(defn- page-content
+  "Normalized page value for the presence pass: the page without derived
+  attrs (`:index`, comment positions — comments are not migrated) and with
+  its shapes stripped of derived attrs, so only user-meaningful content
+  can turn a page deletion into a delete conflict."
+  [page]
+  (some-> page
+          (dissoc :index :comment-thread-positions)
+          (update :objects strip-shapes)))
+
+(defn- page-content-map
+  [pages-index ids]
+  (into {} (map (fn [id] [id (page-content (get pages-index id))])) ids))
+
+(defn- slim-page
+  "Compact page summary for conflict payloads (a full page embeds every
+  shape three times over the wire)."
+  [page]
+  (when page
+    {:id (:id page) :name (:name page) :shapes (count (:objects page))}))
+
+(defn- slim-conflict-sides
+  [slim-fn conflicts]
+  (mapv (fn [c] (-> c (update :base slim-fn) (update :main slim-fn) (update :branch slim-fn)))
+        conflicts))
+
 (defn- flatten-plugin-data
   "{namespace {key value}} -> {[namespace key] value} for diffing."
   [pd]
@@ -248,18 +300,28 @@
         bids (set (keys bpi)) tids (set (keys tpi)) oids (set (keys opi))
         common (set/intersection bids tids oids)
 
-        ;; page add/delete (mergeable: :page)
-        presence (three-way-entities (present-map bids) (present-map tids) (present-map oids)
-                                     {:kind :page})
+        ;; page add/delete (mergeable: :page). Presence is diffed over the
+        ;; page CONTENT so that deleting a page the other side edited raises
+        ;; a delete conflict instead of silently dropping those edits;
+        ;; content-only modifications are filtered out (granular passes own
+        ;; them) and conflict payloads are slimmed (a full page is huge).
+        presence (-> (three-way-entities (page-content-map bpi bids)
+                                         (page-content-map tpi tids)
+                                         (page-content-map opi oids)
+                                         {:kind :page})
+                     (presence-only)
+                     (update :conflicts #(slim-conflict-sides slim-page %)))
         ;; page name/background/grid on common pages (mergeable: :page via mod-page)
         meta-map (fn [pi] (into {} (map (fn [id] [id (page-meta (get pi id))])) common))
         meta-diff (three-way-entities (meta-map bpi) (meta-map tpi) (meta-map opi) {:kind :page})
         ;; residual page attrs on common pages (NOT mergeable -> refused, never dropped)
         extra-map (fn [pi] (into {} (map (fn [id] [id (page-extra (get pi id))])) common))
         extra-diff (three-way-entities (extra-map bpi) (extra-map tpi) (extra-map opi) {:kind :page-attrs})
-        ;; page order on common pages (NOT yet mergeable)
+        ;; page order on common pages. The entity id is `:page-order` (NOT a
+        ;; bare `:order`) so its conflict resolution cannot collide with the
+        ;; token-set-order one and matches what `compute-changes` reads.
         order-of (fn [data] (filterv common (or (:pages data) [])))
-        order (three-way-entities {:order (order-of base)} {:order (order-of theirs)} {:order (order-of ours)}
+        order (three-way-entities {:page-order (order-of base)} {:page-order (order-of theirs)} {:page-order (order-of ours)}
                                   {:kind :page-order})
         ;; guides / flows per common page (mergeable: :page-guide / :page-flow)
         sub-of (fn [data pid k] (get-in data [:pages-index pid k] {}))
@@ -291,27 +353,36 @@
                                                  {:kind :page-plugin :page-id pid}))
                            common)
         ;; objects (shapes) on common pages (mergeable: :shape). The page
-        ;; root frame (uuid/zero) is skipped and structural attrs are
-        ;; stripped: they are pure noise in the summary (their merge is
-        ;; driven by add/del/move ops, not by these values).
+        ;; root frame (uuid/zero) is skipped and the shapes are diffed
+        ;; STRIPPED of derived attrs (`shape-ignored-attrs`) so that pure
+        ;; `:shapes`/`:touched`/geometry-cache churn neither shows up as a
+        ;; change nor manufactures false conflicts (their merge is driven
+        ;; by add/del/move ops, not by these values).
         obj-diffs (map (fn [pid]
                          (let [bo  (get-in base [:pages-index pid :objects] {})
                                to  (get-in theirs [:pages-index pid :objects] {})
                                oo  (get-in ours [:pages-index pid :objects] {})
-                               res (three-way-entities bo to oo
+                               res (three-way-entities (strip-shapes bo) (strip-shapes to) (strip-shapes oo)
                                                        {:kind :shape :page-id pid
-                                                        :ignore-ids #{uuid/zero}
-                                                        :ignore-attrs shape-ignored-attrs
-                                                        :drop-empty-modified? true})
+                                                        :ignore-ids #{uuid/zero}})
                                ;; enrich each entry with the shape's type/component
                                ;; nature, read from whichever side still has it
                                enrich (fn [e]
                                         (merge e (shape-display-meta
                                                   (or (get oo (:id e))
                                                       (get to (:id e))
-                                                      (get bo (:id e))))))]
+                                                      (get bo (:id e))))))
+                               ;; conflict payloads must carry the FULL shapes
+                               ;; (the diff classified stripped copies, but the
+                               ;; conflict UI renders real previews that need
+                               ;; :selrect/:points/:transform)
+                               rehydrate (fn [e]
+                                           (assoc e
+                                                  :base (get bo (:id e))
+                                                  :main (get to (:id e))
+                                                  :branch (get oo (:id e))))]
                            {:changes   (mapv enrich (:changes res))
-                            :conflicts (mapv enrich (:conflicts res))}))
+                            :conflicts (mapv (comp rehydrate enrich) (:conflicts res))}))
                        common)]
     (merge-results (concat [presence meta-diff extra-diff order]
                            guides-diffs flows-diffs grids-diffs plugins-diffs obj-diffs))))
@@ -341,12 +412,42 @@
           (ctob/get-sets lib))
     {}))
 
-(defn- set-add-attrs
-  "Metadata-only attrs to (re)create a set; its tokens are added by the
-  per-token pass so unchanged tokens are preserved."
+(declare lib-tokens-by-id)
+
+(defn- set-content
+  "Normalized token-set value (metadata + tokens) for the presence pass, so
+  deleting a set the other side edited raises a delete conflict."
   [lib set-id]
-  (let [s (ctob/get-set lib set-id)]
-    {:id set-id :name (ctob/get-name s) :description (ctob/get-description s)}))
+  (when (and lib (ctob/get-set lib set-id))
+    (let [s (ctob/get-set lib set-id)]
+      {:id set-id
+       :name (ctob/get-name s)
+       :description (ctob/get-description s)
+       :tokens (lib-tokens-by-id lib set-id)})))
+
+(defn- set-content-map
+  [lib]
+  (into {} (map (fn [sid] [sid (set-content lib sid)]))
+        (if lib (map ctob/get-id (ctob/get-sets lib)) [])))
+
+(defn- slim-set
+  "Compact token-set summary for conflict payloads."
+  [s]
+  (when s
+    {:id (:id s) :name (:name s) :tokens (count (:tokens s))}))
+
+(defn- set-restore-attrs
+  "Attrs to (re)create a set in the target. A brand-new set (absent from
+  the base) carries metadata only — its tokens are added by the per-token
+  pass. A RESTORED set (present in the base, deleted on the other side)
+  must carry its tokens too: the per-token pass skips sets deleted on
+  either side."
+  [lib base-lib set-id]
+  (let [s     (ctob/get-set lib set-id)
+        attrs {:id set-id :name (ctob/get-name s) :description (ctob/get-description s)}]
+    (if (and base-lib (ctob/get-set base-lib set-id))
+      (assoc attrs :tokens (ctob/get-tokens lib set-id))
+      attrs)))
 
 (defn- set-rename-attrs
   "Attrs to rename a set: take branch's name/description but keep MAIN's
@@ -413,17 +514,22 @@
         bids (lib-set-ids bl) tids (lib-set-ids tl) oids (lib-set-ids ol)
         common (set/intersection bids tids oids)
 
-        ;; set add/delete (mergeable: :token-set)
-        presence (three-way-entities (present-map bids) (present-map tids) (present-map oids)
-                                     {:kind :token-set})
+        ;; set add/delete (mergeable: :token-set). Diffed over the set
+        ;; CONTENT so deleting a set the other side edited raises a delete
+        ;; conflict (see `presence-only`); payloads slimmed for the wire.
+        presence (-> (three-way-entities (set-content-map bl) (set-content-map tl) (set-content-map ol)
+                                         {:kind :token-set})
+                     (presence-only)
+                     (update :conflicts #(slim-conflict-sides slim-set %)))
         ;; set rename/description on common sets (NOT yet mergeable)
         rename   (three-way-entities (select-keys (lib-set-meta bl) common)
                                      (select-keys (lib-set-meta tl) common)
                                      (select-keys (lib-set-meta ol) common)
                                      {:kind :token-set-rename})
-        ;; set order on common sets (NOT yet mergeable)
+        ;; set order on common sets. Entity id `:token-set-order` (NOT a bare
+        ;; `:order`) so its resolution cannot collide with the page-order one.
         order-of (fn [lib] (filterv common (lib-set-order lib)))
-        order    (three-way-entities {:order (order-of bl)} {:order (order-of tl)} {:order (order-of ol)}
+        order    (three-way-entities {:token-set-order (order-of bl)} {:token-set-order (order-of tl)} {:token-set-order (order-of ol)}
                                      {:kind :token-set-order})
         ;; themes, excluding hidden (mergeable: :token-theme)
         themes   (three-way-entities (lib-themes bl) (lib-themes tl) (lib-themes ol)
@@ -438,75 +544,84 @@
                                         {:active-sets (lib-hidden-sets tl)}
                                         {:active-sets (lib-hidden-sets ol)}
                                         {:kind :token-active-sets})
-        ;; per-token values (mergeable: :token)
+        ;; per-token values (mergeable: :token). Sets deleted on either side
+        ;; relative to the base are decided wholesale at set level (delete or
+        ;; delete-conflict), so their per-token diff would only add redundant
+        ;; token-level noise — skip them.
         set-ids  (set/union bids tids oids)
+        deleted-on-a-side? (fn [sid]
+                             (and (contains? bids sid)
+                                  (or (not (contains? tids sid))
+                                      (not (contains? oids sid)))))
         tokens   (map (fn [sid]
                         (three-way-entities (lib-tokens-by-id bl sid)
                                             (lib-tokens-by-id tl sid)
                                             (lib-tokens-by-id ol sid)
                                             {:kind :token :set-id sid}))
-                      set-ids)]
+                      (remove deleted-on-a-side? set-ids))]
     (merge-results (concat [presence rename order themes active-paths active-sets] tokens))))
 
-(defn- remap-objects-component-file
-  [objects from to]
-  (persistent!
-   (reduce-kv (fn [acc id shape]
-                (assoc! acc id
-                        (cond-> shape
-                          (= (:component-file shape) from)
-                          (assoc :component-file to))))
-              (transient {})
-              objects)))
+(defn remap-refs
+  "Rewrite cross-file references in `data` through `id-map`
+  ({old-id -> new-id}): the file refs relinked by `duplicate-file`
+  (`:component-file`, `:fill-color-ref-file`, `:stroke-color-ref-file`,
+  `:typography-ref-file`, shadow/grid `:file-id`) plus the media refs
+  (shape `:metadata`/`:fill-image`/`:stroke-image` ids, the `:media`
+  collection keys and library-color `:image` ids) — the exact same
+  surface `binfile.common/process-file` remaps when the branch copy is
+  created.
 
-(defn normalize-component-file
-  "Rewrite LOCAL `:component-file` references in `data` from `from-id` to
-  `to-id` across every page's shapes.
-
-  A branch is a file copy with its own id, so its local component heads and
-  copies carry the branch file id (set by `duplicate-file`). Before diffing
-  or merging against another file these local references must be re-pointed
-  to a single canonical id (the target file). Otherwise: (a) every
-  local-component shape looks modified because its file id always differs,
-  inflating the diff/conflicts; and (b) merged main instances cannot be
-  resolved in the target file, so file repair detaches them — the component
-  silently stops being a component. External-library references (any other
-  file id) are left untouched."
-  [data from-id to-id]
-  (if (= from-id to-id)
+  A branch is a file copy whose LOCAL references were re-pointed to its
+  own ids by the duplication pipeline. Before diffing or merging against
+  another file those references must be normalized to the target's ids;
+  otherwise (a) every affected entity looks modified, inflating the
+  diff/conflicts, and (b) merged references cannot be resolved in the
+  target file — repair would detach components and images would break.
+  Ids not present in `id-map` (external libraries) are left untouched."
+  [data id-map]
+  (if (empty? id-map)
     data
-    (update data :pages-index
-            (fn [pi]
-              (persistent!
-               (reduce-kv (fn [acc pid page]
-                            (assoc! acc pid (update page :objects
-                                                    remap-objects-component-file from-id to-id)))
-                          (transient {})
-                          (or pi {})))))))
+    (let [lookup #(get id-map % %)]
+      (-> data
+          (d/update-when :pages-index #(cfh/relink-refs % lookup))
+          (d/update-when :components #(cfh/relink-refs % lookup))
+          (d/update-when :media
+                         (fn [media]
+                           (reduce-kv (fn [res k v]
+                                        (let [id (lookup k)]
+                                          (if (= id k)
+                                            res
+                                            (-> res (dissoc k) (assoc id (assoc v :id id))))))
+                                      media
+                                      media)))
+          (d/update-when :colors
+                         (fn [colors]
+                           (reduce-kv (fn [res k v]
+                                        (let [image-id (get-in v [:image :id])
+                                              new-id   (some-> image-id lookup)]
+                                          (if (or (nil? image-id) (= new-id image-id))
+                                            res
+                                            (assoc-in res [k :image :id] new-id))))
+                                      colors
+                                      colors)))))))
 
-(def ^:private component-ignored-attrs
-  "Derived bookkeeping attrs on a component row that carry no user-meaningful
-  change. `:modified-at` is a \"last touched\" timestamp refreshed on every edit
-  (see `components-list/touch`); diffing it flags spurious `:modified` entries
-  and, when both sides edited the same component, spurious `:modify-modify`
-  conflicts whose only difference is the timestamp. Stripping it before the
-  diff is the component analogue of `shape-ignored-attrs`. Note this even
-  matches how the change pipeline itself treats the attr: `mod-component`
-  excludes `:modified-at` from the set that marks a component touched, and both
-  `add-component`/`mod-component` regenerate the timestamp on apply — so
-  dropping it from the diff (and from the resulting change payload) is safe."
-  #{:modified-at})
+(defn- strip-modified-at
+  "Remove the `:modified-at` bookkeeping timestamp from every entry of an
+  indexed collection (components, colors, typographies).
 
-(defn- strip-component-attrs
-  "Remove `component-ignored-attrs` from every component in a `:components`
-  index, so the three-way diff classifies and reports components by their
-  meaningful attributes only."
-  [components]
+  `:modified-at` is a \"last touched\" stamp refreshed on EVERY apply
+  (`components-list/touch`, `types.library/touch`): diffing it flags
+  spurious `:modified` entries — e.g. an update-from-main restamps the
+  copied entities, making them differ from main forever after — and, when
+  both sides edited the same entity, spurious `:modify-modify` conflicts
+  whose only difference is the timestamp. Dropping it is safe because the
+  change pipeline regenerates it on apply anyway."
+  [index]
   (persistent!
-   (reduce-kv (fn [acc id c]
-                (assoc! acc id (apply dissoc c component-ignored-attrs)))
+   (reduce-kv (fn [acc id v]
+                (assoc! acc id (dissoc v :modified-at)))
               (transient {})
-              (or components {}))))
+              (or index {}))))
 
 (defn compute-merge
   "Compute the three-way diff between the merge `base`, `main` and
@@ -520,13 +635,17 @@
   phase); `:tokens-lib` changes are not reported here."
   [base main branch dir]
   (let [[theirs ours] (if (= dir :main->branch) [branch main] [main branch])
-        results  [(three-way-entities (:colors base) (:colors theirs) (:colors ours)
+        results  [(three-way-entities (strip-modified-at (:colors base))
+                                      (strip-modified-at (:colors theirs))
+                                      (strip-modified-at (:colors ours))
                                       {:kind :color})
-                  (three-way-entities (:typographies base) (:typographies theirs) (:typographies ours)
+                  (three-way-entities (strip-modified-at (:typographies base))
+                                      (strip-modified-at (:typographies theirs))
+                                      (strip-modified-at (:typographies ours))
                                       {:kind :typography})
-                  (three-way-entities (strip-component-attrs (:components base))
-                                      (strip-component-attrs (:components theirs))
-                                      (strip-component-attrs (:components ours))
+                  (three-way-entities (strip-modified-at (:components base))
+                                      (strip-modified-at (:components theirs))
+                                      (strip-modified-at (:components ours))
                                       {:kind :component})
                   (three-way-entities (:media base) (:media theirs) (:media ours)
                                       {:kind :media})
@@ -622,13 +741,51 @@
   would corrupt the tree (leave shapes loose / duplicated)."
   #{:shapes :parent-id :frame-id})
 
+(def ^:private shape-geometry-attrs
+  "Attrs whose change invalidates the geometry caches (`:selrect`/`:points`),
+  which must then follow the winning side (see `shape-resolved-ops`)."
+  #{:x :y :width :height :rotation :transform :transform-inverse :flip-x :flip-y})
+
 (defn- shape-set-ops
   "`:set` operations for the attrs that differ between the main and branch
-  shape, excluding the structural ones (see `structural-set-attrs`)."
+  shape (FULL maps, so geometry caches ride along), excluding the
+  structural ones (see `structural-set-attrs`)."
   [t o]
   (->> (shallow-attr-diff t o)
        (into [] (comp (remove (fn [[k _]] (contains? structural-set-attrs k)))
                       (map (fn [[k {:keys [branch]}]] {:type :set :attr k :val branch}))))))
+
+(defn- shape-resolved-ops
+  "`:set` ops for a per-attr conflict resolution: the classification attrs
+  (stripped maps) the user resolved to `:branch`, valued from the FULL
+  branch shape; when a geometry attr is taken, the geometry caches
+  (`:selrect`/`:points`) are appended from the branch shape so position and
+  caches stay consistent."
+  [t-stripped o-stripped t-full o-full res]
+  (let [chosen (into []
+                     (keep (fn [[k _]]
+                             (when (and (= :branch (attr-side res k))
+                                        (not (contains? structural-set-attrs k)))
+                               k)))
+                     (shallow-attr-diff t-stripped o-stripped))
+        ops    (mapv (fn [k] {:type :set :attr k :val (get o-full k)}) chosen)]
+    (if (some shape-geometry-attrs chosen)
+      (into ops
+            (keep (fn [k]
+                    (when (not= (get t-full k) (get o-full k))
+                      {:type :set :attr k :val (get o-full k)})))
+            [:selrect :points])
+      ops)))
+
+(defn- subtree-ids
+  "`id` plus all its descendants' ids, walking `:shapes` in `objects`."
+  [objects id]
+  (loop [pending [id] out []]
+    (if (empty? pending)
+      out
+      (let [cur (peek pending)]
+        (recur (into (pop pending) (get-in objects [cur :shapes]))
+               (conj out cur))))))
 
 (defn- shape-depth
   "Depth of a shape in its objects tree (root = 0). Used to order moves so a
@@ -645,15 +802,18 @@
   different container, when the branch wins (main left the shape untouched,
   or the conflict was resolved to `:branch`). Reparenting cannot be applied
   as a `:set :parent-id` op — that only rewrites the attribute and leaves
-  the shape loose in its old parent, duplicated by file repair."
-  [bo to oo resolutions page-id]
+  the shape loose in its old parent, duplicated by file repair.
+  `sbo`/`sto` are the STRIPPED base/main objects (see `strip-shapes`), used
+  for the \"main untouched\" check so derived-attr churn on main does not
+  block a branch reparent."
+  [to oo sbo sto resolutions page-id]
   (->> (keys oo)
        (keep (fn [id]
                (let [t (get to id)
                      o (get oo id)]
                  (when (and (some? t)                          ; exists on both sides
                             (not= id uuid/zero)
-                            (or (= (get bo id) t)               ; main untouched -> branch wins
+                            (or (= (get sbo id) (get sto id))   ; main untouched -> branch wins
                                 (= :branch (attr-side (get resolutions id) :parent-id))))
                    (let [new-parent (:parent-id o)]
                      (when (not= new-parent (:parent-id t))     ; reparented
@@ -676,12 +836,24 @@
         to (get-in theirs [:pages-index page-id :objects] {})
         oo (get-in ours [:pages-index page-id :objects] {})
 
+        ;; classification runs on STRIPPED shapes (no derived attrs) so
+        ;; `:shapes`/`:touched`/cache churn cannot fabricate changes or
+        ;; conflicts; emission reads the FULL maps.
+        sbo (strip-shapes bo)
+        sto (strip-shapes to)
+        soo (strip-shapes oo)
+
         ;; modifications + deletions (additions handled below, ordered)
         mod-del
-        (->> (flat-changes bo to oo resolutions
+        (->> (flat-changes sbo sto soo resolutions
                            (fn [_ _] nil)
-                           (fn [id o]
-                             (let [ops (shape-set-ops (get to id) o)]
+                           (fn [id _]
+                             (let [res (get resolutions id)
+                                   ops (if (and (map? res)
+                                                (not= (get sto id) (get sbo id))) ; genuine conflict -> per-attr
+                                         (shape-resolved-ops (get sto id) (get soo id)
+                                                             (get to id) (get oo id) res)
+                                         (shape-set-ops (get to id) (get oo id)))]
                                (when (seq ops)
                                  {:type :mod-obj :page-id page-id :id id :operations ops})))
                            (fn [id]
@@ -695,15 +867,32 @@
                                            (not (contains? to id)))))
                         (keys oo))
 
+        ;; modify-delete conflicts resolved to `:branch`: the branch modified
+        ;; a shape main deleted and the user chose to keep it — re-add its
+        ;; whole surviving subtree (main's delete was recursive), except the
+        ;; descendants main still has (it moved them out before deleting)
+        restore-set
+        (into #{}
+              (comp (filter (fn [id]
+                              (and (contains? bo id)
+                                   (not (contains? to id))
+                                   (not= (get sbo id) (get soo id))
+                                   (= :branch (get resolutions id)))))
+                    (mapcat #(subtree-ids oo %))
+                    (remove #(contains? to %)))
+              (keys oo))
+
+        all-adds (set/union added-set restore-set)
+
         ;; topological order so a newly-added parent is created before its
         ;; newly-added children
         ordered
-        (loop [pending (vec added-set) done #{} out []]
+        (loop [pending (vec all-adds) done #{} out []]
           (if (empty? pending)
             out
             (let [ready (filterv (fn [id]
                                    (let [p (:parent-id (get oo id))]
-                                     (or (not (contains? added-set p))
+                                     (or (not (contains? all-adds p))
                                          (contains? done p))))
                                  pending)
                   ready (if (seq ready) ready (subvec pending 0 1))]
@@ -731,7 +920,7 @@
 
         ;; reparenting of EXISTING shapes — applied last, after new
         ;; containers exist and attr/add changes settled
-        move-changes (page-move-changes bo to oo resolutions page-id)]
+        move-changes (page-move-changes to oo sbo sto resolutions page-id)]
     (-> mod-del
         (into add-changes)
         (into move-changes))))
@@ -746,19 +935,33 @@
 
   Returns `{:changes [..] :unsupported #{kinds..}}`. When `:unsupported`
   is non-empty the caller must refuse the merge (translation for those
-  kinds — components, pages, tokens — is not implemented yet)."
+  kinds — components, pages, tokens — is not implemented yet).
+
+  The 5-arity accepts the `compute-merge` summary the caller usually
+  already computed (for the conflict gate), so the full three-way diff is
+  not run a second time just to derive `:unsupported`."
   ([base main branch]
    (compute-changes base main branch {}))
   ([base main branch resolutions]
-   (let [merge       (compute-merge base main branch :branch->main)
-         unsupported (unsupported-kinds (concat (:changes merge) (:conflicts merge)))
+   (compute-changes base main branch resolutions nil))
+  ([base main branch resolutions merge-summary]
+   (let [merge-summary (or merge-summary (compute-merge base main branch :branch->main))
+         unsupported   (unsupported-kinds (concat (:changes merge-summary) (:conflicts merge-summary)))
 
-         colors (flat-changes (:colors base) (:colors main) (:colors branch) resolutions
+         ;; colors/typographies classified without :modified-at (the apply
+         ;; regenerates it via `touch`, so the emitted values may omit it)
+         colors (flat-changes (strip-modified-at (:colors base))
+                              (strip-modified-at (:colors main))
+                              (strip-modified-at (:colors branch))
+                              resolutions
                               (fn [_ o] {:type :add-color :color o})
                               (fn [_ o] {:type :mod-color :color o})
                               (fn [id] {:type :del-color :id id}))
 
-         typos  (flat-changes (:typographies base) (:typographies main) (:typographies branch) resolutions
+         typos  (flat-changes (strip-modified-at (:typographies base))
+                              (strip-modified-at (:typographies main))
+                              (strip-modified-at (:typographies branch))
+                              resolutions
                               (fn [_ o] {:type :add-typography :typography o})
                               (fn [_ o] {:type :mod-typography :typography o})
                               (fn [id] {:type :del-typography :id id}))
@@ -774,7 +977,14 @@
          common-pages (set/intersection mpids opids)
          tri-common-pages (set/intersection bpids mpids opids)
 
-         page-presence (->> (flat-changes (present-map bpids) (present-map mpids) (present-map opids) resolutions
+         ;; presence over page CONTENT (mirrors `diff-pages`): a clean delete
+         ;; requires main untouched; a delete conflict resolved to `:branch`
+         ;; either deletes (branch deleted) or RESTORES the full branch page
+         ;; via the add-fn (main deleted, branch edited)
+         page-presence (->> (flat-changes (page-content-map bpi bpids)
+                                          (page-content-map mpi mpids)
+                                          (page-content-map opi opids)
+                                          resolutions
                                           (fn [pid _] {:type :add-page :page (get opi pid)})
                                           (fn [_ _] nil)
                                           (fn [pid] {:type :del-page :id pid}))
@@ -846,9 +1056,9 @@
          ;; components: row metadata (shapes handled by the shape/page passes).
          ;; A branch soft-delete keeps the row with `:deleted true`; surface it
          ;; as a proper del-component so the deletion propagates.
-         components (flat-changes (strip-component-attrs (:components base))
-                                  (strip-component-attrs (:components main))
-                                  (strip-component-attrs (:components branch)) resolutions
+         components (flat-changes (strip-modified-at (:components base))
+                                  (strip-modified-at (:components main))
+                                  (strip-modified-at (:components branch)) resolutions
                                   (fn [_ c] (assoc c :type :add-component))
                                   (fn [id c] (if (:deleted c)
                                                {:type :del-component :id id}
@@ -858,12 +1068,15 @@
          bl (:tokens-lib base) ml (:tokens-lib main) ol (:tokens-lib branch)
          set-ids (set/union (lib-set-ids bl) (lib-set-ids ml) (lib-set-ids ol))
 
-         ;; set add (create empty set, tokens added by the per-token pass) / delete
-         set-presence (->> (flat-changes (present-map (lib-set-ids bl))
-                                         (present-map (lib-set-ids ml))
-                                         (present-map (lib-set-ids ol))
+         ;; set add/delete, presence over set CONTENT (mirrors `diff-tokens`):
+         ;; a new set carries metadata only (tokens come from the per-token
+         ;; pass); a RESTORED set (delete conflict resolved to `:branch`)
+         ;; carries its tokens, since the per-token pass skips deleted sets
+         set-presence (->> (flat-changes (set-content-map bl)
+                                         (set-content-map ml)
+                                         (set-content-map ol)
                                          resolutions
-                                         (fn [sid _] {:type :set-token-set :id sid :attrs (set-add-attrs ol sid)})
+                                         (fn [sid _] {:type :set-token-set :id sid :attrs (set-restore-attrs ol bl sid)})
                                          (fn [_ _] nil)
                                          (fn [sid] {:type :set-token-set :id sid :attrs nil}))
                            (filterv some?))
@@ -914,7 +1127,7 @@
                mo (set-order-by-id ml common-sets)
                oo (set-order-by-id ol common-sets)]
            (if (and (not= oo bo)
-                    (or (= mo bo) (= (get resolutions :order) :branch)))
+                    (or (= mo bo) (= (get resolutions :token-set-order) :branch)))
              (let [names (mapv #(ctob/get-name (ctob/get-set ol %)) oo)]
                (vec (for [i (range (- (count names) 2) -1 -1)]
                       {:type :move-token-set
@@ -923,15 +1136,17 @@
                        :before-path (set-name->path (nth names (inc i)))
                        :before-group false})))
              []))
-         ;; sets deleted from the branch are dropped wholesale; skip their per-token diff
-         deleted-set-ids (into #{} (filter (fn [sid]
-                                             (and (contains? (lib-set-ids bl) sid)
-                                                  (contains? (lib-set-ids ml) sid)
-                                                  (not (contains? (lib-set-ids ol) sid)))))
-                               set-ids)
+         ;; sets deleted on either side (relative to the base) are decided
+         ;; wholesale at set level (delete, or restore-with-tokens); skip
+         ;; their per-token pass (mirrors `diff-tokens`)
+         skip-set-ids (into #{} (filter (fn [sid]
+                                          (and (contains? (lib-set-ids bl) sid)
+                                               (or (not (contains? (lib-set-ids ml) sid))
+                                                   (not (contains? (lib-set-ids ol) sid))))))
+                            set-ids)
 
          token-vals (into []
-                          (comp (remove deleted-set-ids)
+                          (comp (remove skip-set-ids)
                                 (mapcat (fn [sid]
                                           (flat-changes (lib-tokens-by-id bl sid)
                                                         (lib-tokens-by-id ml sid)

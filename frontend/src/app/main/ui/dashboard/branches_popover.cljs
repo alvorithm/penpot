@@ -35,7 +35,10 @@
          (mf/deps file)
          (fn [event]
            (dom/stop-propagation event)
-           (st/emit! (dwb/load-file-branches (:id file)))
+           (when-not (deref show?)
+             ;; clear the previous file's list before fetching so the
+             ;; popover never flashes another card's branches
+             (st/emit! (dwb/load-file-branches (:id file))))
            (swap! show? not)))
 
         on-close (mf/use-fn #(reset! show? false))

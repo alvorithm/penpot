@@ -799,6 +799,7 @@
       WHERE p.team_id = ?
         AND (p.deleted_at > ?::timestamptz OR
              f.deleted_at > ?::timestamptz)
+        AND f.is_branch IS FALSE
      WINDOW w AS (PARTITION BY f.project_id
                       ORDER BY f.modified_at DESC)
       ORDER BY f.modified_at DESC
@@ -1247,6 +1248,7 @@
      JOIN team AS t ON (t.id = p.team_id)
     WHERE t.deleted_at IS NULL
       AND t.id = ?
+      AND f.is_branch IS FALSE
       AND f.id = ANY(?::uuid[])")
 
 (def ^:private sql:restore-files

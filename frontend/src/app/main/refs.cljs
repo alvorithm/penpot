@@ -36,7 +36,9 @@
   (l/derived (l/key :current-page-id) st/state))
 
 (def branch-context
-  (l/derived (l/key :workspace-branch-context) st/state))
+  ;; the state entry is {:file-id .. :loaded? .. :info <row-or-nil>};
+  ;; consumers only care about the branch row itself
+  (l/derived #(get-in % [:workspace-branch-context :info]) st/state))
 
 (def team
   (l/derived dsh/lookup-team st/state))

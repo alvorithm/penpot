@@ -522,7 +522,9 @@
      JOIN project AS p ON (p.id = f.project_id)
     WHERE p.team_id = ?
       AND fb.deleted_at IS NULL
-      AND fb.status <> 'merged'")
+      AND fb.status <> 'merged'
+      AND f.deleted_at IS NULL
+      AND p.deleted_at IS NULL")
 
 (defmethod check-quote ::branches-per-team
   [{:keys [::profile-id ::team-id ::target] :as quote}]

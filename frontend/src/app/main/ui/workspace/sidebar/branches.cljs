@@ -43,7 +43,8 @@
   (l/derived :workspace-branch-diff st/state))
 
 (def ^:private branch-context
-  (l/derived :workspace-branch-context st/state))
+  ;; see refs/branch-context: the state entry wraps the row under :info
+  (l/derived #(get-in % [:workspace-branch-context :info]) st/state))
 
 (def ^:private kind->icon
   {:shape               i/board
@@ -188,8 +189,11 @@
             (and (sequential? v) (map? (first v)))
             (or (:fill-color (first v)) (:stroke-color (first v)) (:color (first v)))
             :else nil)]
-    (when (and (string? s) (re-matches #"#?[0-9a-fA-F]{3,8}" s))
-      (if (str/starts-with? s "#") s (str "#" s)))))
+    ;; only valid hex lengths (3/4/6/8 digits); a bare string must carry
+    ;; the leading `#`, otherwise casual words like "cafe" become swatches
+    (when (and (string? s)
+               (re-matches #"#[0-9a-fA-F]{8}|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3,4}" s))
+      s)))
 
 (defn- fmt-number
   "At most two decimals, trailing zeros stripped (89.99999 -> \"90\",
@@ -328,7 +332,7 @@
         (let [sep "\uE000"
               msg (tr "workspace.branches.merge.confirm-message"
                       (str sep "\"" (:name branch) "\"" sep)
-                      (str sep "main" sep))]
+                      (str sep (tr "workspace.branches.main") sep))]
           (str/split msg sep))
 
         on-toggle-archive
@@ -341,7 +345,7 @@
         (mf/use-fn
          (mf/deps branch archive?)
          (fn [_]
-           (st/emit! (dwb/merge-branch (:id branch) nil archive?)
+           (st/emit! (dwb/merge-branch branch {:keep-branch archive?})
                      (modal/hide))))]
 
     [:div {:class (stl/css :modal-overlay)}
@@ -988,7 +992,7 @@
             [:*
              [:span {:class (stl/css :breadcrumb-main)}
               [:> i/icon* {:icon-id i/git-commit-vertical :size "s"}]
-              "main"]
+              (tr "workspace.branches.main")]
              [:button {:class (stl/css :breadcrumb-swap)
                        :title (tr "workspace.branches.compare.swap")
                        :aria-label (tr "workspace.branches.compare.swap")
@@ -1008,7 +1012,7 @@
               [:> i/icon* {:icon-id i/arrow-up-right :size "s"}]]
              [:span {:class (stl/css :breadcrumb-main)}
               [:> i/icon* {:icon-id i/git-commit-vertical :size "s"}]
-              "main"]])]]]
+              (tr "workspace.branches.main")]])]]]
 
        (when stats
          [:div {:class (stl/css :compare-stats)}
@@ -1036,7 +1040,7 @@
         (= status :error)
         [:div {:class (stl/css :compare-empty)}
          [:> empty-state* {:icon i/triangle-alert
-                           :text (tr "workspace.branches.create.error")}]]
+                           :text (tr "workspace.branches.compare.error")}]]
 
         (empty? items)
         [:div {:class (stl/css :compare-empty)}
@@ -1333,7 +1337,14 @@
   {::mf/register modal/components
    ::mf/register-as :branch-conflicts}
   [{:keys [branch mode]}]
-  (let [{:keys [diff selected resolutions]} (mf/deref branch-diff)
+  (let [{:keys [diff selected resolutions status]} (mf/deref branch-diff)
+
+        loading?    (= status :loading)
+
+        ;; merge mode only: whether to keep the branch archived after merge
+        keep?*      (mf/use-state false)
+        keep?       (deref keep?*)
+        on-toggle-keep (mf/use-fn #(swap! keep?* not))
 
         diff-meta   (:meta diff)
         ;; per-side header subtitle: base is pinned at branch creation, main
@@ -1369,10 +1380,11 @@
                                  #(when sel (st/emit! (dwb/set-conflict-resolution (:id sel) :main))))
         on-use-branch (mf/use-fn (mf/deps sel)
                                  #(when sel (st/emit! (dwb/set-conflict-resolution (:id sel) :branch))))
-        on-apply      (mf/use-fn (mf/deps branch resolutions mode)
+        on-apply      (mf/use-fn (mf/deps branch resolutions mode keep?)
                                  #(st/emit! (if (= mode :update)
                                               (dwb/update-branch-from-main branch resolutions)
-                                              (dwb/merge-branch (:id branch) resolutions))))]
+                                              (dwb/merge-branch branch {:resolutions resolutions
+                                                                        :keep-branch keep?}))))]
 
     (mf/with-effect [(:id branch)]
       (st/emit! (dwb/fetch-branch-diff (:id branch))))
@@ -1404,11 +1416,18 @@
          [:span {:class (stl/css :conflicts-pending)}
           (tr "workspace.branches.conflicts.pending" (str pending))])]
 
-      (if (empty? conflicts)
+      (cond
+        loading?
+        [:div {:class (stl/css :compare-empty)}
+         [:> empty-state* {:icon i/git-merge
+                           :text (tr "workspace.branches.compare.loading")}]]
+
+        (empty? conflicts)
         [:div {:class (stl/css :compare-empty)}
          [:> empty-state* {:icon i/git-merge
                            :text (tr "workspace.branches.conflicts.empty")}]]
 
+        :else
         [:div {:class (stl/css :compare-body)}
          [:div {:class (stl/css :conflicts-list-side)}
           [:span {:class (stl/css :conflicts-list-head)}
@@ -1484,6 +1503,13 @@
            [:span {:class (stl/css :compare-footer-conflicts)}
             (tr "workspace.branches.conflicts.footer-pending" (str pending))]])]
        [:div {:class (stl/css :compare-footer-actions)}
+        ;; applying a MERGE deletes the branch unless the user opts to
+        ;; keep it archived — same choice the plain merge dialog offers
+        (when (not= mode :update)
+          [:> checkbox* {:id "conflicts-archive-branch"
+                         :label (tr "workspace.branches.merge.archive-label")
+                         :checked keep?
+                         :on-change on-toggle-keep}])
         [:> button* {:variant "secondary" :on-click on-close} (tr "labels.cancel")]
         [:> button* {:variant "primary"
                      :icon i/git-merge

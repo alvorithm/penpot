@@ -495,8 +495,8 @@
    {:name "0151-mod-file-tagged-object-thumbnail-table"
     :fn (mg/resource "app/migrations/sql/0151-mod-file-tagged-object-thumbnail-table.sql")}
 
-   {:name "0150-add-file-branch-table"
-    :fn (mg/resource "app/migrations/sql/0150-add-file-branch-table.sql")}])
+   {:name "0152-add-file-branch-table"
+    :fn (mg/resource "app/migrations/sql/0152-add-file-branch-table.sql")}])
 
 (defn apply-migrations!
   [pool name migrations]

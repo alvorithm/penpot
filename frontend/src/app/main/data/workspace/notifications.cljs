@@ -273,14 +273,20 @@
                           :undo-changes []})))))
 
 (defn handle-file-deleted
-  [{:keys [file-id] :as msg}]
+  [{:keys [file-id session-id] :as msg}]
   (ptk/reify ::handle-file-deleted
     ptk/WatchEvent
     (watch [_ state _]
       (let [curr-file-id (:current-file-id state)
             team-id      (:current-team-id state)]
-        ;; If the deleted file is the currently open one
-        (when (= file-id curr-file-id)
+        ;; If the deleted file is the currently open one, evict to the
+        ;; dashboard — EXCEPT when this session originated the deletion
+        ;; (merging a branch deletes the open branch file and the merge
+        ;; flow itself navigates to main; racing it here would land the
+        ;; user on the dashboard instead).
+        (when (and (= file-id curr-file-id)
+                   (or (nil? session-id)
+                       (not= session-id (:session-id state))))
           (rx/of
            (rt/nav :dashboard-recent {:team-id team-id})))))))
 

@@ -7,11 +7,15 @@
 (ns backend-tests.rpc-file-branch-test
   (:require
    [app.common.features :as cfeat]
+   [app.common.time :as ct]
    [app.common.types.shape :as cts]
    [app.common.uuid :as uuid]
    [app.config :as cf]
+   [app.db :as db]
    [app.rpc :as-alias rpc]
+   [app.storage :as sto]
    [backend-tests.helpers :as th]
+   [clojure.string :as str]
    [clojure.test :as t]))
 
 (t/use-fixtures :once th/state-init)
@@ -561,3 +565,301 @@
     (t/is (th/ex-info? error))
     (t/is (= :restriction (:type data)))
     (t/is (= :branching-disabled (:code data)))))
+
+;;; --- Regression tests for the robustness fixes ---
+
+(defn- apply-change*
+  [profile file-id change]
+  (let [f (th/db-get :file {:id file-id})]
+    (th/command! {::th/type :update-file
+                  ::rpc/profile-id (:id profile)
+                  :id file-id
+                  :session-id (uuid/random)
+                  :revn (:revn f)
+                  :vern (:vern f)
+                  :features cfeat/supported-features
+                  :changes [change]})))
+
+(t/deftest merge-deletes-branch-by-default-and-releases-base
+  (with-redefs [cf/flags (conj cf/flags :branching)]
+    (let [profile (th/create-profile* 1 {:is-active true})
+          proj-id (:default-project-id profile)
+          file    (th/create-file* 1 {:profile-id (:id profile)
+                                      :project-id proj-id})
+          create  (:result (th/command! {::th/type :create-file-branch
+                                         ::rpc/profile-id (:id profile)
+                                         :file-id (:id file)
+                                         :name "short-lived"}))
+          branch-id      (:id create)
+          branch-file-id (:branch-file-id create)
+          cid (uuid/random)]
+
+      (apply-change* profile branch-file-id
+                     {:type :add-color :color {:id cid :name "C" :color "#112233" :opacity 1}})
+
+      (let [out (th/command! {::th/type :merge-file-branch
+                              ::rpc/profile-id (:id profile)
+                              :branch-id branch-id})]
+        (t/is (nil? (:error out)))
+        (t/is (= :merged (-> out :result :status))))
+
+      ;; branch metadata and branch file logically deleted in the same tx
+      (let [[row] (th/db-query :file-branch {:id branch-id})
+            bf    (th/db-get :file {:id branch-file-id} {::db/remove-deleted false})]
+        (t/is (= "merged" (:status row)))
+        (t/is (some? (:deleted-at row)))
+        (t/is (some? (:deleted-at bf))))
+
+      ;; the pinned base snapshot is released: no branch-base row with a
+      ;; multi-year retention remains
+      (let [rows (->> (th/db-query :file-change {:file-id (:id file)})
+                      (filter #(some-> (:label %) (str/starts-with? "branch-base/"))))]
+        (t/is (seq rows))
+        (t/is (every? (fn [{:keys [deleted-at]}]
+                        (and (some? deleted-at)
+                             (ct/is-before? deleted-at (ct/in-future {:days 400}))))
+                      rows))))))
+
+(t/deftest merge-with-keep-branch-archives-it
+  (with-redefs [cf/flags (conj cf/flags :branching)]
+    (let [profile (th/create-profile* 1 {:is-active true})
+          proj-id (:default-project-id profile)
+          file    (th/create-file* 1 {:profile-id (:id profile)
+                                      :project-id proj-id})
+          create  (:result (th/command! {::th/type :create-file-branch
+                                         ::rpc/profile-id (:id profile)
+                                         :file-id (:id file)
+                                         :name "kept"}))
+          branch-id      (:id create)
+          branch-file-id (:branch-file-id create)]
+
+      (let [out (th/command! {::th/type :merge-file-branch
+                              ::rpc/profile-id (:id profile)
+                              :branch-id branch-id
+                              :keep-branch true})]
+        (t/is (nil? (:error out)))
+        (t/is (= :merged (-> out :result :status))))
+
+      (let [[row] (th/db-query :file-branch {:id branch-id})
+            bf    (th/db-get :file {:id branch-file-id})]
+        (t/is (= "merged" (:status row)))
+        (t/is (nil? (:deleted-at row)))
+        (t/is (nil? (:deleted-at bf)))))))
+
+(t/deftest merge-requires-main-edition-permissions
+  (with-redefs [cf/flags (conj cf/flags :branching)]
+    (let [profile1 (th/create-profile* 1 {:is-active true})
+          profile2 (th/create-profile* 2 {:is-active true})
+          proj-id  (:default-project-id profile1)
+          file     (th/create-file* 1 {:profile-id (:id profile1)
+                                       :project-id proj-id})
+          create   (:result (th/command! {::th/type :create-file-branch
+                                          ::rpc/profile-id (:id profile1)
+                                          :file-id (:id file)
+                                          :name "perm-check"}))
+          branch-id      (:id create)
+          branch-file-id (:branch-file-id create)]
+
+      ;; profile2 is a team viewer, editor of the BRANCH file but only a
+      ;; viewer of main
+      (th/create-team-role* {:team-id (:default-team-id profile1)
+                             :profile-id (:id profile2)
+                             :role :viewer})
+      (th/create-file-role* {:file-id branch-file-id
+                             :profile-id (:id profile2)
+                             :role :editor})
+      (th/create-file-role* {:file-id (:id file)
+                             :profile-id (:id profile2)
+                             :role :viewer})
+
+      (let [out (th/command! {::th/type :merge-file-branch
+                              ::rpc/profile-id (:id profile2)
+                              :branch-id branch-id})]
+        (t/is (some? (:error out))))
+
+      ;; but profile2 CAN update the branch from main (edits the branch)
+      (let [out (th/command! {::th/type :update-branch-from-main
+                              ::rpc/profile-id (:id profile2)
+                              :branch-id branch-id})]
+        (t/is (nil? (:error out)))))))
+
+(t/deftest merge-refuses-stale-expected-main-revn
+  (with-redefs [cf/flags (conj cf/flags :branching)]
+    (let [profile (th/create-profile* 1 {:is-active true})
+          proj-id (:default-project-id profile)
+          file    (th/create-file* 1 {:profile-id (:id profile)
+                                      :project-id proj-id})
+          create  (:result (th/command! {::th/type :create-file-branch
+                                         ::rpc/profile-id (:id profile)
+                                         :file-id (:id file)
+                                         :name "stale"}))
+          branch-id (:id create)]
+
+      (let [out (th/command! {::th/type :merge-file-branch
+                              ::rpc/profile-id (:id profile)
+                              :branch-id branch-id
+                              :expected-main-revn 9999})
+            error (:error out)]
+        (t/is (some? error))
+        (t/is (= :file-modified (-> error ex-data :code)))))))
+
+(t/deftest revn-gate-survives-update-from-main
+  (with-redefs [cf/flags (conj cf/flags :branching)]
+    (let [profile (th/create-profile* 1 {:is-active true})
+          proj-id (:default-project-id profile)
+          file    (th/create-file* 1 {:profile-id (:id profile)
+                                      :project-id proj-id})
+          create  (:result (th/command! {::th/type :create-file-branch
+                                         ::rpc/profile-id (:id profile)
+                                         :file-id (:id file)
+                                         :name "gate"}))
+          branch-id      (:id create)
+          branch-file-id (:branch-file-id create)
+          bid (uuid/random)
+          m1  (uuid/random)
+          m2  (uuid/random)
+          m3  (uuid/random)]
+
+      ;; ONE change on the branch...
+      (apply-change* profile branch-file-id
+                     {:type :add-color :color {:id bid :name "B" :color "#0000ff" :opacity 1}})
+      ;; ...while main advances MORE times than the branch (its revn ends up
+      ;; far ahead of the branch's own revn counter)
+      (doseq [[id nm] [[m1 "M1"] [m2 "M2"] [m3 "M3"]]]
+        (apply-change* profile (:id file)
+                       {:type :add-color :color {:id id :name nm :color "#00ff00" :opacity 1}}))
+
+      (let [out (th/command! {::th/type :update-branch-from-main
+                              ::rpc/profile-id (:id profile)
+                              :branch-id branch-id})]
+        (t/is (nil? (:error out)))
+        (t/is (= :updated (-> out :result :status))))
+
+      ;; after repositioning the base, the branch's own unmerged change must
+      ;; still be reported (before the fix, base-revn was compared against
+      ;; the WRONG counter and ahead collapsed to 0)
+      (let [info (:result (th/command! {::th/type :get-file-branch-info
+                                        ::rpc/profile-id (:id profile)
+                                        :file-id branch-file-id}))]
+        (t/is (= 1 (:ahead info)))
+        (t/is (= 0 (:behind info)))))))
+
+(t/deftest cannot-branch-a-branch
+  (with-redefs [cf/flags (conj cf/flags :branching)]
+    (let [profile (th/create-profile* 1 {:is-active true})
+          proj-id (:default-project-id profile)
+          file    (th/create-file* 1 {:profile-id (:id profile)
+                                      :project-id proj-id})
+          create  (:result (th/command! {::th/type :create-file-branch
+                                         ::rpc/profile-id (:id profile)
+                                         :file-id (:id file)
+                                         :name "level-1"}))]
+      (let [out (th/command! {::th/type :create-file-branch
+                              ::rpc/profile-id (:id profile)
+                              :file-id (:branch-file-id create)
+                              :name "level-2"})
+            error (:error out)]
+        (t/is (some? error))
+        (t/is (= :cannot-branch-a-branch (-> error ex-data :code)))))))
+
+(t/deftest deleting-source-cascades-to-branches
+  (with-redefs [cf/flags (conj cf/flags :branching)]
+    (let [profile (th/create-profile* 1 {:is-active true})
+          proj-id (:default-project-id profile)
+          file    (th/create-file* 1 {:profile-id (:id profile)
+                                      :project-id proj-id})
+          create  (:result (th/command! {::th/type :create-file-branch
+                                         ::rpc/profile-id (:id profile)
+                                         :file-id (:id file)
+                                         :name "orphan-candidate"}))
+          branch-id      (:id create)
+          branch-file-id (:branch-file-id create)
+          dt (ct/in-future {:days 7})]
+
+      ;; run the delete-object cascade for the SOURCE file
+      (th/run-task! :delete-object {:object :file :id (:id file) :deleted-at dt})
+
+      (let [[row] (th/db-query :file-branch {:id branch-id})
+            bf    (th/db-get :file {:id branch-file-id} {::db/remove-deleted false})]
+        (t/is (some? (:deleted-at row)))
+        (t/is (some? (:deleted-at bf)))))))
+
+(t/deftest merge-copies-branch-media-into-main
+  (with-redefs [cf/flags (conj cf/flags :branching)]
+    (let [profile (th/create-profile* 1 {:is-active true})
+          proj-id (:default-project-id profile)
+          file    (th/create-file* 1 {:profile-id (:id profile)
+                                      :project-id proj-id})
+
+          storage (-> (:app.storage/storage th/*system*)
+                      (assoc :app.storage/backend :fs))
+
+          mk-sobj (fn [content]
+                    (sto/put-object! storage {::sto/content (sto/content content)
+                                              :bucket :file-media-object
+                                              :content-type "image/png"}))
+
+          ;; media present on MAIN before branching (will be paired)
+          sobj1  (mk-sobj "shared-image")
+          fmo1   (th/create-file-media-object* {:file-id (:id file)
+                                                :name "shared.png"
+                                                :media-id (:id sobj1)})
+          out1   (apply-change* profile (:id file)
+                                {:type :add-media
+                                 :object {:id (:id fmo1) :name "shared.png"
+                                          :media-id (:id sobj1)
+                                          :width 100 :height 100 :mtype "image/png"}})
+
+          create (:result (th/command! {::th/type :create-file-branch
+                                        ::rpc/profile-id (:id profile)
+                                        :file-id (:id file)
+                                        :name "with-media"}))
+          branch-id      (:id create)
+          branch-file-id (:branch-file-id create)
+
+          ;; media ADDED on the branch after forking
+          sobj2  (mk-sobj "branch-only-image")
+          fmo2   (th/create-file-media-object* {:file-id branch-file-id
+                                                :name "new.png"
+                                                :media-id (:id sobj2)})
+          out2   (apply-change* profile branch-file-id
+                                {:type :add-media
+                                 :object {:id (:id fmo2) :name "new.png"
+                                          :media-id (:id sobj2)
+                                          :width 100 :height 100 :mtype "image/png"}})]
+
+      (t/testing "media changes were applied"
+        (t/is (nil? (:error out1)))
+        (t/is (nil? (:error out2)))
+        (let [bf (th/db-get :file {:id branch-file-id})]
+          (t/is (pos? (:revn bf)))))
+
+      (t/testing "pre-existing media does not show up as branch changes"
+        (let [info (:result (th/command! {::th/type :get-file-branch-info
+                                          ::rpc/profile-id (:id profile)
+                                          :file-id branch-file-id}))]
+          ;; only the added media counts; the duplicated (paired) one is
+          ;; normalized away instead of appearing as deleted+added churn
+          (t/is (= 1 (:ahead info)))
+          (t/is (= 0 (:behind info)))))
+
+      (t/testing "merging brings the new media with a MAIN-owned row"
+        (let [out (th/command! {::th/type :merge-file-branch
+                                ::rpc/profile-id (:id profile)
+                                :branch-id branch-id
+                                :keep-branch true})]
+          (t/is (nil? (:error out)))
+          (t/is (= :merged (-> out :result :status))))
+
+        (let [out   (th/command! {::th/type :get-file
+                                  ::rpc/profile-id (:id profile)
+                                  :id (:id file)})
+              media (-> out :result :data :media)
+              added (->> (vals media) (filter #(= "new.png" (:name %))) first)]
+          (t/is (some? added))
+          ;; the merged entry references a row owned by MAIN (a copy), not
+          ;; the branch's row (which dies with the branch file)
+          (t/is (not= (:id fmo2) (:id added)))
+          (let [row (th/db-get :file-media-object {:id (:id added)})]
+            (t/is (= (:id file) (:file-id row)))
+            (t/is (= (:id sobj2) (:media-id row)))))))))

@@ -248,35 +248,56 @@
     (t/is (= :c2 (-> by-type :add-color first :color :id)))
     (t/is (= "A2" (-> by-type :mod-color first :color :name)))))
 
-(t/deftest normalize-component-file-remaps-local-only
-  ;; only the local file id is re-pointed; external-library refs and shapes
-  ;; with no component-file are left untouched.
-  (let [data (mkdata {:s1 {:id :s1 :component-file :branch}
-                      :s2 {:id :s2 :component-file :ext-lib}
-                      :s3 {:id :s3}})
-        objs (-> (bm/normalize-component-file data :branch :main)
-                 (get-in [:pages-index :p1 :objects]))]
-    (t/is (= :main (get-in objs [:s1 :component-file])))
-    (t/is (= :ext-lib (get-in objs [:s2 :component-file])))
-    (t/is (not (contains? (get objs :s3) :component-file)))))
+(t/deftest remap-refs-remaps-local-only
+  ;; only ids present in the map are re-pointed; external-library refs and
+  ;; shapes with no refs are left untouched. Covers component, library
+  ;; color/typography and media references plus the :media/:colors indexes.
+  (let [branch-id (uuid/next)
+        main-id   (uuid/next)
+        ext-lib   (uuid/next)
+        media-old (uuid/next)
+        media-new (uuid/next)
+        data (-> (mkdata {:s1 {:id :s1 :component-file branch-id}
+                          :s2 {:id :s2 :component-file ext-lib}
+                          :s3 {:id :s3}
+                          :s4 {:id :s4 :fill-color-ref-file branch-id
+                               :typography-ref-file branch-id}
+                          :s5 {:id :s5 :type :image :metadata {:id media-old}
+                               :fill-image {:id media-old}}})
+                 (assoc :media {media-old {:id media-old :name "img"}})
+                 (assoc :colors {:c1 {:id :c1 :image {:id media-old}}}))
+        data' (bm/remap-refs data {branch-id main-id
+                                   media-old media-new})
+        objs  (get-in data' [:pages-index :p1 :objects])]
+    (t/is (= main-id (get-in objs [:s1 :component-file])))
+    (t/is (= ext-lib (get-in objs [:s2 :component-file])))
+    (t/is (not (contains? (get objs :s3) :component-file)))
+    (t/is (= main-id (get-in objs [:s4 :fill-color-ref-file])))
+    (t/is (= main-id (get-in objs [:s4 :typography-ref-file])))
+    (t/is (= media-new (get-in objs [:s5 :metadata :id])))
+    (t/is (= media-new (get-in objs [:s5 :fill-image :id])))
+    (t/is (= {media-new {:id media-new :name "img"}} (:media data')))
+    (t/is (= media-new (get-in data' [:colors :c1 :image :id])))))
 
 (t/deftest merge-component-keeps-head-and-remaps-file
   ;; a component created on a branch must merge into main as a VALID head:
   ;; its main instance keeps component-id/main-instance and its
   ;; component-file is re-pointed from the branch id to main's id (else main
   ;; can't resolve the component and repair detaches it).
-  (let [comp-id :c1
-        mi-id   :mi
+  (let [comp-id   :c1
+        mi-id     :mi
+        branch-id (uuid/next)
+        main-id   (uuid/next)
         base    (mkdata {uuid/zero {:id uuid/zero :type :frame :shapes []}})
         branch  (-> (mkdata {uuid/zero {:id uuid/zero :type :frame :shapes [mi-id]}
                              mi-id {:id mi-id :type :frame :name "Comp" :shapes []
                                     :parent-id uuid/zero :frame-id uuid/zero
                                     :component-root true :main-instance true
-                                    :component-id comp-id :component-file :branch}})
+                                    :component-id comp-id :component-file branch-id}})
                     (assoc :components {comp-id {:id comp-id :name "Comp" :path ""
                                                  :main-instance-id mi-id :main-instance-page :p1}}))
         ;; emulate the RPC: canonicalize the branch's local file id to main's
-        branch'  (bm/normalize-component-file branch :branch :main)
+        branch'  (bm/remap-refs branch {branch-id main-id})
         {:keys [changes unsupported]} (bm/compute-changes base base branch')
         add-mi   (first (filter #(and (= :add-obj (:type %)) (= mi-id (:id %))) changes))
         add-comp (first (filter #(= :add-component (:type %)) changes))]
@@ -285,7 +306,7 @@
     (t/is (= comp-id (:id add-comp)))
     (t/is (= mi-id (:main-instance-id add-comp)))
     ;; the merged main instance is still a head, re-pointed to main's id
-    (t/is (= :main (get-in add-mi [:obj :component-file])))
+    (t/is (= main-id (get-in add-mi [:obj :component-file])))
     (t/is (= comp-id (get-in add-mi [:obj :component-id])))
     (t/is (true? (get-in add-mi [:obj :main-instance])))
     (t/is (true? (get-in add-mi [:obj :component-root])))))
@@ -754,3 +775,222 @@
     (let [data' (cfc/process-changes {:tokens-lib base-lib} changes)]
       (t/is (= (set (ctob/get-active-theme-paths branch-lib))
                (set (ctob/get-active-theme-paths (:tokens-lib data'))))))))
+
+;;; --- Regression tests: classification on stripped shapes ---
+
+(t/deftest no-false-conflict-when-both-add-children-to-same-frame
+  ;; both sides adding a child to the same frame only diverge on the
+  ;; frame's :shapes (derived) — that must NOT be a conflict on the frame.
+  (let [base   (mkdata {:f1 {:id :f1 :name "Frame" :type :frame :shapes [:a]}
+                        :a  {:id :a :name "A"}})
+        main   (mkdata {:f1 {:id :f1 :name "Frame" :type :frame :shapes [:a :m]}
+                        :a  {:id :a :name "A"}
+                        :m  {:id :m :name "M" :parent-id :f1 :frame-id :f1}})
+        branch (mkdata {:f1 {:id :f1 :name "Frame" :type :frame :shapes [:a :b]}
+                        :a  {:id :a :name "A"}
+                        :b  {:id :b :name "B" :parent-id :f1 :frame-id :f1}})
+        r      (bm/compute-merge base main branch :branch->main)]
+    (t/is (= [] (:conflicts r)))
+    (t/is (= #{:b} (set (map :id (:changes r)))))))
+
+(t/deftest no-delete-conflict-on-touched-only-main-change
+  ;; branch deletes a shape; main only flipped its :touched (library sync,
+  ;; not a user change) — that must stay a CLEAN delete, not a conflict.
+  (let [base   (mkdata {:s1 {:id :s1 :name "A" :touched nil}})
+        main   (mkdata {:s1 {:id :s1 :name "A" :touched #{:fill-group}}})
+        branch (mkdata {})
+        r      (bm/compute-merge base main branch :branch->main)]
+    (t/is (= [] (:conflicts r)))
+    (t/is (= [:deleted] (mapv :status (:changes r))))))
+
+(t/deftest compute-changes-restores-shape-on-modify-delete-branch
+  ;; main deleted a frame the branch modified; resolving :branch must
+  ;; re-add the frame AND its surviving child (main's delete was recursive).
+  (let [base   (mkdata {:f1 {:id :f1 :name "Frame" :type :frame :shapes [:c1]
+                             :parent-id uuid/zero :frame-id uuid/zero}
+                        :c1 {:id :c1 :name "Child" :parent-id :f1 :frame-id :f1}})
+        main   (mkdata {})
+        branch (mkdata {:f1 {:id :f1 :name "Frame RENAMED" :type :frame :shapes [:c1]
+                             :parent-id uuid/zero :frame-id uuid/zero}
+                        :c1 {:id :c1 :name "Child" :parent-id :f1 :frame-id :f1}})
+        {:keys [conflicts]} (bm/compute-merge base main branch :branch->main)
+        {:keys [changes]}   (bm/compute-changes base main branch {:f1 :branch})
+        adds (into {} (comp (filter #(= :add-obj (:type %)))
+                            (map (juxt :id identity)))
+                   changes)]
+    (t/is (= [:modify-delete] (mapv :reason conflicts)))
+    ;; both the frame and its child come back, parent before child
+    (t/is (contains? adds :f1))
+    (t/is (contains? adds :c1))
+    (let [add-order (mapv :id (filter #(= :add-obj (:type %)) changes))
+          idx       (fn [id] (first (keep-indexed (fn [i v] (when (= v id) i)) add-order)))]
+      (t/is (< (idx :f1) (idx :c1))))
+    (t/is (= "Frame RENAMED" (get-in adds [:f1 :obj :name])))))
+
+(t/deftest compute-changes-modify-delete-resolved-main-drops-shape
+  ;; same conflict resolved to :main -> nothing is re-added
+  (let [base   (mkdata {:s1 {:id :s1 :name "A"}})
+        main   (mkdata {})
+        branch (mkdata {:s1 {:id :s1 :name "A2"}})
+        {:keys [changes]} (bm/compute-changes base main branch {:s1 :main})]
+    (t/is (= [] (filterv #(= :add-obj (:type %)) changes)))))
+
+;;; --- Regression tests: order resolution ids ---
+
+(t/deftest page-order-conflict-id-and-resolution
+  ;; both sides reordered pages differently: the conflict id must be
+  ;; :page-order (not :order) and resolving it to :branch must apply
+  (let [p1 (uuid/next) p2 (uuid/next) p3 (uuid/next)
+        pi {p1 {:id p1 :name "P1" :objects {}}
+            p2 {:id p2 :name "P2" :objects {}}
+            p3 {:id p3 :name "P3" :objects {}}}
+        base   (pages-data pi [p1 p2 p3])
+        main   (pages-data pi [p2 p1 p3])
+        branch (pages-data pi [p3 p1 p2])
+        {:keys [conflicts]} (bm/compute-merge base main branch :branch->main)
+        conflict (first (filter #(= :page-order (:kind %)) conflicts))
+        {:keys [changes]} (bm/compute-changes base main branch {:page-order :branch})]
+    (t/is (= :page-order (:id conflict)))
+    (t/is (seq (filter #(= :mov-page (:type %)) changes)))
+    (let [data' (cfc/process-changes (pages-data pi [p2 p1 p3]) changes)]
+      (t/is (= [p3 p1 p2] (:pages data'))))))
+
+;;; --- Regression tests: page delete-vs-modify ---
+
+(t/deftest page-deleted-in-branch-edited-in-main-conflicts
+  (let [p1 (uuid/next) p2 (uuid/next) s1 (uuid/next)
+        mk (fn [p2-page]
+             {:pages-index (cond-> {p1 {:id p1 :name "P1" :objects {}}}
+                             p2-page (assoc p2 p2-page))
+              :pages (if p2-page [p1 p2] [p1])
+              :colors {} :typographies {} :media {} :components {}})
+        base   (mk {:id p2 :name "P2" :objects {}})
+        main   (mk {:id p2 :name "P2" :objects {s1 {:id s1 :name "New"}}})
+        branch (mk nil)
+        {:keys [conflicts]} (bm/compute-merge base main branch :branch->main)
+        conflict (first (filter #(= :page (:kind %)) conflicts))]
+    (t/is (some? conflict))
+    (t/is (= :delete-modify (:reason conflict)))
+    (t/is (= p2 (:id conflict)))
+    ;; resolved to :branch -> the page is deleted
+    (let [{:keys [changes]} (bm/compute-changes base main branch {p2 :branch})]
+      (t/is (= [p2] (mapv :id (filter #(= :del-page (:type %)) changes)))))
+    ;; resolved to :main -> the page is kept, nothing emitted for it
+    (let [{:keys [changes]} (bm/compute-changes base main branch {p2 :main})]
+      (t/is (= [] (filterv #(= :del-page (:type %)) changes))))))
+
+(t/deftest page-deleted-in-main-edited-in-branch-restores
+  (let [p1 (uuid/next) p2 (uuid/next) s1 (uuid/next)
+        pi-with (fn [objects]
+                  {p1 {:id p1 :name "P1" :objects {}}
+                   p2 {:id p2 :name "P2" :objects objects}})
+        base   (pages-data (pi-with {}) [p1 p2])
+        main   (pages-data {p1 {:id p1 :name "P1" :objects {}}} [p1])
+        branch (pages-data (pi-with {s1 {:id s1 :name "New"}}) [p1 p2])
+        {:keys [conflicts]} (bm/compute-merge base main branch :branch->main)
+        conflict (first (filter #(= :page (:kind %)) conflicts))]
+    (t/is (= :modify-delete (:reason conflict)))
+    ;; resolved to :branch -> the full branch page is re-added
+    (let [{:keys [changes]} (bm/compute-changes base main branch {p2 :branch})
+          add (first (filter #(= :add-page (:type %)) changes))]
+      (t/is (= p2 (get-in add [:page :id])))
+      (t/is (contains? (get-in add [:page :objects]) s1)))))
+
+(t/deftest page-clean-delete-still-clean
+  ;; branch deletes a page main did not touch -> clean delete, no conflict
+  (let [p1 (uuid/next) p2 (uuid/next)
+        pi {p1 {:id p1 :name "P1" :objects {}}
+            p2 {:id p2 :name "P2" :objects {}}}
+        base   (pages-data pi [p1 p2])
+        branch (pages-data {p1 {:id p1 :name "P1" :objects {}}} [p1])
+        {:keys [conflicts]} (bm/compute-merge base base branch :branch->main)
+        {:keys [changes]}   (bm/compute-changes base base branch)]
+    (t/is (= [] conflicts))
+    (t/is (= [p2] (mapv :id (filter #(= :del-page (:type %)) changes))))))
+
+;;; --- Regression tests: token-set delete-vs-modify ---
+
+(t/deftest token-set-deleted-in-branch-edited-in-main-conflicts
+  (let [sid (uuid/next) tid (uuid/next)
+        base-lib   (token-lib sid tid "#ff0000")
+        ;; main edits a token inside the set the branch deletes
+        main-lib   (ctob/update-token base-lib sid tid
+                                      (fn [t] (ctob/make-token (assoc (into {} t) :value "#00ff00"))))
+        branch-lib (ctob/delete-set base-lib sid)
+        base   (with-tokens base-lib)
+        main   (with-tokens main-lib)
+        branch (with-tokens branch-lib)
+        {:keys [conflicts]} (bm/compute-merge base main branch :branch->main)
+        conflict (first (filter #(= :token-set (:kind %)) conflicts))]
+    (t/is (some? conflict))
+    (t/is (= :delete-modify (:reason conflict)))
+    ;; no redundant token-level conflicts for the deleted set
+    (t/is (= [] (filterv #(= :token (:kind %)) conflicts)))
+    ;; resolved to :branch -> set deleted; to :main -> set (and token) kept
+    (let [{:keys [changes]} (bm/compute-changes base main branch {sid :branch})]
+      (t/is (some #(and (= :set-token-set (:type %)) (nil? (:attrs %))) changes)))
+    (let [{:keys [changes]} (bm/compute-changes base main branch {sid :main})]
+      (t/is (= [] (filterv #(= :set-token-set (:type %)) changes)))
+      (t/is (= [] (filterv #(= :set-token (:type %)) changes))))))
+
+(t/deftest token-set-deleted-in-main-edited-in-branch-restores
+  (let [sid (uuid/next) tid (uuid/next)
+        base-lib   (token-lib sid tid "#ff0000")
+        main-lib   (ctob/delete-set base-lib sid)
+        branch-lib (ctob/update-token base-lib sid tid
+                                      (fn [t] (ctob/make-token (assoc (into {} t) :value "#0000ff"))))
+        base   (with-tokens base-lib)
+        main   (with-tokens main-lib)
+        branch (with-tokens branch-lib)
+        {:keys [conflicts]} (bm/compute-merge base main branch :branch->main)
+        conflict (first (filter #(= :token-set (:kind %)) conflicts))]
+    (t/is (= :modify-delete (:reason conflict)))
+    ;; resolved to :branch -> the set is re-created WITH its tokens
+    (let [{:keys [changes]} (bm/compute-changes base main branch {sid :branch})
+          restore (first (filter #(and (= :set-token-set (:type %)) (some? (:attrs %))) changes))
+          data'   (cfc/process-changes (with-tokens main-lib) changes)]
+      (t/is (some? restore))
+      (t/is (seq (get-in restore [:attrs :tokens])))
+      (t/is (= "#0000ff" (:value (ctob/get-token (:tokens-lib data') sid tid)))))))
+
+(t/deftest per-attr-geometry-resolution-carries-caches
+  ;; a modify-modify conflict where :x is resolved to :branch must also
+  ;; bring the branch's :selrect/:points so geometry stays consistent
+  (let [base   (mkdata {:s1 {:id :s1 :name "A" :x 0
+                             :selrect {:x 0} :points [{:x 0}]}})
+        main   (mkdata {:s1 {:id :s1 :name "MAIN" :x 0
+                             :selrect {:x 0} :points [{:x 0}]}})
+        branch (mkdata {:s1 {:id :s1 :name "A" :x 100
+                             :selrect {:x 100} :points [{:x 100}]}})
+        {:keys [changes]} (bm/compute-changes base main branch
+                                              {:s1 {:x :branch :name :main}})
+        ops (->> changes
+                 (filter #(= :mod-obj (:type %)))
+                 first :operations
+                 (map (juxt :attr :val))
+                 (into {}))]
+    (t/is (= 100 (get ops :x)))
+    (t/is (= {:x 100} (get ops :selrect)))
+    (t/is (not (contains? ops :name)))))
+
+(t/deftest shape-conflicts-carry-full-shapes
+  ;; classification runs on STRIPPED shapes, but the conflict payload must
+  ;; carry the FULL sides: the resolution UI renders real shape previews
+  ;; that need :selrect/:points (frame-clip-def asserts (rect? selrect))
+  (let [selrect {:x 0 :y 0 :width 10 :height 10 :x1 0 :y1 0 :x2 10 :y2 10}
+        mk      (fn [name] {:id :s1 :name name :type :frame
+                            :selrect selrect :points [{:x 0 :y 0}] :shapes []})
+        base    (mkdata {:s1 (mk "A")})
+        main    (mkdata {:s1 (mk "MAIN")})
+        branch  (mkdata {:s1 (mk "BRANCH")})
+        {:keys [conflicts]} (bm/compute-merge base main branch :branch->main)
+        c       (first conflicts)]
+    (t/is (= :modify-modify (:reason c)))
+    ;; changed-attrs stay noise-free (no derived attrs)
+    (t/is (= #{:name} (set (keys (:changed-attrs c)))))
+    ;; but every side carries the full shape, caches included
+    (t/is (= selrect (get-in c [:base :selrect])))
+    (t/is (= selrect (get-in c [:main :selrect])))
+    (t/is (= selrect (get-in c [:branch :selrect])))
+    (t/is (= "MAIN" (get-in c [:main :name])))
+    (t/is (= "BRANCH" (get-in c [:branch :name])))))

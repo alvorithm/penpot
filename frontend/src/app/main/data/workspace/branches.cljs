@@ -50,8 +50,7 @@
 
 (defonce default-state
   {:status :loading
-   :data nil
-   :filter ""})
+   :data nil})
 
 (declare fetch-branches)
 (declare fetch-branch-context)
@@ -102,9 +101,14 @@
 
 (defn load-file-branches
   "Load the open branches of `file-id` into `:dashboard-branches` (used by
-  the dashboard branches popover)."
+  the dashboard branches popover). The previous list is cleared first so a
+  popover opened on another file never shows stale entries."
   [file-id]
   (ptk/reify ::load-file-branches
+    ptk/UpdateEvent
+    (update [_ state]
+      (assoc state :dashboard-branches []))
+
     ptk/WatchEvent
     (watch [_ _ _]
       (->> (rp/cmd! :get-file-branches {:file-id file-id})
@@ -251,7 +255,9 @@
 (defn fetch-branch-diff
   "Load the 3-way diff for `branch-id`. `direction` selects which side's
   changes to show: `:branch->main` (default, the branch's outgoing changes)
-  or `:main->branch` (main's incoming changes the branch is missing)."
+  or `:main->branch` (main's incoming changes the branch is missing). A
+  newer fetch cancels any previous in-flight one, so a stale response can
+  never land over a direction/branch switch."
   ([branch-id] (fetch-branch-diff branch-id :branch->main))
   ([branch-id direction]
    (assert (uuid? branch-id) "expected valid uuid for `branch-id`")
@@ -263,11 +269,12 @@
                                             :direction direction
                                             :selected nil}))
      ptk/WatchEvent
-     (watch [_ _ _]
+     (watch [_ _ stream]
        (->> (rp/cmd! :get-branch-diff {:branch-id branch-id :direction direction})
             (rx/map #(update-branch-diff {:status :loaded :diff %}))
             (rx/catch (fn [_]
-                        (rx/of (update-branch-diff {:status :error})))))))))
+                        (rx/of (update-branch-diff {:status :error}))))
+            (rx/take-until (rx/filter (ptk/type? ::fetch-branch-diff) stream)))))))
 
 (defn select-diff-change
   "Select a change/conflict (by its index in the diff) to show its detail."
@@ -282,31 +289,53 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn- set-branch-context
-  [info]
+  "Store the branch context of `file-id`. The state value is
+  `{:file-id .. :loaded? true :info <row-or-nil>}`, so consumers can tell
+  \"this file is not a branch\" (loaded, nil info) apart from \"not loaded
+  yet\" — see `refs/branch-context` for the `:info` lens."
+  [file-id info]
   (ptk/reify ::set-branch-context
     ptk/UpdateEvent
     (update [_ state]
-      (assoc state :workspace-branch-context info))))
+      (assoc state :workspace-branch-context {:file-id file-id
+                                              :loaded? true
+                                              :info info}))))
 
 (defn fetch-branch-context
   "Load branch metadata for the current file (nil when it is not a branch).
-  If `behind` grew since the previous value (main advanced while working on
-  the branch), surface a notification."
+  A context belonging to ANOTHER file is dropped synchronously so the
+  banner/header never show stale data while the RPC is in flight. If the
+  file is already known NOT to be a branch the RPC is skipped entirely (a
+  file cannot become a branch, and this event fires on every save/focus).
+  If `behind` grew since the previous value of the SAME file (main advanced
+  while working on the branch), surface a notification."
   []
   (ptk/reify ::fetch-branch-context
+    ptk/UpdateEvent
+    (update [_ state]
+      (let [file-id (:current-file-id state)
+            ctx     (:workspace-branch-context state)]
+        (if (or (nil? ctx) (= file-id (:file-id ctx)))
+          state
+          (dissoc state :workspace-branch-context))))
+
     ptk/WatchEvent
     (watch [_ state _]
       (when-let [file-id (:current-file-id state)]
-        (let [prev-behind (-> state :workspace-branch-context :behind (or 0))]
-          (->> (rp/cmd! :get-file-branch-info {:file-id file-id})
-               (rx/mapcat
-                (fn [info]
-                  (rx/concat
-                   (rx/of (set-branch-context info))
-                   (if (and info (> (or (:behind info) 0) prev-behind))
-                     (rx/of (ntf/info (tr "workspace.branches.main-advanced")))
-                     (rx/empty)))))
-               (rx/catch (fn [_] (rx/of (set-branch-context nil))))))))))
+        (let [ctx         (:workspace-branch-context state)
+              same-file?  (= file-id (:file-id ctx))
+              not-branch? (and same-file? (:loaded? ctx) (nil? (:info ctx)))
+              prev-behind (if same-file? (or (:behind (:info ctx)) 0) 0)]
+          (when-not not-branch?
+            (->> (rp/cmd! :get-file-branch-info {:file-id file-id})
+                 (rx/mapcat
+                  (fn [info]
+                    (rx/concat
+                     (rx/of (set-branch-context file-id info))
+                     (if (and info (> (or (:behind info) 0) prev-behind))
+                       (rx/of (ntf/info (tr "workspace.branches.main-advanced")))
+                       (rx/empty)))))
+                 (rx/catch (fn [_] (rx/of (set-branch-context file-id nil)))))))))))
 
 (defn update-branch-from-main
   "Bring main's changes into the branch (reverse of merge). `branch` is the
@@ -373,48 +402,59 @@
         (assoc-in state [:workspace-branch-diff :resolutions] res)))))
 
 (defn merge-branch
-  "Merge a branch into main. On success the branch is marked merged and
-  open clients reload main via the `:file-merged` msgbus event. Conflicts
-  and not-yet-supported change kinds surface as notifications.
+  "Merge `branch` (a branch row/context map with at least `:id`) into main.
+  On success the branch is marked merged server-side and open clients
+  reload main via the `:file-merged` msgbus event.
 
-  `resolutions` is an optional `{entity-id (:main|:branch)}` map used to
-  resolve conflicts before integrating.
+  Options:
+   - `:resolutions` — optional `{entity-id (:main|:branch)}` map used to
+     resolve conflicts before integrating.
+   - `:keep-branch` — when true the merged branch is kept (it shows up
+     under \"Archived\"); when false (default) the server deletes the
+     branch and its file in the same transaction, so merged copies do not
+     pile up and eat disk space.
 
-  `archive?` controls what happens to the branch once it is merged. When
-  true the branch is kept (it shows up under \"Archived\" and can be
-  restored). When false (the default) the branch and its branch file are
-  deleted right after the merge, so merged copies do not pile up and eat
-  disk space."
-  ([branch-id] (merge-branch branch-id nil false))
-  ([branch-id resolutions] (merge-branch branch-id resolutions false))
-  ([branch-id resolutions archive?]
-   (assert (uuid? branch-id) "expected valid uuid for `branch-id`")
+  When the current diff in state belongs to this branch, its main revn is
+  sent as `expected-main-revn` so the server refuses to apply resolutions
+  computed against a stale diff (`:file-modified`); in that case the diff
+  is re-fetched and the user is asked to review it again. Unresolved
+  conflicts open the resolution modal."
+  ([branch] (merge-branch branch nil))
+  ([branch {:keys [resolutions keep-branch]}]
+   (assert (uuid? (:id branch)) "expected a branch row with a valid `:id`")
    (ptk/reify ::merge-branch
      ptk/WatchEvent
-     (watch [_ _ _]
-       (rx/concat
-        (rx/of (ev/event {::ev/name "merge-branch"}))
-        (->> (rp/cmd! :merge-file-branch (cond-> {:branch-id branch-id}
-                                           (seq resolutions) (assoc :resolutions resolutions)))
-             (rx/mapcat
-              (fn [{:keys [status source-file-id]}]
-                (case status
-                  ;; the merged result lives in main: take the user there to
-                  ;; see it (navigate if elsewhere, hard-reload if already on
-                  ;; main). Other clients reload via the `:file-merged` event.
-                  ;; Unless the user opted to archive it, drop the now-merged
-                  ;; branch (and its file) first so it does not occupy disk.
-                  :merged      (rx/concat
-                                (if archive?
-                                  (rx/empty)
-                                  (->> (rp/cmd! :delete-file-branch {:id branch-id})
-                                       (rx/ignore)
-                                       (rx/catch (fn [_] (rx/empty)))))
-                                (rx/of (ntf/success (tr "workspace.branches.merge.success"))
-                                       (show-merge-result source-file-id)))
-                  :conflicts   (rx/of (ntf/warn (tr "workspace.branches.merge.conflicts")))
-                  :unsupported (rx/of (ntf/warn (tr "workspace.branches.merge.unsupported")))
-                  (rx/of (ntf/error (tr "workspace.branches.merge.error"))))))
-             (rx/catch (fn [_]
-                         (rx/of (ntf/error (tr "workspace.branches.merge.error")))))))))))
+     (watch [_ state _]
+       (let [branch-id (:id branch)
+             diff-st   (:workspace-branch-diff state)
+             main-revn (when (= branch-id (:branch-id diff-st))
+                         (get-in diff-st [:diff :meta :main-revn]))]
+         (rx/concat
+          (rx/of (ev/event {::ev/name "merge-branch"}))
+          (->> (rp/cmd! :merge-file-branch
+                        (cond-> {:branch-id branch-id}
+                          (seq resolutions)  (assoc :resolutions resolutions)
+                          keep-branch        (assoc :keep-branch true)
+                          (some? main-revn)  (assoc :expected-main-revn main-revn)))
+               (rx/mapcat
+                (fn [{:keys [status source-file-id]}]
+                  (case status
+                    ;; the merged result lives in main: take the user there
+                    ;; to see it (navigate if elsewhere, hard-reload if
+                    ;; already on main). Other clients reload via the
+                    ;; `:file-merged` event; the branch deletion (when not
+                    ;; kept) already happened server-side.
+                    :merged      (rx/of (ntf/success (tr "workspace.branches.merge.success"))
+                                        (show-merge-result source-file-id))
+                    :conflicts   (rx/of (modal/show :branch-conflicts {:branch branch :mode :merge}))
+                    :unsupported (rx/of (ntf/warn (tr "workspace.branches.merge.unsupported")))
+                    (rx/of (ntf/error (tr "workspace.branches.merge.error"))))))
+               (rx/catch
+                (fn [cause]
+                  (if (= :file-modified (:code (ex-data cause)))
+                    ;; main moved under our feet: reload the diff so the
+                    ;; user resolves against the current state
+                    (rx/of (ntf/warn (tr "workspace.branches.merge.main-moved"))
+                           (fetch-branch-diff branch-id))
+                    (rx/of (ntf/error (tr "workspace.branches.merge.error")))))))))))))
 
