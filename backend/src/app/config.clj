@@ -188,6 +188,7 @@
     [:quotes-snapshots-per-team {:optional true} ::sm/int]
     [:quotes-branches-per-file {:optional true} ::sm/int]
     [:quotes-branches-per-team {:optional true} ::sm/int]
+    [:quotes-pull-requests-per-team {:optional true} ::sm/int]
     [:quotes-team-access-requests-per-team {:optional true} ::sm/int]
     [:quotes-team-access-requests-per-requester {:optional true} ::sm/int]
     [:quotes-upload-sessions-per-profile {:optional true} ::sm/int]

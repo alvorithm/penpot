@@ -58,6 +58,24 @@
                 {:branch-file-id id}
                 {::db/return-keys false})
 
+    ;; Pull requests: when the deleted file is a branch copy, any open
+    ;; pull request over it can no longer be reviewed — close it (the
+    ;; row is kept: pull request history outlives its branch, and the
+    ;; review snapshot rows live in this file's file_change/file_data,
+    ;; which this same cascade marks deleted below). When the deleted
+    ;; file is a pull request TARGET, cascade the logical deletion: with
+    ;; main gone the pull request is unreachable forever.
+    (db/update! conn :file-pull-request
+                {:status "closed"
+                 :closed-at (ct/now)
+                 :updated-at (ct/now)}
+                {:source-file-id id :status "open"}
+                {::db/return-keys false})
+    (db/update! conn :file-pull-request
+                {:deleted-at deleted-at}
+                {:target-file-id id}
+                {::db/return-keys false})
+
     ;; ... and when it is the SOURCE of branches, cascade the logical
     ;; deletion to them: branch files are hidden from every listing, so
     ;; once the source is gone nothing else could ever reach (or GC)

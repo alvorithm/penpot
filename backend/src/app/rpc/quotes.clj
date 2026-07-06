@@ -537,6 +537,39 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; QUOTE: PULL-REQUESTS-PER-TEAM
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def ^:private schema:pull-requests-per-team
+  [:map
+   [::profile-id ::sm/uuid]
+   [::team-id ::sm/uuid]])
+
+(def ^:private valid-pull-requests-per-team-quote?
+  (sm/lazy-validator schema:pull-requests-per-team))
+
+(def ^:private sql:get-pull-requests-per-team
+  "SELECT count(*) AS total
+     FROM file_pull_request AS fpr
+     JOIN file AS f ON (f.id = fpr.target_file_id)
+     JOIN project AS p ON (p.id = f.project_id)
+    WHERE p.team_id = ?
+      AND fpr.deleted_at IS NULL
+      AND fpr.status = 'open'
+      AND f.deleted_at IS NULL
+      AND p.deleted_at IS NULL")
+
+(defmethod check-quote ::pull-requests-per-team
+  [{:keys [::profile-id ::team-id ::target] :as quote}]
+  (assert (valid-pull-requests-per-team-quote? quote) "invalid quote parameters")
+  (-> quote
+      (assoc ::default (cf/get :quotes-pull-requests-per-team Integer/MAX_VALUE))
+      (assoc ::quote-sql [sql:get-quotes-2 target team-id profile-id profile-id])
+      (assoc ::count-sql [sql:get-pull-requests-per-team team-id])
+      (generic-check!)))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; QUOTE: TEAM-ACCESS-REQUESTS-PER-TEAM
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

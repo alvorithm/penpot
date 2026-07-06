@@ -144,7 +144,7 @@ msgstr "Sukurti paskyrą"
 msgid "auth.sidebar-tagline"
 msgstr "Atviro kodo dizaino ir prototipų kūrimo sprendimas."
 
-#: src/app/main/ui/auth/register.cljs:251, src/app/main/ui/dashboard/sidebar.cljs:1221, src/app/main/ui/workspace/main_menu.cljs:205
+#: src/app/main/ui/auth/register.cljs:251, src/app/main/ui/dashboard/sidebar.cljs:1244, src/app/main/ui/workspace/main_menu.cljs:207
 msgid "auth.terms-of-service"
 msgstr "Paslaugų teikimo sąlygos"
 
@@ -264,7 +264,7 @@ msgstr "Panagrinėkite Penpot ir susipažinkite su pagrindinėmis jo savybėmis.
 msgid "dasboard.walkthrough-hero.start"
 msgstr "Pradėkite apžvalgą"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:323, src/app/main/ui/workspace/main_menu.cljs:695
+#: src/app/main/ui/dashboard/file_menu.cljs:335, src/app/main/ui/workspace/main_menu.cljs:709
 msgid "dashboard.add-shared"
 msgstr "Pridėti kaip bendrinamą biblioteką"
 
@@ -276,27 +276,27 @@ msgstr "Keisti el. paštą"
 msgid "dashboard.copy-suffix"
 msgstr "(kopija)"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:439
+#: src/app/main/ui/dashboard/sidebar.cljs:440
 msgid "dashboard.create-new-team"
 msgstr "Sukurti naują komandą"
 
-#: src/app/main/ui/components/context_menu_a11y.cljs:300, src/app/main/ui/dashboard/sidebar.cljs:882
+#: src/app/main/ui/components/context_menu_a11y.cljs:300, src/app/main/ui/dashboard/sidebar.cljs:905
 msgid "dashboard.default-team-name"
 msgstr "Jūsų Penpot"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:588, src/app/main/ui/dashboard/team_form.cljs:153
+#: src/app/main/ui/dashboard/sidebar.cljs:589, src/app/main/ui/dashboard/team_form.cljs:153
 msgid "dashboard.delete-team"
 msgstr "Naikinti komandą"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:305, src/app/main/ui/dashboard/project_menu.cljs:92
+#: src/app/main/ui/dashboard/file_menu.cljs:306, src/app/main/ui/dashboard/project_menu.cljs:92
 msgid "dashboard.duplicate"
 msgstr "Dublikatas"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:272
+#: src/app/main/ui/dashboard/file_menu.cljs:273
 msgid "dashboard.duplicate-multi"
 msgstr "Dubliuoti %s failus"
 
-#: src/app/main/ui/workspace/main_menu.cljs:740
+#: src/app/main/ui/workspace/main_menu.cljs:763
 msgid "dashboard.export-frames"
 msgstr "Eksportuokite darbalaukius į PDF"
 
@@ -312,7 +312,7 @@ msgstr "Eksportuoti Penpot %s failus"
 msgid "dashboard.export-multiple.selected"
 msgstr "Pasirinkta %s iš %s elementų"
 
-#: src/app/main/ui/workspace/main_menu.cljs:723
+#: src/app/main/ui/workspace/main_menu.cljs:746
 msgid "dashboard.export-shapes"
 msgstr "Eksportuoti"
 
@@ -445,7 +445,7 @@ msgstr "Naujas projektas"
 msgid "dashboard.no-matches-for"
 msgstr "Nerasta jokių atitikmenų pagal \"%s\""
 
-#: src/app/main/ui/dashboard/sidebar.cljs:1103
+#: src/app/main/ui/dashboard/sidebar.cljs:1126
 msgid "dashboard.no-projects-placeholder"
 msgstr "Prisegti projektai bus rodomi čia"
 
@@ -465,11 +465,11 @@ msgstr "Slaptažodis sėkmingai išsaugotas!"
 msgid "dashboard.num-of-members"
 msgstr "%s nariai"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:296
+#: src/app/main/ui/dashboard/file_menu.cljs:297
 msgid "dashboard.open-in-new-tab"
 msgstr "Atidarykite failą naujame skirtuke"
 
-#: src/app/main/ui/dashboard/deleted.cljs:158, src/app/main/ui/dashboard/deleted.cljs:159, src/app/main/ui/dashboard/files.cljs:119, src/app/main/ui/dashboard/grid.cljs:446, src/app/main/ui/dashboard/projects.cljs:262, src/app/main/ui/dashboard/projects.cljs:263
+#: src/app/main/ui/dashboard/deleted.cljs:158, src/app/main/ui/dashboard/deleted.cljs:159, src/app/main/ui/dashboard/files.cljs:119, src/app/main/ui/dashboard/grid.cljs:452, src/app/main/ui/dashboard/projects.cljs:262, src/app/main/ui/dashboard/projects.cljs:263
 msgid "dashboard.options"
 msgstr "Nustatymai"
 

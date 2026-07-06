@@ -54,6 +54,7 @@ export PENPOT_FLAGS="\
        enable-file-schema-validation \
        enable-redis-cache \
        enable-branching \
+       enable-pull-requests \
        enable-subscriptions";
 
 # Uncomment for nexus integration testing

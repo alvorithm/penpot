@@ -174,7 +174,11 @@
 
     ;; Enables file branching: isolated file copies ("branches") that
     ;; can be merged back to their source file. Disabled by default.
-    :branching})
+    :branching
+
+    ;; Enables pull requests on top of file branching: review requests
+    ;; over a pinned snapshot of a branch. Requires :branching.
+    :pull-requests})
 
 (def all-flags
   (set/union email login varia))

@@ -153,7 +153,7 @@ msgstr "デザインとプロトタイピングのためのオープンソース
 msgid "auth.terms-and-privacy-agreement"
 msgstr "[利用規約](%s) と [プライバシーポリシー](%s) に同意します。"
 
-#: src/app/main/ui/auth/register.cljs:251, src/app/main/ui/dashboard/sidebar.cljs:1221, src/app/main/ui/workspace/main_menu.cljs:205
+#: src/app/main/ui/auth/register.cljs:251, src/app/main/ui/dashboard/sidebar.cljs:1244, src/app/main/ui/workspace/main_menu.cljs:207
 msgid "auth.terms-of-service"
 msgstr "利用規約"
 
@@ -244,7 +244,7 @@ msgstr "チームを管理"
 msgid "dasboard.tutorial-hero.start"
 msgstr "チュートリアルを始める"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:323, src/app/main/ui/workspace/main_menu.cljs:695
+#: src/app/main/ui/dashboard/file_menu.cljs:335, src/app/main/ui/workspace/main_menu.cljs:709
 msgid "dashboard.add-shared"
 msgstr "共有ライブラリとして追加"
 
@@ -256,19 +256,19 @@ msgstr "メールアドレスを変更"
 msgid "dashboard.copy-suffix"
 msgstr "(コピー)"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:439
+#: src/app/main/ui/dashboard/sidebar.cljs:440
 msgid "dashboard.create-new-team"
 msgstr "チームを新規作成"
 
-#: src/app/main/ui/components/context_menu_a11y.cljs:300, src/app/main/ui/dashboard/sidebar.cljs:882
+#: src/app/main/ui/components/context_menu_a11y.cljs:300, src/app/main/ui/dashboard/sidebar.cljs:905
 msgid "dashboard.default-team-name"
 msgstr "あなたのPenpot"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:588, src/app/main/ui/dashboard/team_form.cljs:153
+#: src/app/main/ui/dashboard/sidebar.cljs:589, src/app/main/ui/dashboard/team_form.cljs:153
 msgid "dashboard.delete-team"
 msgstr "チームを削除"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:329, src/app/main/ui/workspace/main_menu.cljs:732
+#: src/app/main/ui/dashboard/file_menu.cljs:341, src/app/main/ui/workspace/main_menu.cljs:755
 msgid "dashboard.download-binary-file"
 msgstr "Penpotファイル(.penpot)をダウンロード"
 
@@ -277,15 +277,15 @@ msgstr "Penpotファイル(.penpot)をダウンロード"
 msgid "dashboard.download-standard-file"
 msgstr "標準形式(.svg+.json)でダウンロード"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:305, src/app/main/ui/dashboard/project_menu.cljs:92
+#: src/app/main/ui/dashboard/file_menu.cljs:306, src/app/main/ui/dashboard/project_menu.cljs:92
 msgid "dashboard.duplicate"
 msgstr "複製"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:272
+#: src/app/main/ui/dashboard/file_menu.cljs:273
 msgid "dashboard.duplicate-multi"
 msgstr "%s ファイルを複製"
 
-#: src/app/main/ui/workspace/main_menu.cljs:740
+#: src/app/main/ui/workspace/main_menu.cljs:763
 msgid "dashboard.export-frames"
 msgstr "PDFでエクスポート"
 
@@ -342,7 +342,7 @@ msgstr "アップロード中: %s"
 msgid "dashboard.invite-profile"
 msgstr "チームに招待"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:570, src/app/main/ui/dashboard/sidebar.cljs:577, src/app/main/ui/dashboard/sidebar.cljs:582, src/app/main/ui/dashboard/team.cljs:433
+#: src/app/main/ui/dashboard/sidebar.cljs:571, src/app/main/ui/dashboard/sidebar.cljs:578, src/app/main/ui/dashboard/sidebar.cljs:583, src/app/main/ui/dashboard/team.cljs:433
 msgid "dashboard.leave-team"
 msgstr "チームから脱退"
 
@@ -378,7 +378,7 @@ msgstr "新規プロジェクト"
 msgid "dashboard.no-matches-for"
 msgstr "\"%s\"が見つかりませんでした"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:1103
+#: src/app/main/ui/dashboard/sidebar.cljs:1126
 msgid "dashboard.no-projects-placeholder"
 msgstr "ピン留めされたプロジェクトはここに表示されます"
 
@@ -398,11 +398,11 @@ msgstr "パスワードを保存しました！"
 msgid "dashboard.num-of-members"
 msgstr "%s メンバー"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:296
+#: src/app/main/ui/dashboard/file_menu.cljs:297
 msgid "dashboard.open-in-new-tab"
 msgstr "新しいタブでファイルで開く"
 
-#: src/app/main/ui/dashboard/deleted.cljs:158, src/app/main/ui/dashboard/deleted.cljs:159, src/app/main/ui/dashboard/files.cljs:119, src/app/main/ui/dashboard/grid.cljs:446, src/app/main/ui/dashboard/projects.cljs:262, src/app/main/ui/dashboard/projects.cljs:263
+#: src/app/main/ui/dashboard/deleted.cljs:158, src/app/main/ui/dashboard/deleted.cljs:159, src/app/main/ui/dashboard/files.cljs:119, src/app/main/ui/dashboard/grid.cljs:452, src/app/main/ui/dashboard/projects.cljs:262, src/app/main/ui/dashboard/projects.cljs:263
 msgid "dashboard.options"
 msgstr "オプション"
 
@@ -427,7 +427,7 @@ msgstr "共有ライブラリから削除"
 msgid "dashboard.save-settings"
 msgstr "設定を保存"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:279, src/app/main/ui/dashboard/sidebar.cljs:280, src/app/main/ui/ds/controls/shared/searchable_options_dropdown.cljs:140
+#: src/app/main/ui/dashboard/sidebar.cljs:280, src/app/main/ui/dashboard/sidebar.cljs:281, src/app/main/ui/ds/controls/shared/searchable_options_dropdown.cljs:140
 msgid "dashboard.search-placeholder"
 msgstr "検索…"
 
@@ -447,7 +447,7 @@ msgstr "テーマを選択"
 msgid "dashboard.show-all-files"
 msgstr "すべてのファイルを表示"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:99
+#: src/app/main/ui/dashboard/file_menu.cljs:100
 msgid "dashboard.success-delete-file"
 msgstr "ファイルを削除しました"
 
@@ -455,7 +455,7 @@ msgstr "ファイルを削除しました"
 msgid "dashboard.success-delete-project"
 msgstr "プロジェクトを削除しました"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:94
+#: src/app/main/ui/dashboard/file_menu.cljs:95
 msgid "dashboard.success-duplicate-file"
 msgstr "ファイルを複製しました"
 
@@ -463,11 +463,11 @@ msgstr "ファイルを複製しました"
 msgid "dashboard.success-duplicate-project"
 msgstr "プロジェクトを複製しました"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:133, src/app/main/ui/dashboard/grid.cljs:637, src/app/main/ui/dashboard/sidebar.cljs:186
+#: src/app/main/ui/dashboard/file_menu.cljs:134, src/app/main/ui/dashboard/grid.cljs:643, src/app/main/ui/dashboard/sidebar.cljs:187
 msgid "dashboard.success-move-file"
 msgstr "ファイルを移動しました"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:132
+#: src/app/main/ui/dashboard/file_menu.cljs:133
 msgid "dashboard.success-move-files"
 msgstr "ファイルを移動しました"
 
@@ -515,7 +515,7 @@ msgstr "Eメール"
 msgid "dashboard.your-name"
 msgstr "名前"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:40, src/app/main/ui/dashboard/fonts.cljs:46, src/app/main/ui/dashboard/libraries.cljs:55, src/app/main/ui/dashboard/projects.cljs:352, src/app/main/ui/dashboard/search.cljs:47, src/app/main/ui/dashboard/sidebar.cljs:411, src/app/main/ui/dashboard/team.cljs:616, src/app/main/ui/dashboard/team.cljs:1191, src/app/main/ui/dashboard/team.cljs:1471, src/app/main/ui/dashboard/team.cljs:1577
+#: src/app/main/ui/dashboard/file_menu.cljs:41, src/app/main/ui/dashboard/fonts.cljs:46, src/app/main/ui/dashboard/libraries.cljs:55, src/app/main/ui/dashboard/projects.cljs:352, src/app/main/ui/dashboard/search.cljs:47, src/app/main/ui/dashboard/sidebar.cljs:412, src/app/main/ui/dashboard/team.cljs:616, src/app/main/ui/dashboard/team.cljs:1191, src/app/main/ui/dashboard/team.cljs:1471, src/app/main/ui/dashboard/team.cljs:1577
 msgid "dashboard.your-penpot"
 msgstr "あなたのPenpot"
 
@@ -531,11 +531,11 @@ msgstr "OK"
 msgid "ds.confirm-title"
 msgstr "本当に実行しますか？"
 
-#: src/app/main/data/auth.cljs:193
+#: src/app/main/data/auth.cljs:197
 msgid "errors.auth-provider-not-configured"
 msgstr "認証プロバイダが設定されていません。"
 
-#: src/app/main/errors.cljs:238
+#: src/app/main/errors.cljs:240
 msgid "errors.auth.unable-to-login"
 msgstr "認証されていないか、セッションが失効しているようです。"
 
@@ -559,11 +559,11 @@ msgstr "メールアドレスはパスワードとして設定できません"
 msgid "errors.email-has-permanent-bounces"
 msgstr "メールアドレス «%s» には多くの受信失敗レポートがあります。"
 
-#: src/app/main/ui/dashboard/team.cljs:219, src/app/main/ui/dashboard/team.cljs:1062, src/app/main/ui/onboarding/team_choice.cljs:121
+#: src/app/main/ui/dashboard/team.cljs:219, src/app/main/ui/dashboard/team.cljs:1062, src/app/main/ui/onboarding/team_choice.cljs:122
 msgid "errors.email-spam-or-permanent-bounces"
 msgstr "«%s» はスパムとして報告されたか、または恒久的に受信失敗しています"
 
-#: src/app/main/data/auth.cljs:354, src/app/main/errors.cljs:190, src/app/main/ui/auth/login.cljs:103, src/app/main/ui/auth/register.cljs:112, src/app/main/ui/auth/register.cljs:304, src/app/main/ui/auth/verify_token.cljs:119, src/app/main/ui/dashboard/fonts.cljs:386, src/app/main/ui/dashboard/team.cljs:227, src/app/main/ui/dashboard/team.cljs:1065, src/app/main/ui/onboarding/team_choice.cljs:124, src/app/main/ui/settings/feedback.cljs:84, src/app/main/ui/settings/integrations.cljs:156, src/app/main/ui/workspace/main_menu.cljs:971
+#: src/app/main/data/auth.cljs:358, src/app/main/errors.cljs:192, src/app/main/ui/auth/login.cljs:103, src/app/main/ui/auth/register.cljs:112, src/app/main/ui/auth/register.cljs:304, src/app/main/ui/auth/verify_token.cljs:119, src/app/main/ui/dashboard/fonts.cljs:386, src/app/main/ui/dashboard/team.cljs:227, src/app/main/ui/dashboard/team.cljs:1065, src/app/main/ui/onboarding/team_choice.cljs:125, src/app/main/ui/settings/feedback.cljs:84, src/app/main/ui/settings/integrations.cljs:156, src/app/main/ui/workspace/main_menu.cljs:997
 msgid "errors.generic"
 msgstr "エラーが発生しました。"
 
@@ -608,11 +608,11 @@ msgstr "無効な画像です。"
 msgid "errors.password-too-short"
 msgstr "パスワードは8文字以上である必要があります"
 
-#: src/app/main/data/auth.cljs:342, src/app/main/ui/auth/register.cljs:91
+#: src/app/main/data/auth.cljs:346, src/app/main/ui/auth/register.cljs:91
 msgid "errors.registration-disabled"
 msgstr "新規登録は無効化されています。"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:475, src/app/main/ui/dashboard/team.cljs:480
+#: src/app/main/ui/dashboard/sidebar.cljs:476, src/app/main/ui/dashboard/team.cljs:480
 msgid "errors.team-leave.owner-cant-leave"
 msgstr "オーナーはチームを脱退できません。オーナーロールを外してください。"
 
@@ -714,7 +714,7 @@ msgstr "上"
 msgid "inspect.attributes.layout.width"
 msgstr "幅"
 
-#: src/app/main/ui/inspect/attributes/shadow.cljs:65
+#: src/app/main/ui/inspect/attributes/shadow.cljs:66
 msgid "inspect.attributes.shadow"
 msgstr "シャドウ"
 
@@ -771,7 +771,7 @@ msgstr "画像"
 msgid "inspect.tabs.code.selected.mask"
 msgstr "マスク"
 
-#: src/app/main/ui/workspace/main_menu.cljs:214
+#: src/app/main/ui/workspace/main_menu.cljs:216
 msgid "label.shortcuts"
 msgstr "ショートカット"
 
@@ -779,7 +779,7 @@ msgstr "ショートカット"
 msgid "labels.add-custom-font"
 msgstr "カスタムフォントを追加"
 
-#: src/app/main/data/common.cljs:119, src/app/main/ui/dashboard/change_owner.cljs:67, src/app/main/ui/dashboard/change_owner.cljs:174, src/app/main/ui/dashboard/import.cljs:541, src/app/main/ui/dashboard/team.cljs:866, src/app/main/ui/dashboard/team.cljs:1345, src/app/main/ui/delete_shared.cljs:36, src/app/main/ui/exports/assets.cljs:163, src/app/main/ui/exports/files.cljs:167, src/app/main/ui/settings/integrations.cljs:233, src/app/main/ui/viewer/share_link.cljs:204, src/app/main/ui/workspace/sidebar/assets/groups.cljs:178, src/app/main/ui/workspace/tokens/export/modal.cljs:43, src/app/main/ui/workspace/tokens/import/modal.cljs:268, src/app/main/ui/workspace/tokens/import_from_library.cljs:88, src/app/main/ui/workspace/tokens/management/forms/generic_form.cljs:360, src/app/main/ui/workspace/tokens/management/forms/rename_node_modal.cljs:73, src/app/main/ui/workspace/tokens/settings/menu.cljs:104, src/app/main/ui/workspace/tokens/themes/create_modal.cljs:242
+#: src/app/main/data/common.cljs:119, src/app/main/ui/dashboard/change_owner.cljs:67, src/app/main/ui/dashboard/change_owner.cljs:174, src/app/main/ui/dashboard/import.cljs:541, src/app/main/ui/dashboard/team.cljs:866, src/app/main/ui/dashboard/team.cljs:1345, src/app/main/ui/delete_shared.cljs:36, src/app/main/ui/exports/assets.cljs:163, src/app/main/ui/exports/files.cljs:167, src/app/main/ui/settings/integrations.cljs:233, src/app/main/ui/viewer/share_link.cljs:204, src/app/main/ui/workspace/sidebar/assets/groups.cljs:178, src/app/main/ui/workspace/sidebar/branches.cljs:312, src/app/main/ui/workspace/sidebar/branches.cljs:382, src/app/main/ui/workspace/sidebar/branches.cljs:476, src/app/main/ui/workspace/sidebar/branches.cljs:1529, src/app/main/ui/workspace/sidebar/pull_requests.cljs:197, src/app/main/ui/workspace/sidebar/pull_requests.cljs:284, src/app/main/ui/workspace/tokens/export/modal.cljs:43, src/app/main/ui/workspace/tokens/import/modal.cljs:268, src/app/main/ui/workspace/tokens/import_from_library.cljs:88, src/app/main/ui/workspace/tokens/management/forms/generic_form.cljs:360, src/app/main/ui/workspace/tokens/management/forms/rename_node_modal.cljs:73, src/app/main/ui/workspace/tokens/settings/menu.cljs:104, src/app/main/ui/workspace/tokens/themes/create_modal.cljs:242
 msgid "labels.cancel"
 msgstr "キャンセル"
 
@@ -787,7 +787,7 @@ msgstr "キャンセル"
 msgid "labels.comments"
 msgstr "コメント"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:1178, src/app/main/ui/workspace/main_menu.cljs:160
+#: src/app/main/ui/dashboard/sidebar.cljs:1201, src/app/main/ui/workspace/main_menu.cljs:162
 msgid "labels.community"
 msgstr "コミュニティ"
 
@@ -795,7 +795,7 @@ msgstr "コミュニティ"
 msgid "labels.confirm-password"
 msgstr "パスワードを確認"
 
-#: src/app/main/ui/auth/login.cljs:203, src/app/main/ui/dashboard/deleted.cljs:45, src/app/main/ui/dashboard/deleted.cljs:278, src/app/main/ui/dashboard/file_menu.cljs:210, src/app/main/ui/dashboard/import.cljs:547, src/app/main/ui/dashboard/team.cljs:873, src/app/main/ui/exports/files.cljs:172, src/app/main/ui/settings/subscription.cljs:309, src/app/main/ui/settings/subscription.cljs:343
+#: src/app/main/ui/auth/login.cljs:203, src/app/main/ui/dashboard/deleted.cljs:45, src/app/main/ui/dashboard/deleted.cljs:278, src/app/main/ui/dashboard/file_menu.cljs:211, src/app/main/ui/dashboard/import.cljs:547, src/app/main/ui/dashboard/team.cljs:873, src/app/main/ui/exports/files.cljs:172, src/app/main/ui/settings/subscription.cljs:309, src/app/main/ui/settings/subscription.cljs:343
 msgid "labels.continue"
 msgstr "続ける"
 
@@ -819,7 +819,7 @@ msgstr "カスタムフォント"
 msgid "labels.dashboard"
 msgstr "ダッシュボード"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:337, src/app/main/ui/dashboard/fonts.cljs:286, src/app/main/ui/dashboard/fonts.cljs:363, src/app/main/ui/dashboard/fonts.cljs:397, src/app/main/ui/dashboard/project_menu.cljs:115, src/app/main/ui/dashboard/team.cljs:1379, src/app/main/ui/settings/integrations.cljs:389, src/app/main/ui/settings/profile.cljs:117, src/app/main/ui/settings/profile.cljs:128, src/app/main/ui/settings/profile.cljs:129, src/app/main/ui/workspace/sidebar/assets/common.cljs:231, src/app/main/ui/workspace/sidebar/options/menus/component.cljs:223, src/app/main/ui/workspace/sidebar/versions.cljs:258, src/app/main/ui/workspace/tokens/management/forms/generic_form.cljs:353, src/app/main/ui/workspace/tokens/management/node_context_menu.cljs:111, src/app/main/ui/workspace/tokens/sets/context_menu.cljs:66, src/app/main/ui/workspace/tokens/themes/create_modal.cljs:378
+#: src/app/main/ui/dashboard/file_menu.cljs:349, src/app/main/ui/dashboard/fonts.cljs:286, src/app/main/ui/dashboard/fonts.cljs:363, src/app/main/ui/dashboard/fonts.cljs:397, src/app/main/ui/dashboard/project_menu.cljs:115, src/app/main/ui/dashboard/team.cljs:1379, src/app/main/ui/settings/integrations.cljs:389, src/app/main/ui/settings/profile.cljs:117, src/app/main/ui/settings/profile.cljs:128, src/app/main/ui/settings/profile.cljs:129, src/app/main/ui/workspace/sidebar/assets/common.cljs:231, src/app/main/ui/workspace/sidebar/branches.cljs:630, src/app/main/ui/workspace/sidebar/branches.cljs:700, src/app/main/ui/workspace/sidebar/options/menus/component.cljs:223, src/app/main/ui/workspace/sidebar/versions.cljs:258, src/app/main/ui/workspace/tokens/management/forms/generic_form.cljs:353, src/app/main/ui/workspace/tokens/management/node_context_menu.cljs:111, src/app/main/ui/workspace/tokens/sets/context_menu.cljs:66, src/app/main/ui/workspace/tokens/themes/create_modal.cljs:378
 msgid "labels.delete"
 msgstr "削除"
 
@@ -835,11 +835,11 @@ msgstr "スレッドを削除"
 msgid "labels.delete-invitation"
 msgstr "招待を削除"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:30, src/app/main/ui/dashboard/files.cljs:79, src/app/main/ui/dashboard/files.cljs:177, src/app/main/ui/dashboard/projects.cljs:225, src/app/main/ui/dashboard/projects.cljs:229, src/app/main/ui/dashboard/sidebar.cljs:1065
+#: src/app/main/ui/dashboard/file_menu.cljs:31, src/app/main/ui/dashboard/files.cljs:79, src/app/main/ui/dashboard/files.cljs:177, src/app/main/ui/dashboard/projects.cljs:225, src/app/main/ui/dashboard/projects.cljs:229, src/app/main/ui/dashboard/sidebar.cljs:1088
 msgid "labels.drafts"
 msgstr "下書き"
 
-#: src/app/main/ui/comments.cljs:1011, src/app/main/ui/dashboard/fonts.cljs:280, src/app/main/ui/dashboard/team.cljs:1377, src/app/main/ui/workspace/sidebar/options/menus/component.cljs:218, src/app/main/ui/workspace/tokens/themes.cljs:52
+#: src/app/main/ui/comments.cljs:1011, src/app/main/ui/dashboard/fonts.cljs:280, src/app/main/ui/dashboard/team.cljs:1377, src/app/main/ui/workspace/sidebar/branches.cljs:466, src/app/main/ui/workspace/sidebar/options/menus/component.cljs:218, src/app/main/ui/workspace/tokens/themes.cljs:52
 msgid "labels.edit"
 msgstr "編集"
 
@@ -847,7 +847,7 @@ msgstr "編集"
 msgid "labels.edit-file"
 msgstr "ファイルを編集"
 
-#: src/app/main/ui/dashboard/team.cljs:147, src/app/main/ui/dashboard/team.cljs:399, src/app/main/ui/dashboard/team.cljs:646, src/app/main/ui/dashboard/team.cljs:679, src/app/main/ui/onboarding/team_choice.cljs:70
+#: src/app/main/ui/dashboard/team.cljs:147, src/app/main/ui/dashboard/team.cljs:399, src/app/main/ui/dashboard/team.cljs:646, src/app/main/ui/dashboard/team.cljs:679, src/app/main/ui/onboarding/team_choice.cljs:71
 msgid "labels.editor"
 msgstr "エディタ"
 
@@ -871,15 +871,15 @@ msgstr "フォントファミリー"
 msgid "labels.font-variants"
 msgstr "スタイル"
 
-#: src/app/main/ui/dashboard/fonts.cljs:74, src/app/main/ui/dashboard/sidebar.cljs:1078
+#: src/app/main/ui/dashboard/fonts.cljs:74, src/app/main/ui/dashboard/sidebar.cljs:1101
 msgid "labels.fonts"
 msgstr "フォント"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:1172, src/app/main/ui/workspace/main_menu.cljs:196
+#: src/app/main/ui/dashboard/sidebar.cljs:1195, src/app/main/ui/workspace/main_menu.cljs:198
 msgid "labels.github-repo"
 msgstr "GitHubレポジトリ"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:1148, src/app/main/ui/workspace/main_menu.cljs:225
+#: src/app/main/ui/dashboard/sidebar.cljs:1171, src/app/main/ui/workspace/main_menu.cljs:227
 msgid "labels.give-feedback"
 msgstr "フィードバックする"
 
@@ -887,7 +887,7 @@ msgstr "フィードバックする"
 msgid "labels.go-back"
 msgstr "戻る"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:1131, src/app/main/ui/workspace/main_menu.cljs:151, src/app/main/ui/workspace/sidebar/options/menus/layout_container.cljs:1344, src/app/main/ui/workspace/sidebar/options/menus/layout_container.cljs:1372, src/app/main/ui/workspace/sidebar/options/menus/layout_container.cljs:1561
+#: src/app/main/ui/dashboard/sidebar.cljs:1154, src/app/main/ui/workspace/main_menu.cljs:153, src/app/main/ui/workspace/sidebar/options/menus/layout_container.cljs:1346, src/app/main/ui/workspace/sidebar/options/menus/layout_container.cljs:1374, src/app/main/ui/workspace/sidebar/options/menus/layout_container.cljs:1563
 msgid "labels.help-center"
 msgstr "ヘルプセンター"
 
@@ -899,7 +899,7 @@ msgstr "解決済みのコメントを非表示"
 msgid "labels.internal-error.main-message"
 msgstr "内部エラー"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:547, src/app/main/ui/dashboard/team.cljs:115, src/app/main/ui/dashboard/team.cljs:123, src/app/main/ui/dashboard/team.cljs:1153
+#: src/app/main/ui/dashboard/sidebar.cljs:548, src/app/main/ui/dashboard/team.cljs:115, src/app/main/ui/dashboard/team.cljs:123, src/app/main/ui/dashboard/team.cljs:1153
 msgid "labels.invitations"
 msgstr "招待"
 
@@ -907,11 +907,11 @@ msgstr "招待"
 msgid "labels.language"
 msgstr "言語"
 
-#: src/app/main/ui/workspace/main_menu.cljs:187
+#: src/app/main/ui/workspace/main_menu.cljs:189
 msgid "labels.libraries-and-templates"
 msgstr "ライブラリ&テンプレート"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:1405
+#: src/app/main/ui/dashboard/sidebar.cljs:1428
 msgid "labels.logout"
 msgstr "ログアウト"
 
@@ -919,7 +919,7 @@ msgstr "ログアウト"
 msgid "labels.member"
 msgstr "メンバー"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:543, src/app/main/ui/dashboard/team.cljs:113, src/app/main/ui/dashboard/team.cljs:121
+#: src/app/main/ui/dashboard/sidebar.cljs:544, src/app/main/ui/dashboard/team.cljs:113, src/app/main/ui/dashboard/team.cljs:121
 msgid "labels.members"
 msgstr "メンバー"
 
@@ -952,11 +952,11 @@ msgstr "または"
 msgid "labels.profile"
 msgstr "プロフィール"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:1058
+#: src/app/main/ui/dashboard/sidebar.cljs:1081
 msgid "labels.projects"
 msgstr "プロジェクト"
 
-#: src/app/main/ui/settings/sidebar.cljs:128, src/app/main/ui/workspace/main_menu.cljs:178
+#: src/app/main/ui/settings/sidebar.cljs:128, src/app/main/ui/workspace/main_menu.cljs:180
 msgid "labels.release-notes"
 msgstr "リリースノート"
 
@@ -968,7 +968,7 @@ msgstr "削除"
 msgid "labels.remove-member"
 msgstr "メンバーを削除"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:300, src/app/main/ui/dashboard/project_menu.cljs:88, src/app/main/ui/dashboard/sidebar.cljs:564, src/app/main/ui/workspace/sidebar/assets/groups.cljs:186, src/app/main/ui/workspace/sidebar/versions.cljs:229, src/app/main/ui/workspace/tokens/management/forms/rename_node_modal.cljs:76, src/app/main/ui/workspace/tokens/management/node_context_menu.cljs:101, src/app/main/ui/workspace/tokens/sets/context_menu.cljs:63
+#: src/app/main/ui/dashboard/file_menu.cljs:301, src/app/main/ui/dashboard/project_menu.cljs:88, src/app/main/ui/dashboard/sidebar.cljs:565, src/app/main/ui/workspace/sidebar/assets/groups.cljs:186, src/app/main/ui/workspace/sidebar/branches.cljs:694, src/app/main/ui/workspace/sidebar/versions.cljs:229, src/app/main/ui/workspace/tokens/management/forms/rename_node_modal.cljs:76, src/app/main/ui/workspace/tokens/management/node_context_menu.cljs:101, src/app/main/ui/workspace/tokens/sets/context_menu.cljs:63
 msgid "labels.rename"
 msgstr "名前を変更"
 

@@ -41,9 +41,22 @@
         branch-ctx  (mf/deref refs/branch-context)
         branch?     (and (some? branch-ctx) (some? (:source-name branch-ctx)))
 
+        ;; When a pull request review sandbox is active the header gets a
+        ;; distinct badge and title so the snapshot is never mistaken for
+        ;; the editable branch.
+        pr-preview  (mf/deref refs/pull-request-preview)
+        review?     (some? pr-preview)
+        pr-title    (get-in pr-preview [:info :title] "")
+
         display-name
-        (if ^boolean branch?
+        (cond
+          ^boolean review?
+          (tr "workspace.pull-requests.header-title" pr-title)
+
+          ^boolean branch?
           (dm/str (:source-name branch-ctx) " (" (:name branch-ctx) ")")
+
+          :else
           file-name)
 
         persistence
@@ -145,7 +158,14 @@
             :saved deprecated-icon/status-tick
             :error deprecated-icon/status-wrong
             nil)]
-         (when ^boolean branch?
+         (cond
+           ^boolean review?
+           [:> tooltip* {:content (tr "workspace.pull-requests.header-badge-tooltip" pr-title)
+                         :placement "bottom"}
+            [:span {:class (stl/css :review-badge)}
+             [:> icon* {:icon-id i/git-pull-request-arrow :size "s"}]]]
+
+           ^boolean branch?
            [:> tooltip* {:content (tr "workspace.branches.header-badge-tooltip" (:name branch-ctx))
                          :placement "bottom"}
             [:span {:class (stl/css :branch-badge)}

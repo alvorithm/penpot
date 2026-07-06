@@ -501,6 +501,86 @@ runners. The RPC layer is covered end-to-end by
 [Unit tests](/technical-guide/developer/common/#unit-tests) section for how to run
 them.
 
+## Pull requests
+
+On top of branching, **pull requests** add a review step before the merge:
+the author of a branch asks one or more team members (**reviewers**) to
+evaluate their changes. The feature is gated behind the `:pull-requests`
+product flag (which requires `:branching`) and lives in:
+
+```text
+backend/src/app/migrations/sql/0153-add-file-pull-request-tables.sql
+backend/src/app/rpc/commands/files_pull_request.clj
+frontend/src/app/main/data/workspace/pull_requests.cljs
+frontend/src/app/main/ui/workspace/sidebar/pull_requests.cljs
+backend/test/backend_tests/rpc_file_pull_request_test.clj
+```
+
+### Model
+
+A pull request is **not** a file copy. The `file_pull_request` row points
+to its `file_branch` and to a **pinned review snapshot** of the branch
+file (label `pr-review/<title>`, the same ~10-year pin/release mechanics
+as the merge-base snapshot). There is at most one open pull request per
+branch (partial unique index).
+
+Opening a review (`?pr-id=` on the workspace url) opens the **live
+branch file as a completely normal workspace file** — navigable and
+editable, so reviewers can try and validate anything (edits go to the
+branch, as always) — decorated with the review banner and actions. The
+pinned snapshot backs two things instead of the canvas: the cheap
+"outdated" gate (`branch_revn > review_revn`) and the prototype
+**viewer**: `::get-view-only-bundle` accepts an optional `pr-id` and
+serves the snapshot overlay read-only (permissions taken from the target
+file, edition stripped; share-links do not apply), reachable from the
+review banner's "Try interactions" action.
+`::get-pull-request-bundle` serves the same snapshot overlay as a
+workspace-shaped file bundle for API consumers; it refuses once the pull
+request is closed, so the pinned state stops resolving when the review
+ends (closing, merging or deleting the branch releases the pin).
+
+Because the sandbox is pinned, the author can keep editing the branch;
+publishing the new state to reviewers is an explicit action
+(`::update-pull-request-snapshot`) that repositions the snapshot.
+`branch_revn > review_revn` is the cheap "outdated" gate, mirroring the
+ahead/behind revn gates.
+
+### Reviews
+
+Reviewers are stored in `file_pull_request_review` (one row per profile,
+`pending` / `approved` / `changes-requested`). A verdict records the
+`review_revn` it was issued over, so it goes **stale** (not deleted) when
+the author publishes newer changes. The aggregate `review-state` is
+derived, never stored: current `changes-requested` beats current
+`approved`; stale verdicts only count as "in review". Approval is
+**informative**: merging keeps requiring edition permissions on main and
+goes through the exact same `::merge-file-branch` gates.
+
+Stored status is only `open` → `merged`/`closed` (with reopen). All the
+UI states (approved, changes requested, outdated, conflicts) are derived
+per request from the reviews and the existing diff-count helpers.
+
+Accepting a pull request is offered from the sandbox banner (and the
+sidebar entries) to any user with edition permissions on main, but it is
+just an entry point into the exact same branch merge dialog and
+`::merge-file-branch` flow — including conflict resolution and the
+safety snapshot. Note that merging always integrates the LIVE branch
+state: an outdated pull request merges the newest changes, not the
+pinned review snapshot.
+
+### Lifecycle hooks
+
+The branch lifecycle closes its pull request: merge marks it `merged`,
+branch delete/archive marks it `closed` (see
+`close-branch-pull-requests!` in `files_branch.clj`), and the
+`delete-object` cascade closes it when the branch file dies through
+other paths (the row itself survives as history; it is only logically
+deleted when MAIN dies). Reviewers are notified by email
+(`review-request` template) and through the dashboard notifications
+dropdown (`::get-profile-pending-reviews`: open pull requests where the
+profile has no current verdict); `:pull-request-*` msgbus messages on
+main's topic keep open clients fresh.
+
 ## Current scope and limitations
 
 The feature was built in phases, and the engine refuses anything it cannot yet

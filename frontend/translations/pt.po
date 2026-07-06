@@ -181,7 +181,7 @@ msgstr "A solução de código aberto para design e prototipagem."
 msgid "auth.terms-and-privacy-agreement"
 msgstr "Concordo com os [termos de serviço](%s) e a [política de privacidade](%s)."
 
-#: src/app/main/ui/auth/register.cljs:251, src/app/main/ui/dashboard/sidebar.cljs:1221, src/app/main/ui/workspace/main_menu.cljs:205
+#: src/app/main/ui/auth/register.cljs:251, src/app/main/ui/dashboard/sidebar.cljs:1244, src/app/main/ui/workspace/main_menu.cljs:207
 msgid "auth.terms-of-service"
 msgstr "Termos de serviço"
 
@@ -333,7 +333,7 @@ msgstr "Apresentação da interface"
 msgid "dashboard.add-file"
 msgstr "Adicionar arquivo"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:323, src/app/main/ui/workspace/main_menu.cljs:695
+#: src/app/main/ui/dashboard/file_menu.cljs:335, src/app/main/ui/workspace/main_menu.cljs:709
 msgid "dashboard.add-shared"
 msgstr "Adicionar como Biblioteca Compartilhada"
 
@@ -345,6 +345,6 @@ msgstr "Alterar e-mail"
 msgid "dashboard.copy-suffix"
 msgstr "(copiar)"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:439
+#: src/app/main/ui/dashboard/sidebar.cljs:440
 msgid "dashboard.create-new-team"
 msgstr "Criar nova equipe"

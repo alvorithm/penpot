@@ -157,6 +157,7 @@
 (def ^:icon-id git-commit "git-commit")
 (def ^:icon-id git-commit-vertical "git-commit-vertical")
 (def ^:icon-id git-merge "git-merge")
+(def ^:icon-id git-pull-request-arrow "git-pull-request-arrow")
 (def ^:icon-id graphics "graphics")
 (def ^:icon-id grid "grid")
 (def ^:icon-id grid-column "grid-column")

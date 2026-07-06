@@ -179,7 +179,7 @@ msgstr "A solução de código aberto para design e prototipagem."
 msgid "auth.terms-and-privacy-agreement"
 msgstr "Aceito os [termos de serviço](%s) e a [política de privacidade](%s)."
 
-#: src/app/main/ui/auth/register.cljs:251, src/app/main/ui/dashboard/sidebar.cljs:1221, src/app/main/ui/workspace/main_menu.cljs:205
+#: src/app/main/ui/auth/register.cljs:251, src/app/main/ui/dashboard/sidebar.cljs:1244, src/app/main/ui/workspace/main_menu.cljs:207
 msgid "auth.terms-of-service"
 msgstr "Termos de serviço"
 
@@ -327,7 +327,7 @@ msgstr "Passo a passo na interface"
 msgid "dashboard.add-file"
 msgstr "Adicionar ficheiro"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:323, src/app/main/ui/workspace/main_menu.cljs:695
+#: src/app/main/ui/dashboard/file_menu.cljs:335, src/app/main/ui/workspace/main_menu.cljs:709
 msgid "dashboard.add-shared"
 msgstr "Adicionar como biblioteca partilhada"
 
@@ -339,23 +339,23 @@ msgstr "Alterar e-mail"
 msgid "dashboard.copy-suffix"
 msgstr "(copiar)"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:439
+#: src/app/main/ui/dashboard/sidebar.cljs:440
 msgid "dashboard.create-new-team"
 msgstr "+ Criar nova equipa"
 
-#: src/app/main/ui/workspace/main_menu.cljs:706
+#: src/app/main/ui/workspace/main_menu.cljs:720
 msgid "dashboard.create-version-menu"
 msgstr "Afixar esta versão"
 
-#: src/app/main/ui/components/context_menu_a11y.cljs:300, src/app/main/ui/dashboard/sidebar.cljs:882
+#: src/app/main/ui/components/context_menu_a11y.cljs:300, src/app/main/ui/dashboard/sidebar.cljs:905
 msgid "dashboard.default-team-name"
 msgstr "O teu Penpot"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:588, src/app/main/ui/dashboard/team_form.cljs:153
+#: src/app/main/ui/dashboard/sidebar.cljs:589, src/app/main/ui/dashboard/team_form.cljs:153
 msgid "dashboard.delete-team"
 msgstr "Eliminar equipa"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:329, src/app/main/ui/workspace/main_menu.cljs:732
+#: src/app/main/ui/dashboard/file_menu.cljs:341, src/app/main/ui/workspace/main_menu.cljs:755
 msgid "dashboard.download-binary-file"
 msgstr "Descarregar ficheiro Penpot (.penpot)"
 
@@ -364,11 +364,11 @@ msgstr "Descarregar ficheiro Penpot (.penpot)"
 msgid "dashboard.download-standard-file"
 msgstr "Descarregar ficheiro standard (svg + json)"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:305, src/app/main/ui/dashboard/project_menu.cljs:92
+#: src/app/main/ui/dashboard/file_menu.cljs:306, src/app/main/ui/dashboard/project_menu.cljs:92
 msgid "dashboard.duplicate"
 msgstr "Duplicar"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:272
+#: src/app/main/ui/dashboard/file_menu.cljs:273
 msgid "dashboard.duplicate-multi"
 msgstr "Duplicar %s ficheiros"
 
@@ -428,11 +428,11 @@ msgstr "Importar um ficheiro .penpot"
 msgid "dashboard.empty-project.start"
 msgstr "Começa a criar coisas incríveis"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:281
+#: src/app/main/ui/dashboard/file_menu.cljs:282
 msgid "dashboard.export-binary-multi"
 msgstr "Descarrega %s ficheiros Penpot (.penpot)"
 
-#: src/app/main/ui/workspace/main_menu.cljs:740
+#: src/app/main/ui/workspace/main_menu.cljs:763
 msgid "dashboard.export-frames"
 msgstr "Exportar pranchetas para PDF"
 
@@ -448,7 +448,7 @@ msgstr "Exportar %s ficheiros Penpot"
 msgid "dashboard.export-multiple.selected"
 msgstr "%s de %s elementos selecionados"
 
-#: src/app/main/ui/workspace/main_menu.cljs:723
+#: src/app/main/ui/workspace/main_menu.cljs:746
 msgid "dashboard.export-shapes"
 msgstr "Exportar"
 
@@ -599,7 +599,7 @@ msgstr "A carregar ficheiro: %s"
 msgid "dashboard.invite-profile"
 msgstr "Convidar para a equipa"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:570, src/app/main/ui/dashboard/sidebar.cljs:577, src/app/main/ui/dashboard/sidebar.cljs:582, src/app/main/ui/dashboard/team.cljs:433
+#: src/app/main/ui/dashboard/sidebar.cljs:571, src/app/main/ui/dashboard/sidebar.cljs:578, src/app/main/ui/dashboard/sidebar.cljs:583, src/app/main/ui/dashboard/team.cljs:433
 msgid "dashboard.leave-team"
 msgstr "Sair da equipa"
 
@@ -639,15 +639,15 @@ msgstr "a carregar as tuas fontes …"
 msgid "dashboard.mark-all-as-read.success"
 msgstr "Todas as notificações foram marcadas como lidas"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:313, src/app/main/ui/dashboard/project_menu.cljs:101
+#: src/app/main/ui/dashboard/file_menu.cljs:325, src/app/main/ui/dashboard/project_menu.cljs:101
 msgid "dashboard.move-to"
 msgstr "Mover para"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:277
+#: src/app/main/ui/dashboard/file_menu.cljs:278
 msgid "dashboard.move-to-multi"
 msgstr "Mover %s ficheiros para"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:249
+#: src/app/main/ui/dashboard/file_menu.cljs:250
 msgid "dashboard.move-to-other-team"
 msgstr "Mover para outra equipa"
 
@@ -671,11 +671,11 @@ msgstr "Novo Projeto"
 msgid "dashboard.no-matches-for"
 msgstr "Não há resultados para \"%s\""
 
-#: src/app/main/ui/dashboard/sidebar.cljs:1103
+#: src/app/main/ui/dashboard/sidebar.cljs:1126
 msgid "dashboard.no-projects-placeholder"
 msgstr "Projetos afixados aparecerão aqui"
 
-#: src/app/main/ui/dashboard/comments.cljs:89
+#: src/app/main/ui/dashboard/comments.cljs:111
 msgid "dashboard.notifications"
 msgstr "Notificações"
 
@@ -695,7 +695,7 @@ msgstr "Definições de notificação atualizadas"
 msgid "dashboard.notifications.password-saved"
 msgstr "Palavra-passe guardada com sucesso!"
 
-#: src/app/main/ui/dashboard/comments.cljs:43
+#: src/app/main/ui/dashboard/comments.cljs:48
 msgid "dashboard.notifications.view"
 msgstr "Ver notificações"
 
@@ -703,11 +703,11 @@ msgstr "Ver notificações"
 msgid "dashboard.num-of-members"
 msgstr "%s membros"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:296
+#: src/app/main/ui/dashboard/file_menu.cljs:297
 msgid "dashboard.open-in-new-tab"
 msgstr "Abrir ficheiro num novo separador"
 
-#: src/app/main/ui/dashboard/deleted.cljs:158, src/app/main/ui/dashboard/deleted.cljs:159, src/app/main/ui/dashboard/files.cljs:119, src/app/main/ui/dashboard/grid.cljs:446, src/app/main/ui/dashboard/projects.cljs:262, src/app/main/ui/dashboard/projects.cljs:263
+#: src/app/main/ui/dashboard/deleted.cljs:158, src/app/main/ui/dashboard/deleted.cljs:159, src/app/main/ui/dashboard/files.cljs:119, src/app/main/ui/dashboard/grid.cljs:452, src/app/main/ui/dashboard/projects.cljs:262, src/app/main/ui/dashboard/projects.cljs:263
 msgid "dashboard.options"
 msgstr "Opções"
 
@@ -731,15 +731,15 @@ msgstr "Passaste a ser dono(a) nesta equipa."
 msgid "dashboard.pin-unpin"
 msgstr "Afixar/Desafixar"
 
-#: src/app/main/ui/dashboard.cljs:223
+#: src/app/main/ui/dashboard.cljs:224
 msgid "dashboard.plugins.bad-url"
 msgstr "O URL do plugin está incorreto"
 
-#: src/app/main/ui/dashboard.cljs:221
+#: src/app/main/ui/dashboard.cljs:222
 msgid "dashboard.plugins.parse-error"
 msgstr "Não foi possível analisar as definições do plugin"
 
-#: src/app/main/ui/dashboard.cljs:184
+#: src/app/main/ui/dashboard.cljs:185
 msgid "dashboard.plugins.try-plugin"
 msgstr "Experimentar o plugin: "
 
@@ -764,7 +764,7 @@ msgstr "Já não pertences à equipa “%s“."
 msgid "dashboard.save-settings"
 msgstr "Guardar definições"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:279, src/app/main/ui/dashboard/sidebar.cljs:280, src/app/main/ui/ds/controls/shared/searchable_options_dropdown.cljs:140
+#: src/app/main/ui/dashboard/sidebar.cljs:280, src/app/main/ui/dashboard/sidebar.cljs:281, src/app/main/ui/ds/controls/shared/searchable_options_dropdown.cljs:140
 msgid "dashboard.search-placeholder"
 msgstr "Pesquisar…"
 
@@ -836,11 +836,11 @@ msgstr "Notificações"
 msgid "dashboard.show-all-files"
 msgstr "Mostrar todos os ficheiros"
 
-#: src/app/main/ui/workspace/main_menu.cljs:713
+#: src/app/main/ui/workspace/main_menu.cljs:727
 msgid "dashboard.show-version-history"
 msgstr "Histórico de versões"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:99
+#: src/app/main/ui/dashboard/file_menu.cljs:100
 msgid "dashboard.success-delete-file"
 msgid_plural "dashboard.success-delete-file"
 msgstr[0] "O teu ficheiro foi apagado com sucesso"
@@ -850,7 +850,7 @@ msgstr[1] "Os teus ficheiros foram apagados com sucesso"
 msgid "dashboard.success-delete-project"
 msgstr "O teu projeto foi eliminado com sucesso"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:94
+#: src/app/main/ui/dashboard/file_menu.cljs:95
 msgid "dashboard.success-duplicate-file"
 msgid_plural "dashboard.success-delete-file"
 msgstr[0] "O teu ficheiro foi duplicado com sucesso"
@@ -860,11 +860,11 @@ msgstr[1] "Os teus ficheiros foram duplicados com sucesso"
 msgid "dashboard.success-duplicate-project"
 msgstr "O teu projeto foi duplicado com sucesso"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:133, src/app/main/ui/dashboard/grid.cljs:637, src/app/main/ui/dashboard/sidebar.cljs:186
+#: src/app/main/ui/dashboard/file_menu.cljs:134, src/app/main/ui/dashboard/grid.cljs:643, src/app/main/ui/dashboard/sidebar.cljs:187
 msgid "dashboard.success-move-file"
 msgstr "O teu ficheiro foi movido com sucesso"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:132
+#: src/app/main/ui/dashboard/file_menu.cljs:133
 msgid "dashboard.success-move-files"
 msgstr "Os teus ficheiros foram movidos com sucesso"
 
@@ -900,7 +900,7 @@ msgstr "Resultados da pesquisa"
 msgid "dashboard.type-something"
 msgstr "Escreve para pesquisar resultados"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:320, src/app/main/ui/workspace/main_menu.cljs:687
+#: src/app/main/ui/dashboard/file_menu.cljs:332, src/app/main/ui/workspace/main_menu.cljs:701
 msgid "dashboard.unpublish-shared"
 msgstr "Cancelar publicação da Biblioteca"
 
@@ -908,11 +908,11 @@ msgstr "Cancelar publicação da Biblioteca"
 msgid "dashboard.update-settings"
 msgstr "Atualizar definições"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:1328
+#: src/app/main/ui/dashboard/sidebar.cljs:1351
 msgid "dashboard.upgrade-plan.no-limits"
 msgstr "Criatividade sem limites"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:1326
+#: src/app/main/ui/dashboard/sidebar.cljs:1349
 msgid "dashboard.upgrade-plan.penpot-free"
 msgstr "Penpot Gratuito"
 
@@ -971,7 +971,7 @@ msgstr "E-mail"
 msgid "dashboard.your-name"
 msgstr "O teu nome"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:40, src/app/main/ui/dashboard/fonts.cljs:46, src/app/main/ui/dashboard/libraries.cljs:55, src/app/main/ui/dashboard/projects.cljs:352, src/app/main/ui/dashboard/search.cljs:47, src/app/main/ui/dashboard/sidebar.cljs:411, src/app/main/ui/dashboard/team.cljs:616, src/app/main/ui/dashboard/team.cljs:1191, src/app/main/ui/dashboard/team.cljs:1471, src/app/main/ui/dashboard/team.cljs:1577
+#: src/app/main/ui/dashboard/file_menu.cljs:41, src/app/main/ui/dashboard/fonts.cljs:46, src/app/main/ui/dashboard/libraries.cljs:55, src/app/main/ui/dashboard/projects.cljs:352, src/app/main/ui/dashboard/search.cljs:47, src/app/main/ui/dashboard/sidebar.cljs:412, src/app/main/ui/dashboard/team.cljs:616, src/app/main/ui/dashboard/team.cljs:1191, src/app/main/ui/dashboard/team.cljs:1471, src/app/main/ui/dashboard/team.cljs:1577
 msgid "dashboard.your-penpot"
 msgstr "O teu Penpot"
 
@@ -1003,15 +1003,15 @@ msgstr "Ok"
 msgid "ds.confirm-title"
 msgstr "Tens a certeza?"
 
-#: src/app/main/data/auth.cljs:346
+#: src/app/main/data/auth.cljs:350
 msgid "errors.auth-provider-not-allowed"
 msgstr "O provedor de autenticação não é permitido neste perfil"
 
-#: src/app/main/data/auth.cljs:193
+#: src/app/main/data/auth.cljs:197
 msgid "errors.auth-provider-not-configured"
 msgstr "Provedor de autenticação não configurado."
 
-#: src/app/main/errors.cljs:238
+#: src/app/main/errors.cljs:240
 msgid "errors.auth.unable-to-login"
 msgstr "Parece que não estás autenticado ou a sessão expirou."
 
@@ -1047,7 +1047,7 @@ msgstr "E-mail já validado."
 msgid "errors.email-as-password"
 msgstr "Não podes utilizar o teu e-mail como palavra-passe"
 
-#: src/app/main/data/auth.cljs:348, src/app/main/ui/auth/register.cljs:94, src/app/main/ui/dashboard/team.cljs:223
+#: src/app/main/data/auth.cljs:352, src/app/main/ui/auth/register.cljs:94, src/app/main/ui/dashboard/team.cljs:223
 msgid "errors.email-domain-not-allowed"
 msgstr "Domínio não permitido"
 
@@ -1055,17 +1055,17 @@ msgstr "Domínio não permitido"
 msgid "errors.email-has-permanent-bounces"
 msgstr "O e-mail «%s» tem muitos relatórios de rejeição permanentes."
 
-#: src/app/main/ui/dashboard/team.cljs:219, src/app/main/ui/dashboard/team.cljs:1062, src/app/main/ui/onboarding/team_choice.cljs:121
+#: src/app/main/ui/dashboard/team.cljs:219, src/app/main/ui/dashboard/team.cljs:1062, src/app/main/ui/onboarding/team_choice.cljs:122
 msgid "errors.email-spam-or-permanent-bounces"
 msgstr "O e-mail «%s» foi denunciado como spam ou devolvido permanentemente."
 
-#: src/app/main/errors.cljs:391
+#: src/app/main/errors.cljs:393
 msgid "errors.feature-mismatch"
 msgstr ""
 "Parece que estás a abrir um ficheiro que tem a funcionalidade '%s' ativada, "
 "mas a versão do teu Penpot não a suporta, ou está desativada."
 
-#: src/app/main/errors.cljs:395, src/app/main/errors.cljs:409
+#: src/app/main/errors.cljs:397, src/app/main/errors.cljs:411
 msgid "errors.feature-not-supported"
 msgstr "A funcionalidade '%s' não é suportada."
 
@@ -1073,14 +1073,14 @@ msgstr "A funcionalidade '%s' não é suportada."
 msgid "errors.field-missing"
 msgstr "Campo vazio"
 
-#: src/app/main/errors.cljs:387
+#: src/app/main/errors.cljs:389
 msgid "errors.file-feature-mismatch"
 msgstr ""
 "Parece que existem discrepâncias entre as funcionalidades ativadas e as "
 "funcionalidades do ficheiro que estás a tentar abrir. Será necessário "
 "aplicar migrações para '%s' antes de poder abrir o ficheiro."
 
-#: src/app/main/data/auth.cljs:354, src/app/main/errors.cljs:190, src/app/main/ui/auth/login.cljs:103, src/app/main/ui/auth/register.cljs:112, src/app/main/ui/auth/register.cljs:304, src/app/main/ui/auth/verify_token.cljs:119, src/app/main/ui/dashboard/fonts.cljs:386, src/app/main/ui/dashboard/team.cljs:227, src/app/main/ui/dashboard/team.cljs:1065, src/app/main/ui/onboarding/team_choice.cljs:124, src/app/main/ui/settings/feedback.cljs:84, src/app/main/ui/settings/integrations.cljs:156, src/app/main/ui/workspace/main_menu.cljs:971
+#: src/app/main/data/auth.cljs:358, src/app/main/errors.cljs:192, src/app/main/ui/auth/login.cljs:103, src/app/main/ui/auth/register.cljs:112, src/app/main/ui/auth/register.cljs:304, src/app/main/ui/auth/verify_token.cljs:119, src/app/main/ui/dashboard/fonts.cljs:386, src/app/main/ui/dashboard/team.cljs:227, src/app/main/ui/dashboard/team.cljs:1065, src/app/main/ui/onboarding/team_choice.cljs:125, src/app/main/ui/settings/feedback.cljs:84, src/app/main/ui/settings/integrations.cljs:156, src/app/main/ui/workspace/main_menu.cljs:997
 msgid "errors.generic"
 msgstr "Ocorreu algo inesperado."
 
@@ -1123,7 +1123,7 @@ msgstr "Este convite pode ter sido cancelado ou expirado."
 msgid "errors.ldap-disabled"
 msgstr "Autenticação LDAP está desativada."
 
-#: src/app/main/errors.cljs:403, src/app/main/ui/dashboard/team.cljs:214, src/app/main/ui/onboarding/team_choice.cljs:116
+#: src/app/main/errors.cljs:405, src/app/main/ui/dashboard/team.cljs:214, src/app/main/ui/onboarding/team_choice.cljs:117
 msgid "errors.max-quota-reached"
 msgstr "Alcançou o máximo da quota '%s'. Contacte o suporte técnico."
 
@@ -1145,7 +1145,7 @@ msgstr ""
 "O perfil que estás a convidar tem e-mails silenciados (relatórios de spam "
 "ou devoluções altas)."
 
-#: src/app/main/errors.cljs:377
+#: src/app/main/errors.cljs:379
 msgid "errors.migration-in-progress"
 msgstr "Migração em progresso"
 
@@ -1159,37 +1159,37 @@ msgstr "A palavra-passe de confirmação tem de corresponder"
 msgid "errors.password-too-short"
 msgstr "A palavra-passe deverá conter no mínimo 8 caracteres"
 
-#: src/app/main/errors.cljs:267
+#: src/app/main/errors.cljs:269
 msgid "errors.paste-data-validation"
 msgstr "Dados inválidos na área de transferência"
 
-#: src/app/main/data/auth.cljs:344, src/app/main/ui/auth/login.cljs:84, src/app/main/ui/auth/login.cljs:92
+#: src/app/main/data/auth.cljs:348, src/app/main/ui/auth/login.cljs:84, src/app/main/ui/auth/login.cljs:92
 msgid "errors.profile-blocked"
 msgstr "O perfil está bloqueado"
 
-#: src/app/main/ui/auth/recovery_request.cljs:53, src/app/main/ui/dashboard/team.cljs:205, src/app/main/ui/dashboard/team.cljs:700, src/app/main/ui/dashboard/team.cljs:1048, src/app/main/ui/onboarding/team_choice.cljs:108, src/app/main/ui/settings/change_email.cljs:33
+#: src/app/main/ui/auth/recovery_request.cljs:53, src/app/main/ui/dashboard/team.cljs:205, src/app/main/ui/dashboard/team.cljs:700, src/app/main/ui/dashboard/team.cljs:1048, src/app/main/ui/onboarding/team_choice.cljs:109, src/app/main/ui/settings/change_email.cljs:33
 msgid "errors.profile-is-muted"
 msgstr ""
 "O teu perfil tem e-mails silenciados (relatórios de spam ou devoluções "
 "altas)."
 
-#: src/app/main/data/auth.cljs:342, src/app/main/ui/auth/register.cljs:91
+#: src/app/main/data/auth.cljs:346, src/app/main/ui/auth/register.cljs:91
 msgid "errors.registration-disabled"
 msgstr "A criação de contas está atualmente desativada."
 
-#: src/app/main/errors.cljs:382
+#: src/app/main/errors.cljs:384
 msgid "errors.team-feature-mismatch"
 msgstr "Funcionalidade incompatível '%s' detetada"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:469, src/app/main/ui/dashboard/team.cljs:474
+#: src/app/main/ui/dashboard/sidebar.cljs:470, src/app/main/ui/dashboard/team.cljs:474
 msgid "errors.team-leave.insufficient-members"
 msgstr "Membros insuficientes para deixar a equipa, provavelmente queres eliminá-la."
 
-#: src/app/main/ui/dashboard/sidebar.cljs:472, src/app/main/ui/dashboard/team.cljs:477
+#: src/app/main/ui/dashboard/sidebar.cljs:473, src/app/main/ui/dashboard/team.cljs:477
 msgid "errors.team-leave.member-does-not-exists"
 msgstr "O membro que tentas atribuir não existe."
 
-#: src/app/main/ui/dashboard/sidebar.cljs:475, src/app/main/ui/dashboard/team.cljs:480
+#: src/app/main/ui/dashboard/sidebar.cljs:476, src/app/main/ui/dashboard/team.cljs:480
 msgid "errors.team-leave.owner-cant-leave"
 msgstr ""
 "O proprietário não pode sair da equipa, deverás retribuir a função de "
@@ -1207,7 +1207,7 @@ msgstr "Token desconhecido"
 msgid "errors.validation"
 msgstr "Erro de validação"
 
-#: src/app/main/errors.cljs:399
+#: src/app/main/errors.cljs:401
 msgid "errors.version-not-supported"
 msgstr "O ficheiro tem um número de versão incompatível"
 
@@ -1393,7 +1393,7 @@ msgstr "Topo"
 msgid "inspect.attributes.layout.width"
 msgstr "Largura"
 
-#: src/app/main/ui/inspect/attributes/shadow.cljs:65
+#: src/app/main/ui/inspect/attributes/shadow.cljs:66
 msgid "inspect.attributes.shadow"
 msgstr "Sombra"
 
@@ -1567,15 +1567,15 @@ msgstr "SVG"
 msgid "inspect.tabs.code.selected.text"
 msgstr "Texto"
 
-#: src/app/main/ui/dashboard/comments.cljs:94
+#: src/app/main/ui/dashboard/comments.cljs:116
 msgid "label.mark-all-as-read"
 msgstr "Marcar todas como lidas"
 
-#: src/app/main/ui/workspace/main_menu.cljs:214
+#: src/app/main/ui/workspace/main_menu.cljs:216
 msgid "label.shortcuts"
 msgstr "Atalhos"
 
-#: src/app/main/data/common.cljs:90, src/app/main/data/team.cljs:163, src/app/main/data/team.cljs:584, src/app/main/ui/dashboard/import.cljs:556
+#: src/app/main/data/common.cljs:90, src/app/main/data/team.cljs:187, src/app/main/data/team.cljs:620, src/app/main/ui/dashboard/import.cljs:556
 msgid "labels.accept"
 msgstr "Aceitar"
 
@@ -1600,7 +1600,7 @@ msgstr "Adicionar fonte personalizada"
 msgid "labels.adding"
 msgstr "A adicionar..."
 
-#: src/app/main/ui/dashboard/team.cljs:149, src/app/main/ui/dashboard/team.cljs:402, src/app/main/ui/dashboard/team.cljs:645, src/app/main/ui/dashboard/team.cljs:675, src/app/main/ui/onboarding/team_choice.cljs:71
+#: src/app/main/ui/dashboard/team.cljs:149, src/app/main/ui/dashboard/team.cljs:402, src/app/main/ui/dashboard/team.cljs:645, src/app/main/ui/dashboard/team.cljs:675, src/app/main/ui/onboarding/team_choice.cljs:72
 msgid "labels.admin"
 msgstr "Administração"
 
@@ -1631,7 +1631,7 @@ msgstr ""
 msgid "labels.bad-gateway.main-message"
 msgstr "Error de Servidor (Bad Gateway)"
 
-#: src/app/main/data/common.cljs:119, src/app/main/ui/dashboard/change_owner.cljs:67, src/app/main/ui/dashboard/change_owner.cljs:174, src/app/main/ui/dashboard/import.cljs:541, src/app/main/ui/dashboard/team.cljs:866, src/app/main/ui/dashboard/team.cljs:1345, src/app/main/ui/delete_shared.cljs:36, src/app/main/ui/exports/assets.cljs:163, src/app/main/ui/exports/files.cljs:167, src/app/main/ui/settings/integrations.cljs:233, src/app/main/ui/viewer/share_link.cljs:204, src/app/main/ui/workspace/sidebar/assets/groups.cljs:178, src/app/main/ui/workspace/tokens/export/modal.cljs:43, src/app/main/ui/workspace/tokens/import/modal.cljs:268, src/app/main/ui/workspace/tokens/import_from_library.cljs:88, src/app/main/ui/workspace/tokens/management/forms/generic_form.cljs:360, src/app/main/ui/workspace/tokens/management/forms/rename_node_modal.cljs:73, src/app/main/ui/workspace/tokens/settings/menu.cljs:104, src/app/main/ui/workspace/tokens/themes/create_modal.cljs:242
+#: src/app/main/data/common.cljs:119, src/app/main/ui/dashboard/change_owner.cljs:67, src/app/main/ui/dashboard/change_owner.cljs:174, src/app/main/ui/dashboard/import.cljs:541, src/app/main/ui/dashboard/team.cljs:866, src/app/main/ui/dashboard/team.cljs:1345, src/app/main/ui/delete_shared.cljs:36, src/app/main/ui/exports/assets.cljs:163, src/app/main/ui/exports/files.cljs:167, src/app/main/ui/settings/integrations.cljs:233, src/app/main/ui/viewer/share_link.cljs:204, src/app/main/ui/workspace/sidebar/assets/groups.cljs:178, src/app/main/ui/workspace/sidebar/branches.cljs:312, src/app/main/ui/workspace/sidebar/branches.cljs:382, src/app/main/ui/workspace/sidebar/branches.cljs:476, src/app/main/ui/workspace/sidebar/branches.cljs:1529, src/app/main/ui/workspace/sidebar/pull_requests.cljs:197, src/app/main/ui/workspace/sidebar/pull_requests.cljs:284, src/app/main/ui/workspace/tokens/export/modal.cljs:43, src/app/main/ui/workspace/tokens/import/modal.cljs:268, src/app/main/ui/workspace/tokens/import_from_library.cljs:88, src/app/main/ui/workspace/tokens/management/forms/generic_form.cljs:360, src/app/main/ui/workspace/tokens/management/forms/rename_node_modal.cljs:73, src/app/main/ui/workspace/tokens/settings/menu.cljs:104, src/app/main/ui/workspace/tokens/themes/create_modal.cljs:242
 msgid "labels.cancel"
 msgstr "Cancelar"
 
@@ -1639,7 +1639,7 @@ msgstr "Cancelar"
 msgid "labels.canva"
 msgstr "Canva"
 
-#: src/app/main/data/common.cljs:96, src/app/main/ui/confirm.cljs:78, src/app/main/ui/dashboard/comments.cljs:101, src/app/main/ui/dashboard/projects.cljs:98, src/app/main/ui/ds/product/panel_title.cljs:32, src/app/main/ui/exports/files.cljs:192, src/app/main/ui/nitrate/nitrate_code_activation_modal.cljs:72, src/app/main/ui/settings/integrations.cljs:141, src/app/main/ui/settings/integrations.cljs:260, src/app/main/ui/settings/integrations.cljs:300, src/app/main/ui/settings/integrations.cljs:342, src/app/main/ui/settings/subscription.cljs:383, src/app/main/ui/viewer/login.cljs:71, src/app/main/ui/viewer/share_link.cljs:175, src/app/main/ui/workspace/libraries.cljs:683, src/app/main/ui/workspace/sidebar/layers.cljs:579, src/app/main/ui/workspace/sidebar/options/menus/typography.cljs:545, src/app/main/ui/workspace/sidebar/options/menus/typography.cljs:568, src/app/main/ui/workspace/sidebar/options/menus/variants_help_modal.cljs:43, src/app/main/ui/workspace/sidebar.cljs:263, src/app/main/ui/workspace/tokens/export.cljs:25, src/app/main/ui/workspace/tokens/import.cljs:19, src/app/main/ui/workspace/tokens/import_from_library.cljs:63, src/app/main/ui/workspace/tokens/management/forms/modals.cljs:99, src/app/main/ui/workspace/tokens/management/forms/rename_node_modal.cljs:114, src/app/main/ui/workspace/tokens/remapping_modal.cljs:93, src/app/main/ui/workspace/tokens/settings/menu.cljs:77, src/app/main/ui/workspace/tokens/themes/create_modal.cljs:61, src/app/main/ui/workspace/tokens/themes/create_modal.cljs:144, src/app/main/ui/workspace/tokens/themes/create_modal.cljs:458, src/app/main/ui/workspace/webgl_unavailable_modal.cljs:56
+#: src/app/main/data/common.cljs:96, src/app/main/ui/confirm.cljs:78, src/app/main/ui/dashboard/comments.cljs:123, src/app/main/ui/dashboard/projects.cljs:98, src/app/main/ui/ds/product/panel_title.cljs:32, src/app/main/ui/exports/files.cljs:192, src/app/main/ui/nitrate/nitrate_code_activation_modal.cljs:72, src/app/main/ui/settings/integrations.cljs:141, src/app/main/ui/settings/integrations.cljs:260, src/app/main/ui/settings/integrations.cljs:300, src/app/main/ui/settings/integrations.cljs:342, src/app/main/ui/settings/subscription.cljs:383, src/app/main/ui/viewer/login.cljs:71, src/app/main/ui/viewer/share_link.cljs:175, src/app/main/ui/workspace/libraries.cljs:683, src/app/main/ui/workspace/sidebar/branches.cljs:279, src/app/main/ui/workspace/sidebar/branches.cljs:359, src/app/main/ui/workspace/sidebar/branches.cljs:457, src/app/main/ui/workspace/sidebar/branches.cljs:530, src/app/main/ui/workspace/sidebar/branches.cljs:1047, src/app/main/ui/workspace/sidebar/branches.cljs:1422, src/app/main/ui/workspace/sidebar/layers.cljs:579, src/app/main/ui/workspace/sidebar/options/menus/typography.cljs:545, src/app/main/ui/workspace/sidebar/options/menus/typography.cljs:568, src/app/main/ui/workspace/sidebar/options/menus/variants_help_modal.cljs:43, src/app/main/ui/workspace/sidebar/pull_requests.cljs:155, src/app/main/ui/workspace/sidebar/pull_requests.cljs:246, src/app/main/ui/workspace/sidebar/pull_requests.cljs:348, src/app/main/ui/workspace/sidebar.cljs:268, src/app/main/ui/workspace/tokens/export.cljs:25, src/app/main/ui/workspace/tokens/import.cljs:19, src/app/main/ui/workspace/tokens/import_from_library.cljs:63, src/app/main/ui/workspace/tokens/management/forms/modals.cljs:99, src/app/main/ui/workspace/tokens/management/forms/rename_node_modal.cljs:114, src/app/main/ui/workspace/tokens/remapping_modal.cljs:93, src/app/main/ui/workspace/tokens/settings/menu.cljs:77, src/app/main/ui/workspace/tokens/themes/create_modal.cljs:61, src/app/main/ui/workspace/tokens/themes/create_modal.cljs:144, src/app/main/ui/workspace/tokens/themes/create_modal.cljs:458, src/app/main/ui/workspace/webgl_unavailable_modal.cljs:56
 msgid "labels.close"
 msgstr "Fechar"
 
@@ -1663,7 +1663,7 @@ msgstr "Marcar como resolvido"
 msgid "labels.comments"
 msgstr "Comentários"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:1178, src/app/main/ui/workspace/main_menu.cljs:160
+#: src/app/main/ui/dashboard/sidebar.cljs:1201, src/app/main/ui/workspace/main_menu.cljs:162
 msgid "labels.community"
 msgstr "Comunidade"
 
@@ -1671,7 +1671,7 @@ msgstr "Comunidade"
 msgid "labels.confirm-password"
 msgstr "Confirmar palavra-passe"
 
-#: src/app/main/ui/auth/login.cljs:203, src/app/main/ui/dashboard/deleted.cljs:45, src/app/main/ui/dashboard/deleted.cljs:278, src/app/main/ui/dashboard/file_menu.cljs:210, src/app/main/ui/dashboard/import.cljs:547, src/app/main/ui/dashboard/team.cljs:873, src/app/main/ui/exports/files.cljs:172, src/app/main/ui/settings/subscription.cljs:309, src/app/main/ui/settings/subscription.cljs:343
+#: src/app/main/ui/auth/login.cljs:203, src/app/main/ui/dashboard/deleted.cljs:45, src/app/main/ui/dashboard/deleted.cljs:278, src/app/main/ui/dashboard/file_menu.cljs:211, src/app/main/ui/dashboard/import.cljs:547, src/app/main/ui/dashboard/team.cljs:873, src/app/main/ui/exports/files.cljs:172, src/app/main/ui/settings/subscription.cljs:309, src/app/main/ui/settings/subscription.cljs:343
 msgid "labels.continue"
 msgstr "Continuar"
 
@@ -1711,7 +1711,7 @@ msgstr "Fonte personalizada"
 msgid "labels.dashboard"
 msgstr "Painel"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:337, src/app/main/ui/dashboard/fonts.cljs:286, src/app/main/ui/dashboard/fonts.cljs:363, src/app/main/ui/dashboard/fonts.cljs:397, src/app/main/ui/dashboard/project_menu.cljs:115, src/app/main/ui/dashboard/team.cljs:1379, src/app/main/ui/settings/integrations.cljs:389, src/app/main/ui/settings/profile.cljs:117, src/app/main/ui/settings/profile.cljs:128, src/app/main/ui/settings/profile.cljs:129, src/app/main/ui/workspace/sidebar/assets/common.cljs:231, src/app/main/ui/workspace/sidebar/options/menus/component.cljs:223, src/app/main/ui/workspace/sidebar/versions.cljs:258, src/app/main/ui/workspace/tokens/management/forms/generic_form.cljs:353, src/app/main/ui/workspace/tokens/management/node_context_menu.cljs:111, src/app/main/ui/workspace/tokens/sets/context_menu.cljs:66, src/app/main/ui/workspace/tokens/themes/create_modal.cljs:378
+#: src/app/main/ui/dashboard/file_menu.cljs:349, src/app/main/ui/dashboard/fonts.cljs:286, src/app/main/ui/dashboard/fonts.cljs:363, src/app/main/ui/dashboard/fonts.cljs:397, src/app/main/ui/dashboard/project_menu.cljs:115, src/app/main/ui/dashboard/team.cljs:1379, src/app/main/ui/settings/integrations.cljs:389, src/app/main/ui/settings/profile.cljs:117, src/app/main/ui/settings/profile.cljs:128, src/app/main/ui/settings/profile.cljs:129, src/app/main/ui/workspace/sidebar/assets/common.cljs:231, src/app/main/ui/workspace/sidebar/branches.cljs:630, src/app/main/ui/workspace/sidebar/branches.cljs:700, src/app/main/ui/workspace/sidebar/options/menus/component.cljs:223, src/app/main/ui/workspace/sidebar/versions.cljs:258, src/app/main/ui/workspace/tokens/management/forms/generic_form.cljs:353, src/app/main/ui/workspace/tokens/management/node_context_menu.cljs:111, src/app/main/ui/workspace/tokens/sets/context_menu.cljs:66, src/app/main/ui/workspace/tokens/themes/create_modal.cljs:378
 msgid "labels.delete"
 msgstr "Eliminar"
 
@@ -1727,7 +1727,7 @@ msgstr "Eliminar tópico"
 msgid "labels.delete-invitation"
 msgstr "Eliminar convite"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:292
+#: src/app/main/ui/dashboard/file_menu.cljs:293
 msgid "labels.delete-multi-files"
 msgstr "Eliminar %s ficheiros"
 
@@ -1744,11 +1744,11 @@ msgstr "Diretor"
 msgid "labels.discard"
 msgstr "Descartar"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:30, src/app/main/ui/dashboard/files.cljs:79, src/app/main/ui/dashboard/files.cljs:177, src/app/main/ui/dashboard/projects.cljs:225, src/app/main/ui/dashboard/projects.cljs:229, src/app/main/ui/dashboard/sidebar.cljs:1065
+#: src/app/main/ui/dashboard/file_menu.cljs:31, src/app/main/ui/dashboard/files.cljs:79, src/app/main/ui/dashboard/files.cljs:177, src/app/main/ui/dashboard/projects.cljs:225, src/app/main/ui/dashboard/projects.cljs:229, src/app/main/ui/dashboard/sidebar.cljs:1088
 msgid "labels.drafts"
 msgstr "Rascunhos"
 
-#: src/app/main/ui/comments.cljs:1011, src/app/main/ui/dashboard/fonts.cljs:280, src/app/main/ui/dashboard/team.cljs:1377, src/app/main/ui/workspace/sidebar/options/menus/component.cljs:218, src/app/main/ui/workspace/tokens/themes.cljs:52
+#: src/app/main/ui/comments.cljs:1011, src/app/main/ui/dashboard/fonts.cljs:280, src/app/main/ui/dashboard/team.cljs:1377, src/app/main/ui/workspace/sidebar/branches.cljs:466, src/app/main/ui/workspace/sidebar/options/menus/component.cljs:218, src/app/main/ui/workspace/tokens/themes.cljs:52
 msgid "labels.edit"
 msgstr "Editar"
 
@@ -1756,7 +1756,7 @@ msgstr "Editar"
 msgid "labels.edit-file"
 msgstr "Editar ficheiro"
 
-#: src/app/main/ui/dashboard/team.cljs:147, src/app/main/ui/dashboard/team.cljs:399, src/app/main/ui/dashboard/team.cljs:646, src/app/main/ui/dashboard/team.cljs:679, src/app/main/ui/onboarding/team_choice.cljs:70
+#: src/app/main/ui/dashboard/team.cljs:147, src/app/main/ui/dashboard/team.cljs:399, src/app/main/ui/dashboard/team.cljs:646, src/app/main/ui/dashboard/team.cljs:679, src/app/main/ui/onboarding/team_choice.cljs:71
 msgid "labels.editor"
 msgstr "Editor"
 
@@ -1797,7 +1797,7 @@ msgstr "Provedores de fontes"
 msgid "labels.font-variants"
 msgstr "Variantes"
 
-#: src/app/main/ui/dashboard/fonts.cljs:74, src/app/main/ui/dashboard/sidebar.cljs:1078
+#: src/app/main/ui/dashboard/fonts.cljs:74, src/app/main/ui/dashboard/sidebar.cljs:1101
 msgid "labels.fonts"
 msgstr "Fontes"
 
@@ -1811,11 +1811,11 @@ msgstr "CEO ou Fundador"
 msgid "labels.freelancer"
 msgstr "Sou trabalhador(a) independente (freelancer)"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:1172, src/app/main/ui/workspace/main_menu.cljs:196
+#: src/app/main/ui/dashboard/sidebar.cljs:1195, src/app/main/ui/workspace/main_menu.cljs:198
 msgid "labels.github-repo"
 msgstr "Repositório Github"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:1148, src/app/main/ui/workspace/main_menu.cljs:225
+#: src/app/main/ui/dashboard/sidebar.cljs:1171, src/app/main/ui/workspace/main_menu.cljs:227
 msgid "labels.give-feedback"
 msgstr "Dá feedback"
 
@@ -1827,7 +1827,7 @@ msgstr "Voltar atrás"
 msgid "labels.graphic-design"
 msgstr "Design gráfico"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:1131, src/app/main/ui/workspace/main_menu.cljs:151, src/app/main/ui/workspace/sidebar/options/menus/layout_container.cljs:1344, src/app/main/ui/workspace/sidebar/options/menus/layout_container.cljs:1372, src/app/main/ui/workspace/sidebar/options/menus/layout_container.cljs:1561
+#: src/app/main/ui/dashboard/sidebar.cljs:1154, src/app/main/ui/workspace/main_menu.cljs:153, src/app/main/ui/workspace/sidebar/options/menus/layout_container.cljs:1346, src/app/main/ui/workspace/sidebar/options/menus/layout_container.cljs:1374, src/app/main/ui/workspace/sidebar/options/menus/layout_container.cljs:1563
 msgid "labels.help-center"
 msgstr "Centro de Ajuda"
 
@@ -1863,7 +1863,7 @@ msgstr "Erro interno"
 msgid "labels.invision"
 msgstr "InVision"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:547, src/app/main/ui/dashboard/team.cljs:115, src/app/main/ui/dashboard/team.cljs:123, src/app/main/ui/dashboard/team.cljs:1153
+#: src/app/main/ui/dashboard/sidebar.cljs:548, src/app/main/ui/dashboard/team.cljs:115, src/app/main/ui/dashboard/team.cljs:123, src/app/main/ui/dashboard/team.cljs:1153
 msgid "labels.invitations"
 msgstr "Convites"
 
@@ -1871,11 +1871,11 @@ msgstr "Convites"
 msgid "labels.language"
 msgstr "Idioma"
 
-#: src/app/main/ui/workspace/main_menu.cljs:187
+#: src/app/main/ui/workspace/main_menu.cljs:189
 msgid "labels.libraries-and-templates"
 msgstr "Bibliotecas e Templates"
 
-#: src/app/main/ui/auth/verify_token.cljs:125, src/app/main/ui/dashboard/grid.cljs:126, src/app/main/ui/dashboard/grid.cljs:146, src/app/main/ui/dashboard/import.cljs:255, src/app/main/ui/dashboard/placeholder.cljs:139, src/app/main/ui/ds/product/loader.cljs:85, src/app/main/ui/exports/files.cljs:59, src/app/main/ui/nitrate/entry.cljs:26, src/app/main/ui/static.cljs:615, src/app/main/ui/viewer.cljs:641, src/app/main/ui/workspace/sidebar/assets/file_library.cljs:247, src/app/main/ui/workspace.cljs:131, src/app/main/ui.cljs:71, src/app/main/ui.cljs:109, src/app/main/ui.cljs:128
+#: src/app/main/ui/auth/verify_token.cljs:125, src/app/main/ui/dashboard/grid.cljs:127, src/app/main/ui/dashboard/grid.cljs:147, src/app/main/ui/dashboard/import.cljs:255, src/app/main/ui/dashboard/placeholder.cljs:139, src/app/main/ui/ds/product/loader.cljs:85, src/app/main/ui/exports/files.cljs:59, src/app/main/ui/nitrate/entry.cljs:26, src/app/main/ui/static.cljs:615, src/app/main/ui/viewer.cljs:642, src/app/main/ui/workspace/sidebar/assets/file_library.cljs:247, src/app/main/ui/workspace.cljs:144, src/app/main/ui.cljs:71, src/app/main/ui.cljs:109, src/app/main/ui.cljs:128
 msgid "labels.loading"
 msgstr "A carregar…"
 
@@ -1887,7 +1887,7 @@ msgstr "Iniciar sessão ou registar"
 msgid "labels.login"
 msgstr "Iniciar sessão"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:1405
+#: src/app/main/ui/dashboard/sidebar.cljs:1428
 msgid "labels.logout"
 msgstr "Terminar sessão"
 
@@ -1899,7 +1899,7 @@ msgstr "Marketing"
 msgid "labels.member"
 msgstr "Membro"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:543, src/app/main/ui/dashboard/team.cljs:113, src/app/main/ui/dashboard/team.cljs:121
+#: src/app/main/ui/dashboard/sidebar.cljs:544, src/app/main/ui/dashboard/team.cljs:113, src/app/main/ui/dashboard/team.cljs:121
 msgid "labels.members"
 msgstr "Membros"
 
@@ -1911,7 +1911,7 @@ msgstr "Palavra-passe nova"
 msgid "labels.next"
 msgstr "Seguinte"
 
-#: src/app/main/ui/dashboard/comments.cljs:120, src/app/main/ui/workspace/comments.cljs:162
+#: src/app/main/ui/dashboard/comments.cljs:158, src/app/main/ui/workspace/comments.cljs:162
 msgid "labels.no-comments-available"
 msgstr "Não tens notificações de comentários pendentes."
 
@@ -1963,7 +1963,7 @@ msgstr "Palavra-passe antiga"
 msgid "labels.only-yours"
 msgstr "Apenas teu"
 
-#: src/app/main/ui/comments.cljs:929, src/app/main/ui/comments.cljs:994, src/app/main/ui/settings/integrations.cljs:413, src/app/main/ui/workspace/sidebar/options/menus/interactions.cljs:402, src/app/main/ui/workspace/sidebar/options/menus/text.cljs:579
+#: src/app/main/ui/comments.cljs:929, src/app/main/ui/comments.cljs:994, src/app/main/ui/settings/integrations.cljs:413, src/app/main/ui/workspace/sidebar/branches.cljs:675, src/app/main/ui/workspace/sidebar/options/menus/interactions.cljs:402, src/app/main/ui/workspace/sidebar/options/menus/text.cljs:579, src/app/main/ui/workspace/sidebar/pull_requests.cljs:548, src/app/main/ui/workspace/top_toolbar.cljs:87
 msgid "labels.options"
 msgstr "Opções"
 
@@ -2007,11 +2007,11 @@ msgstr "Product Management"
 msgid "labels.profile"
 msgstr "Perfil"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:1058
+#: src/app/main/ui/dashboard/sidebar.cljs:1081
 msgid "labels.projects"
 msgstr "Projetos"
 
-#: src/app/main/ui/settings/sidebar.cljs:128, src/app/main/ui/workspace/main_menu.cljs:178
+#: src/app/main/ui/settings/sidebar.cljs:128, src/app/main/ui/workspace/main_menu.cljs:180
 msgid "labels.release-notes"
 msgstr "Notas de versões"
 
@@ -2028,7 +2028,7 @@ msgstr "Remover"
 msgid "labels.remove-member"
 msgstr "Remover membro"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:300, src/app/main/ui/dashboard/project_menu.cljs:88, src/app/main/ui/dashboard/sidebar.cljs:564, src/app/main/ui/workspace/sidebar/assets/groups.cljs:186, src/app/main/ui/workspace/sidebar/versions.cljs:229, src/app/main/ui/workspace/tokens/management/forms/rename_node_modal.cljs:76, src/app/main/ui/workspace/tokens/management/node_context_menu.cljs:101, src/app/main/ui/workspace/tokens/sets/context_menu.cljs:63
+#: src/app/main/ui/dashboard/file_menu.cljs:301, src/app/main/ui/dashboard/project_menu.cljs:88, src/app/main/ui/dashboard/sidebar.cljs:565, src/app/main/ui/workspace/sidebar/assets/groups.cljs:186, src/app/main/ui/workspace/sidebar/branches.cljs:694, src/app/main/ui/workspace/sidebar/versions.cljs:229, src/app/main/ui/workspace/tokens/management/forms/rename_node_modal.cljs:76, src/app/main/ui/workspace/tokens/management/node_context_menu.cljs:101, src/app/main/ui/workspace/tokens/sets/context_menu.cljs:63
 msgid "labels.rename"
 msgstr "Renomear"
 
@@ -2072,7 +2072,7 @@ msgstr "Tentar novamente"
 msgid "labels.role"
 msgstr "Cargo"
 
-#: src/app/main/ui/dashboard/fonts.cljs:435, src/app/main/ui/workspace/sidebar/options/menus/component.cljs:204, src/app/main/ui/workspace/tokens/management/forms/generic_form.cljs:364, src/app/main/ui/workspace/tokens/settings/menu.cljs:109
+#: src/app/main/ui/dashboard/fonts.cljs:435, src/app/main/ui/workspace/sidebar/branches.cljs:477, src/app/main/ui/workspace/sidebar/options/menus/component.cljs:204, src/app/main/ui/workspace/tokens/management/forms/generic_form.cljs:364, src/app/main/ui/workspace/tokens/settings/menu.cljs:109
 msgid "labels.save"
 msgstr "Salvar"
 
@@ -2104,7 +2104,7 @@ msgstr "Estamos numa manutenção programada dos nossos sistemas."
 msgid "labels.service-unavailable.main-message"
 msgstr "Serviço Indisponível"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:557, src/app/main/ui/dashboard/team.cljs:114, src/app/main/ui/dashboard/team.cljs:128, src/app/main/ui/settings/options.cljs:128, src/app/main/ui/settings/sidebar.cljs:107
+#: src/app/main/ui/dashboard/sidebar.cljs:558, src/app/main/ui/dashboard/team.cljs:114, src/app/main/ui/dashboard/team.cljs:128, src/app/main/ui/settings/options.cljs:128, src/app/main/ui/settings/sidebar.cljs:107
 msgid "labels.settings"
 msgstr "Definições"
 
@@ -2116,7 +2116,7 @@ msgstr "Partilhar"
 msgid "labels.share-prototype"
 msgstr "Partilhar protótipo"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:1085
+#: src/app/main/ui/dashboard/sidebar.cljs:1108
 msgid "labels.shared-libraries"
 msgstr "Bibliotecas"
 
@@ -2166,7 +2166,7 @@ msgstr "Membro de equipa"
 msgid "labels.themes"
 msgstr "Temas"
 
-#: src/app/main/ui/workspace/main_menu.cljs:169
+#: src/app/main/ui/workspace/main_menu.cljs:171
 msgid "labels.tutorials"
 msgstr "Tutoriais"
 
@@ -2174,7 +2174,7 @@ msgstr "Tutoriais"
 msgid "labels.unknown-error"
 msgstr "Erro desconhecido"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:286
+#: src/app/main/ui/dashboard/file_menu.cljs:287
 msgid "labels.unpublish-multi-files"
 msgstr "Despublicar %s ficheiros"
 
@@ -2202,11 +2202,11 @@ msgstr "Carregando…"
 msgid "labels.view-only"
 msgstr "Somente leitura"
 
-#: src/app/main/ui/dashboard/team.cljs:146, src/app/main/ui/dashboard/team.cljs:396, src/app/main/ui/dashboard/team.cljs:647, src/app/main/ui/dashboard/team.cljs:683, src/app/main/ui/onboarding/team_choice.cljs:69
+#: src/app/main/ui/dashboard/team.cljs:146, src/app/main/ui/dashboard/team.cljs:396, src/app/main/ui/dashboard/team.cljs:647, src/app/main/ui/dashboard/team.cljs:683, src/app/main/ui/onboarding/team_choice.cljs:70
 msgid "labels.viewer"
 msgstr "Visualizador"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:552, src/app/main/ui/dashboard/team.cljs:116, src/app/main/ui/dashboard/team.cljs:126, src/app/main/ui/dashboard/team.cljs:1356
+#: src/app/main/ui/dashboard/sidebar.cljs:553, src/app/main/ui/dashboard/team.cljs:116, src/app/main/ui/dashboard/team.cljs:126, src/app/main/ui/dashboard/team.cljs:1356
 msgid "labels.webhooks"
 msgstr "Webhooks"
 
@@ -2218,7 +2218,7 @@ msgstr "Escrever novo comentário"
 msgid "labels.you"
 msgstr "(tu)"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:1358
+#: src/app/main/ui/dashboard/sidebar.cljs:1381
 msgid "labels.your-account"
 msgstr "A tua conta"
 
@@ -2444,27 +2444,27 @@ msgstr "Tens a certeza que queres apagar esta nota?"
 msgid "modals.delete-component-annotation.title"
 msgstr "Apagar nota"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:126
+#: src/app/main/ui/dashboard/file_menu.cljs:127
 msgid "modals.delete-file-confirm.accept"
 msgstr "Eliminar ficheiro"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:125
+#: src/app/main/ui/dashboard/file_menu.cljs:126
 msgid "modals.delete-file-confirm.message"
 msgstr "Tens a certeza de que pretendes eliminar este ficheiro?"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:124
+#: src/app/main/ui/dashboard/file_menu.cljs:125
 msgid "modals.delete-file-confirm.title"
 msgstr "Eliminando ficheiro"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:120
+#: src/app/main/ui/dashboard/file_menu.cljs:121
 msgid "modals.delete-file-multi-confirm.accept"
 msgstr "Eliminar ficheiros"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:119
+#: src/app/main/ui/dashboard/file_menu.cljs:120
 msgid "modals.delete-file-multi-confirm.message"
 msgstr "Tens a certeza de que pretendes eliminar %s ficheiros?"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:118
+#: src/app/main/ui/dashboard/file_menu.cljs:119
 msgid "modals.delete-file-multi-confirm.title"
 msgstr "Eliminando %s ficheiros"
 
@@ -2538,17 +2538,17 @@ msgid_plural "modals.delete-shared-confirm.title"
 msgstr[0] "Eliminando ficheiro"
 msgstr[1] "Eliminando ficheiros"
 
-#: src/app/main/data/team.cljs:136
+#: src/app/main/data/team.cljs:160
 msgid "modals.delete-team-confirm.accept"
 msgstr "Eliminar equipa"
 
-#: src/app/main/data/team.cljs:130
+#: src/app/main/data/team.cljs:154
 msgid "modals.delete-team-confirm.message"
 msgstr ""
 "Tens a certeza de que pretendes eliminar esta equipa? Todos os projetos e "
 "ficheiros associados com a equipa serão eliminados permanentemente."
 
-#: src/app/main/data/team.cljs:134
+#: src/app/main/data/team.cljs:158
 msgid "modals.delete-team-confirm.title"
 msgstr "Eliminando equipa"
 
@@ -2598,7 +2598,7 @@ msgstr "Editar webhook"
 msgid "modals.invite-member-confirm.accept"
 msgstr "Enviar convite"
 
-#: src/app/main/ui/dashboard/team.cljs:269, src/app/main/ui/onboarding/team_choice.cljs:214
+#: src/app/main/ui/dashboard/team.cljs:269, src/app/main/ui/onboarding/team_choice.cljs:222
 msgid "modals.invite-member.emails"
 msgstr "E-mails, separados por vírgulas"
 
@@ -2614,17 +2614,17 @@ msgstr ""
 "Podes convidar membros para a equipa para que estes possam ter acesso a "
 "este ficheiro e todos os ficheiros da equipa."
 
-#: src/app/main/data/team.cljs:165, src/app/main/ui/dashboard/team.cljs:242
+#: src/app/main/data/team.cljs:189, src/app/main/ui/dashboard/team.cljs:242
 msgid "modals.invite-team-member.title"
 msgstr "Convidar membros para a equipa"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:527, src/app/main/ui/dashboard/team.cljs:508
+#: src/app/main/ui/dashboard/sidebar.cljs:528, src/app/main/ui/dashboard/team.cljs:508
 msgid "modals.leave-and-close-confirm.hint"
 msgstr ""
 "Como és o único membro desta equipa, a equipa será eliminado juntamente com "
 "os projetos e ficheiros."
 
-#: src/app/main/ui/dashboard/sidebar.cljs:526, src/app/main/ui/dashboard/team.cljs:507
+#: src/app/main/ui/dashboard/sidebar.cljs:527, src/app/main/ui/dashboard/team.cljs:507
 msgid "modals.leave-and-close-confirm.message"
 msgstr "Tens a certeza de que pretendes sair da equipa %s?"
 
@@ -2652,15 +2652,15 @@ msgstr "Seleciona um membro para promover"
 msgid "modals.leave-and-reassign.title"
 msgstr "Antes de saires"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:506, src/app/main/ui/dashboard/sidebar.cljs:528, src/app/main/ui/dashboard/team.cljs:509, src/app/main/ui/dashboard/team.cljs:531
+#: src/app/main/ui/dashboard/sidebar.cljs:507, src/app/main/ui/dashboard/sidebar.cljs:529, src/app/main/ui/dashboard/team.cljs:509, src/app/main/ui/dashboard/team.cljs:531
 msgid "modals.leave-confirm.accept"
 msgstr "Sair da equipa"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:505, src/app/main/ui/dashboard/team.cljs:530
+#: src/app/main/ui/dashboard/sidebar.cljs:506, src/app/main/ui/dashboard/team.cljs:530
 msgid "modals.leave-confirm.message"
 msgstr "Tens a certeza de que pretendes sair desta equipa?"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:504, src/app/main/ui/dashboard/sidebar.cljs:525, src/app/main/ui/dashboard/team.cljs:506, src/app/main/ui/dashboard/team.cljs:529
+#: src/app/main/ui/dashboard/sidebar.cljs:505, src/app/main/ui/dashboard/sidebar.cljs:526, src/app/main/ui/dashboard/team.cljs:506, src/app/main/ui/dashboard/team.cljs:529
 msgid "modals.leave-confirm.title"
 msgstr "Saindo da equipa"
 
@@ -2682,7 +2682,7 @@ msgid_plural "modals.move-shared-confirm.title"
 msgstr[0] "Mover biblioteca"
 msgstr[1] "Mover bibliotecas"
 
-#: src/app/main/ui/workspace/main_menu.cljs:312, src/app/main/ui/workspace/nudge.cljs:46
+#: src/app/main/ui/workspace/main_menu.cljs:314, src/app/main/ui/workspace/nudge.cljs:46
 msgid "modals.nudge-title"
 msgstr "Montante de deslocamento"
 
@@ -2802,11 +2802,11 @@ msgstr ""
 "O Penpot é a ferramenta de design gratuita e de código aberto para a "
 "colaboração entre designers e programadores"
 
-#: src/app/main/ui/auth/recovery_request.cljs:114
+#: src/app/main/ui/auth/recovery_request.cljs:113
 msgid "not-found.login.sent-recovery"
 msgstr "Enviámos um email de recuperação para"
 
-#: src/app/main/ui/auth/recovery_request.cljs:116
+#: src/app/main/ui/auth/recovery_request.cljs:115
 msgid "not-found.login.sent-recovery-check"
 msgstr "Verifica o teu email e clica no link para criares uma nova palavra-passe."
 
@@ -2979,7 +2979,7 @@ msgstr ""
 msgid "onboarding-v2.welcome.desc3.title"
 msgstr "Guia de Contribuição"
 
-#: src/app/main/ui/onboarding/team_choice.cljs:248
+#: src/app/main/ui/onboarding/team_choice.cljs:251
 msgid "onboarding-v2.welcome.title"
 msgstr "Bem-vindo ao Penpot!"
 
@@ -2988,11 +2988,11 @@ msgstr "Bem-vindo ao Penpot!"
 msgid "onboarding.choice.team-up.continue-creating-team"
 msgstr "Continuar criação de equipa"
 
-#: src/app/main/ui/onboarding/team_choice.cljs:239
+#: src/app/main/ui/onboarding/team_choice.cljs:242
 msgid "onboarding.choice.team-up.continue-without-a-team"
 msgstr "Continuar sem equipa"
 
-#: src/app/main/ui/onboarding/team_choice.cljs:227
+#: src/app/main/ui/onboarding/team_choice.cljs:236
 msgid "onboarding.choice.team-up.create-team-and-invite"
 msgstr "Criar equipa e convidar"
 
@@ -3001,18 +3001,20 @@ msgid "onboarding.choice.team-up.create-team-and-send-invites"
 msgstr "Criar equipa e enviar convites"
 
 #: src/app/main/ui/onboarding/team_choice.cljs:234
+#, unused
 msgid "onboarding.choice.team-up.create-team-and-send-invites-description"
 msgstr "Poderás enviar convites mais tarde"
 
-#: src/app/main/ui/onboarding/team_choice.cljs:193
+#: src/app/main/ui/onboarding/team_choice.cljs:201
 msgid "onboarding.choice.team-up.create-team-desc"
 msgstr "Depois de nomeares a tua equipa, poderás convidar pessoas para entrar."
 
 #: src/app/main/ui/onboarding/team_choice.cljs:188
+#, unused
 msgid "onboarding.choice.team-up.create-team-placeholder"
 msgstr "Escreve o nome da equipa"
 
-#: src/app/main/ui/onboarding/team_choice.cljs:228
+#: src/app/main/ui/onboarding/team_choice.cljs:237
 msgid "onboarding.choice.team-up.create-team-without-invite"
 msgstr "Criar equipa"
 
@@ -3020,11 +3022,12 @@ msgstr "Criar equipa"
 msgid "onboarding.choice.team-up.create-team-without-inviting"
 msgstr "Criar equipa sem convidar"
 
-#: src/app/main/ui/dashboard/projects.cljs:94, src/app/main/ui/onboarding/team_choice.cljs:199
+#: src/app/main/ui/dashboard/projects.cljs:94, src/app/main/ui/onboarding/team_choice.cljs:207
 msgid "onboarding.choice.team-up.invite-members"
 msgstr "Convida membros"
 
-#: src/app/main/ui/onboarding/team_choice.cljs:218
+#: src/app/main/ui/onboarding/team_choice.cljs:187
+#, unused
 msgid "onboarding.choice.team-up.invite-members-info"
 msgstr ""
 "Lembra-te em incluir todos. Programadores, designers, gestores... "
@@ -3217,37 +3220,37 @@ msgstr "Uso pessoal"
 msgid "onboarding.questions.use.work"
 msgstr "Trabalho"
 
-#: src/app/main/ui/onboarding/team_choice.cljs:182
+#: src/app/main/ui/onboarding/team_choice.cljs:183
 msgid "onboarding.team-modal.create-team"
 msgstr "Cria uma equipa"
 
-#: src/app/main/ui/onboarding/team_choice.cljs:53
+#: src/app/main/ui/onboarding/team_choice.cljs:54
 msgid "onboarding.team-modal.create-team-desc"
 msgstr ""
 "Uma equipa permite que colabores com outros utilizadores do Penpot "
 "trabalhando nos mesmos ficheiros e projetos."
 
-#: src/app/main/ui/onboarding/team_choice.cljs:57
+#: src/app/main/ui/onboarding/team_choice.cljs:58
 msgid "onboarding.team-modal.create-team-feature-1"
 msgstr "Ficheiros e projetos ilimitados"
 
-#: src/app/main/ui/onboarding/team_choice.cljs:59
+#: src/app/main/ui/onboarding/team_choice.cljs:60
 msgid "onboarding.team-modal.create-team-feature-2"
 msgstr "Edição Multiplayer"
 
-#: src/app/main/ui/onboarding/team_choice.cljs:61
+#: src/app/main/ui/onboarding/team_choice.cljs:62
 msgid "onboarding.team-modal.create-team-feature-3"
 msgstr "Gestão de funções"
 
-#: src/app/main/ui/onboarding/team_choice.cljs:63
+#: src/app/main/ui/onboarding/team_choice.cljs:64
 msgid "onboarding.team-modal.create-team-feature-4"
 msgstr "Membros ilimitados"
 
-#: src/app/main/ui/onboarding/team_choice.cljs:65
+#: src/app/main/ui/onboarding/team_choice.cljs:66
 msgid "onboarding.team-modal.create-team-feature-5"
 msgstr "100% grátis!"
 
-#: src/app/main/ui/onboarding/team_choice.cljs:48
+#: src/app/main/ui/onboarding/team_choice.cljs:49
 msgid "onboarding.team-modal.team-definition"
 msgstr "O que é uma equipa?"
 
@@ -3317,7 +3320,7 @@ msgstr "Genérico"
 msgid "shortcut-subsection.general-viewer"
 msgstr "Genérico"
 
-#: src/app/main/ui/workspace/main_menu.cljs:1005, src/app/main/ui/workspace/sidebar/shortcuts.cljs:62
+#: src/app/main/ui/workspace/main_menu.cljs:1035, src/app/main/ui/workspace/sidebar/shortcuts.cljs:62
 msgid "shortcut-subsection.main-menu"
 msgstr "Menu Principal"
 
@@ -3981,7 +3984,7 @@ msgstr "Webhooks - %s - Penpot"
 msgid "title.viewer"
 msgstr "%s - Modo visualizador - Penpot"
 
-#: src/app/main/ui/workspace.cljs:239
+#: src/app/main/ui/workspace.cljs:252
 msgid "title.workspace"
 msgstr "%s - Penpot"
 
@@ -4094,7 +4097,7 @@ msgstr "Recursos"
 msgid "workspace.assets.box-filter-all"
 msgstr "Todos os recursos"
 
-#: src/app/main/ui/dashboard/grid.cljs:160, src/app/main/ui/dashboard/grid.cljs:192, src/app/main/ui/workspace/colorpicker/libraries.cljs:362, src/app/main/ui/workspace/colorpicker/libraries.cljs:379, src/app/main/ui/workspace/colorpicker/libraries.cljs:393, src/app/main/ui/workspace/sidebar/assets/colors.cljs:512, src/app/main/ui/workspace/sidebar/assets.cljs:164
+#: src/app/main/ui/dashboard/grid.cljs:161, src/app/main/ui/dashboard/grid.cljs:193, src/app/main/ui/workspace/colorpicker/libraries.cljs:362, src/app/main/ui/workspace/colorpicker/libraries.cljs:379, src/app/main/ui/workspace/colorpicker/libraries.cljs:393, src/app/main/ui/workspace/sidebar/assets/colors.cljs:512, src/app/main/ui/workspace/sidebar/assets.cljs:164
 msgid "workspace.assets.colors"
 msgstr "Cores"
 
@@ -4102,7 +4105,7 @@ msgstr "Cores"
 msgid "workspace.assets.colors.add-color"
 msgstr "Adicionar cor"
 
-#: src/app/main/ui/dashboard/grid.cljs:156, src/app/main/ui/dashboard/grid.cljs:171, src/app/main/ui/workspace/sidebar/assets/components.cljs:588, src/app/main/ui/workspace/sidebar/assets.cljs:161
+#: src/app/main/ui/dashboard/grid.cljs:157, src/app/main/ui/dashboard/grid.cljs:172, src/app/main/ui/workspace/sidebar/assets/components.cljs:588, src/app/main/ui/workspace/sidebar/assets.cljs:161
 msgid "workspace.assets.components"
 msgstr "Componentes"
 
@@ -4199,7 +4202,7 @@ msgstr[1] "%s componentes"
 msgid "workspace.assets.sort"
 msgstr "Ordenar"
 
-#: src/app/main/ui/dashboard/grid.cljs:164, src/app/main/ui/dashboard/grid.cljs:219, src/app/main/ui/workspace/sidebar/assets/typographies.cljs:422, src/app/main/ui/workspace/sidebar/assets.cljs:167
+#: src/app/main/ui/dashboard/grid.cljs:165, src/app/main/ui/dashboard/grid.cljs:220, src/app/main/ui/workspace/sidebar/assets/typographies.cljs:422, src/app/main/ui/workspace/sidebar/assets.cljs:167
 msgid "workspace.assets.typography"
 msgstr "Tipografias"
 
@@ -4232,7 +4235,7 @@ msgstr "Espaço entre letras"
 msgid "workspace.assets.typography.line-height"
 msgstr "Altura da Linha"
 
-#: src/app/main/ui/dashboard/grid.cljs:229, src/app/main/ui/workspace/libraries.cljs:607, src/app/main/ui/workspace/sidebar/options/menus/typography.cljs:522, src/app/main/ui/workspace/sidebar/options/menus/typography.cljs:560, src/app/main/ui/workspace/sidebar/options/menus/typography.cljs:667, src/app/main/ui/workspace/sidebar/options/menus/typography.cljs:687
+#: src/app/main/ui/dashboard/grid.cljs:230, src/app/main/ui/workspace/libraries.cljs:607, src/app/main/ui/workspace/sidebar/options/menus/typography.cljs:522, src/app/main/ui/workspace/sidebar/options/menus/typography.cljs:560, src/app/main/ui/workspace/sidebar/options/menus/typography.cljs:667, src/app/main/ui/workspace/sidebar/options/menus/typography.cljs:687
 msgid "workspace.assets.typography.sample"
 msgstr "Ag"
 
@@ -4324,11 +4327,11 @@ msgstr "Gradiente linear"
 msgid "workspace.gradients.radial"
 msgstr "Gradiente radial"
 
-#: src/app/main/ui/workspace/main_menu.cljs:288
+#: src/app/main/ui/workspace/main_menu.cljs:290
 msgid "workspace.header.menu.disable-dynamic-alignment"
 msgstr "Desativar alinhamento dinâmico"
 
-#: src/app/main/ui/workspace/main_menu.cljs:249
+#: src/app/main/ui/workspace/main_menu.cljs:251
 msgid "workspace.header.menu.disable-scale-content"
 msgstr "Desativar escala proporcional"
 
@@ -4337,23 +4340,23 @@ msgstr "Desativar escala proporcional"
 msgid "workspace.header.menu.disable-scale-text"
 msgstr "Desativar escala de texto"
 
-#: src/app/main/ui/workspace/main_menu.cljs:275
+#: src/app/main/ui/workspace/main_menu.cljs:277
 msgid "workspace.header.menu.disable-snap-guides"
 msgstr "Desativar ajuste às guias"
 
-#: src/app/main/ui/workspace/main_menu.cljs:301
+#: src/app/main/ui/workspace/main_menu.cljs:303
 msgid "workspace.header.menu.disable-snap-pixel-grid"
 msgstr "Desativar ajuste ao pixel"
 
-#: src/app/main/ui/workspace/main_menu.cljs:262
+#: src/app/main/ui/workspace/main_menu.cljs:264
 msgid "workspace.header.menu.disable-snap-ruler-guides"
 msgstr "Desativar ajuste às guias de régua"
 
-#: src/app/main/ui/workspace/main_menu.cljs:289
+#: src/app/main/ui/workspace/main_menu.cljs:291
 msgid "workspace.header.menu.enable-dynamic-alignment"
 msgstr "Ativar alinhamento dinâmico"
 
-#: src/app/main/ui/workspace/main_menu.cljs:250
+#: src/app/main/ui/workspace/main_menu.cljs:252
 msgid "workspace.header.menu.enable-scale-content"
 msgstr "Ativar escala proporcional"
 
@@ -4362,103 +4365,103 @@ msgstr "Ativar escala proporcional"
 msgid "workspace.header.menu.enable-scale-text"
 msgstr "Ativar escalar texto"
 
-#: src/app/main/ui/workspace/main_menu.cljs:276
+#: src/app/main/ui/workspace/main_menu.cljs:278
 msgid "workspace.header.menu.enable-snap-guides"
 msgstr "Ajustar às guias"
 
-#: src/app/main/ui/workspace/main_menu.cljs:302
+#: src/app/main/ui/workspace/main_menu.cljs:304
 msgid "workspace.header.menu.enable-snap-pixel-grid"
 msgstr "Ativar ajuste ao pixel"
 
-#: src/app/main/ui/workspace/main_menu.cljs:263
+#: src/app/main/ui/workspace/main_menu.cljs:265
 msgid "workspace.header.menu.enable-snap-ruler-guides"
 msgstr "Ajustar às guias de régua"
 
-#: src/app/main/ui/workspace/main_menu.cljs:460
+#: src/app/main/ui/workspace/main_menu.cljs:462
 msgid "workspace.header.menu.hide-artboard-names"
 msgstr "Ocultar nome das pranchetas"
 
-#: src/app/main/ui/workspace/main_menu.cljs:396
+#: src/app/main/ui/workspace/main_menu.cljs:398
 msgid "workspace.header.menu.hide-guides"
 msgstr "Ocultar guias"
 
-#: src/app/main/ui/workspace/main_menu.cljs:435
+#: src/app/main/ui/workspace/main_menu.cljs:437
 msgid "workspace.header.menu.hide-palette"
 msgstr "Ocultar paleta de cor"
 
-#: src/app/main/ui/workspace/main_menu.cljs:472
+#: src/app/main/ui/workspace/main_menu.cljs:474
 msgid "workspace.header.menu.hide-pixel-grid"
 msgstr "Ocultar grade de píxeis"
 
-#: src/app/main/ui/workspace/main_menu.cljs:382
+#: src/app/main/ui/workspace/main_menu.cljs:384
 msgid "workspace.header.menu.hide-rules"
 msgstr "Ocultar réguas"
 
-#: src/app/main/ui/workspace/main_menu.cljs:447
+#: src/app/main/ui/workspace/main_menu.cljs:449
 msgid "workspace.header.menu.hide-textpalette"
 msgstr "Ocultar paleta de texto"
 
-#: src/app/main/ui/workspace/main_menu.cljs:1035
+#: src/app/main/ui/workspace/main_menu.cljs:1065
 msgid "workspace.header.menu.option.edit"
 msgstr "Editar"
 
-#: src/app/main/ui/workspace/main_menu.cljs:1022
+#: src/app/main/ui/workspace/main_menu.cljs:1052
 msgid "workspace.header.menu.option.file"
 msgstr "Ficheiro"
 
-#: src/app/main/ui/workspace/main_menu.cljs:1119
+#: src/app/main/ui/workspace/main_menu.cljs:1149
 msgid "workspace.header.menu.option.help-info"
 msgstr "Ajuda e Informações"
 
-#: src/app/main/ui/workspace/main_menu.cljs:1061
+#: src/app/main/ui/workspace/main_menu.cljs:1091
 msgid "workspace.header.menu.option.preferences"
 msgstr "Preferências"
 
-#: src/app/main/ui/workspace/main_menu.cljs:1048
+#: src/app/main/ui/workspace/main_menu.cljs:1078
 msgid "workspace.header.menu.option.view"
 msgstr "Visualização"
 
-#: src/app/main/ui/workspace/main_menu.cljs:559
+#: src/app/main/ui/workspace/main_menu.cljs:561
 msgid "workspace.header.menu.redo"
 msgstr "Refazer"
 
-#: src/app/main/ui/workspace/main_menu.cljs:523
+#: src/app/main/ui/workspace/main_menu.cljs:525
 msgid "workspace.header.menu.select-all"
 msgstr "Selecionar tudo"
 
-#: src/app/main/ui/workspace/main_menu.cljs:461
+#: src/app/main/ui/workspace/main_menu.cljs:463
 msgid "workspace.header.menu.show-artboard-names"
 msgstr "Mostrar nomes das pranchetas"
 
-#: src/app/main/ui/workspace/main_menu.cljs:397
+#: src/app/main/ui/workspace/main_menu.cljs:399
 msgid "workspace.header.menu.show-guides"
 msgstr "Mostrar guias"
 
-#: src/app/main/ui/workspace/main_menu.cljs:436
+#: src/app/main/ui/workspace/main_menu.cljs:438
 msgid "workspace.header.menu.show-palette"
 msgstr "Mostrar paleta de cor"
 
-#: src/app/main/ui/workspace/main_menu.cljs:473
+#: src/app/main/ui/workspace/main_menu.cljs:475
 msgid "workspace.header.menu.show-pixel-grid"
 msgstr "Mostrar grade de píxeis"
 
-#: src/app/main/ui/workspace/main_menu.cljs:383
+#: src/app/main/ui/workspace/main_menu.cljs:385
 msgid "workspace.header.menu.show-rules"
 msgstr "Mostrar réguas"
 
-#: src/app/main/ui/workspace/main_menu.cljs:448
+#: src/app/main/ui/workspace/main_menu.cljs:450
 msgid "workspace.header.menu.show-textpalette"
 msgstr "Mostrar paleta de texto"
 
-#: src/app/main/ui/workspace/main_menu.cljs:325
+#: src/app/main/ui/workspace/main_menu.cljs:327
 msgid "workspace.header.menu.toggle-dark-theme"
 msgstr "Alterar para tema escuro"
 
-#: src/app/main/ui/workspace/main_menu.cljs:323, src/app/main/ui/workspace/main_menu.cljs:326
+#: src/app/main/ui/workspace/main_menu.cljs:325, src/app/main/ui/workspace/main_menu.cljs:328
 msgid "workspace.header.menu.toggle-light-theme"
 msgstr "Mudar para tema claro"
 
-#: src/app/main/ui/workspace/main_menu.cljs:548
+#: src/app/main/ui/workspace/main_menu.cljs:550
 msgid "workspace.header.menu.undo"
 msgstr "Desfazer"
 
@@ -4466,15 +4469,15 @@ msgstr "Desfazer"
 msgid "workspace.header.reset-zoom"
 msgstr "Ampliar em 100%"
 
-#: src/app/main/ui/workspace/left_header.cljs:123
+#: src/app/main/ui/workspace/left_header.cljs:153
 msgid "workspace.header.save-error"
 msgstr "Erro ao salvar"
 
-#: src/app/main/ui/workspace/left_header.cljs:122
+#: src/app/main/ui/workspace/left_header.cljs:152
 msgid "workspace.header.saved"
 msgstr "Guardado"
 
-#: src/app/main/ui/workspace/left_header.cljs:120, src/app/main/ui/workspace/left_header.cljs:121
+#: src/app/main/ui/workspace/left_header.cljs:150, src/app/main/ui/workspace/left_header.cljs:151
 msgid "workspace.header.saving"
 msgstr "A salvar"
 
@@ -4519,7 +4522,7 @@ msgstr "Aumentar para seleção"
 msgid "workspace.layout-grid.editor.options.edit-grid"
 msgstr "Editar grelha"
 
-#: src/app/main/ui/workspace/sidebar/options/menus/layout_container.cljs:1566
+#: src/app/main/ui/workspace/sidebar/options/menus/layout_container.cljs:1568
 msgid "workspace.layout-grid.editor.options.exit"
 msgstr "Sair"
 
@@ -4539,7 +4542,7 @@ msgstr "Feito"
 msgid "workspace.layout-grid.editor.top-bar.locate"
 msgstr "Localizar"
 
-#: src/app/main/ui/workspace/sidebar/options/menus/layout_container.cljs:1592
+#: src/app/main/ui/workspace/sidebar/options/menus/layout_container.cljs:1594
 msgid "workspace.layout-grid.editor.top-bar.locate.tooltip"
 msgstr "Localizar layout em grelha"
 
@@ -5265,19 +5268,19 @@ msgstr "Camadas selecionadas"
 msgid "workspace.options.layout-item.advanced-ops"
 msgstr "Opções avançadas"
 
-#: src/app/main/ui/workspace/sidebar/options/menus/layout_item.cljs:701, src/app/main/ui/workspace/sidebar/options/menus/layout_item.cljs:708
+#: src/app/main/ui/workspace/sidebar/options/menus/layout_item.cljs:695, src/app/main/ui/workspace/sidebar/options/menus/layout_item.cljs:702
 msgid "workspace.options.layout-item.layout-item-max-h"
 msgstr "Altura.Máx"
 
-#: src/app/main/ui/workspace/sidebar/options/menus/layout_item.cljs:639, src/app/main/ui/workspace/sidebar/options/menus/layout_item.cljs:646
+#: src/app/main/ui/workspace/sidebar/options/menus/layout_item.cljs:633, src/app/main/ui/workspace/sidebar/options/menus/layout_item.cljs:640
 msgid "workspace.options.layout-item.layout-item-max-w"
 msgstr "Largura.Máx"
 
-#: src/app/main/ui/workspace/sidebar/options/menus/layout_item.cljs:670, src/app/main/ui/workspace/sidebar/options/menus/layout_item.cljs:678
+#: src/app/main/ui/workspace/sidebar/options/menus/layout_item.cljs:664, src/app/main/ui/workspace/sidebar/options/menus/layout_item.cljs:672
 msgid "workspace.options.layout-item.layout-item-min-h"
 msgstr "Altura.Min"
 
-#: src/app/main/ui/workspace/sidebar/options/menus/layout_item.cljs:606, src/app/main/ui/workspace/sidebar/options/menus/layout_item.cljs:615
+#: src/app/main/ui/workspace/sidebar/options/menus/layout_item.cljs:600, src/app/main/ui/workspace/sidebar/options/menus/layout_item.cljs:609
 msgid "workspace.options.layout-item.layout-item-min-w"
 msgstr "Largura.Min"
 
@@ -5803,7 +5806,7 @@ msgstr "Descobre [mais plugins](%s)"
 msgid "workspace.plugins.empty-plugins"
 msgstr "Sem plugins instalados"
 
-#: src/app/main/data/plugins.cljs:128, src/app/main/ui/workspace/main_menu.cljs:806, src/app/main/ui/workspace/plugins.cljs:97
+#: src/app/main/data/plugins.cljs:128, src/app/main/ui/workspace/main_menu.cljs:829, src/app/main/ui/workspace/plugins.cljs:97
 msgid "workspace.plugins.error.need-editor"
 msgstr "Precisas de ser um(a) editor(a) para usar este plugin"
 
@@ -5819,11 +5822,11 @@ msgstr "Instalar"
 msgid "workspace.plugins.installed-plugins"
 msgstr "Plugins instalados"
 
-#: src/app/main/ui/workspace/main_menu.cljs:761
+#: src/app/main/ui/workspace/main_menu.cljs:784
 msgid "workspace.plugins.menu.plugins-manager"
 msgstr "Gestor de plugins"
 
-#: src/app/main/ui/workspace/main_menu.cljs:1075
+#: src/app/main/ui/workspace/main_menu.cljs:1105
 msgid "workspace.plugins.menu.title"
 msgstr "Plugins"
 
@@ -5895,7 +5898,7 @@ msgstr "Adicionar layout flex"
 msgid "workspace.shape.menu.add-grid"
 msgstr "Adicionar layout em grelha"
 
-#: src/app/main/ui/workspace/sidebar/options/menus/layout_container.cljs:1295, src/app/main/ui/workspace/sidebar/options/menus/layout_container.cljs:1309
+#: src/app/main/ui/workspace/sidebar/options/menus/layout_container.cljs:1297, src/app/main/ui/workspace/sidebar/options/menus/layout_container.cljs:1311
 msgid "workspace.shape.menu.add-layout"
 msgstr "Adicionar layout"
 
@@ -5951,7 +5954,7 @@ msgstr "Criar múltiplos componentes"
 msgid "workspace.shape.menu.cut"
 msgstr "Recortar"
 
-#: src/app/main/ui/workspace/context_menu.cljs:660, src/app/main/ui/workspace/sidebar/options/menus/layout_container.cljs:1013, src/app/main/ui/workspace/sidebar/options/menus/layout_container.cljs:1317
+#: src/app/main/ui/workspace/context_menu.cljs:660, src/app/main/ui/workspace/sidebar/options/menus/layout_container.cljs:1013, src/app/main/ui/workspace/sidebar/options/menus/layout_container.cljs:1319
 msgid "workspace.shape.menu.delete"
 msgstr "Eliminar"
 
@@ -6020,7 +6023,7 @@ msgstr "Agrupar"
 msgid "workspace.shape.menu.hide"
 msgstr "Ocultar"
 
-#: src/app/main/ui/workspace/context_menu.cljs:737, src/app/main/ui/workspace/main_menu.cljs:484
+#: src/app/main/ui/workspace/context_menu.cljs:737, src/app/main/ui/workspace/main_menu.cljs:486
 msgid "workspace.shape.menu.hide-ui"
 msgstr "Mostrar/Ocultar interface"
 
@@ -6056,7 +6059,7 @@ msgstr "Remover layout flex"
 msgid "workspace.shape.menu.remove-grid"
 msgstr "Remover layout em grelha"
 
-#: src/app/main/ui/workspace/sidebar/options/menus/layout_container.cljs:1303
+#: src/app/main/ui/workspace/sidebar/options/menus/layout_container.cljs:1305
 msgid "workspace.shape.menu.remove-layout"
 msgstr "Remover layout"
 
@@ -6126,11 +6129,11 @@ msgstr "Atualizar componentes principais"
 msgid "workspace.shape.menu.update-main"
 msgstr "Atualizar componente principal"
 
-#: src/app/main/ui/components/tab_container.cljs:52, src/app/main/ui/workspace/sidebar.cljs:62
+#: src/app/main/ui/components/tab_container.cljs:52, src/app/main/ui/workspace/sidebar.cljs:64
 msgid "workspace.sidebar.collapse"
 msgstr "Fechar barra lateral"
 
-#: src/app/main/ui/workspace/sidebar.cljs:73, src/app/main/ui/workspace/sidebar.cljs:77
+#: src/app/main/ui/workspace/sidebar.cljs:75, src/app/main/ui/workspace/sidebar.cljs:79
 msgid "workspace.sidebar.expand"
 msgstr "Expandir barra lateral"
 
@@ -6138,7 +6141,7 @@ msgstr "Expandir barra lateral"
 msgid "workspace.sidebar.history"
 msgstr "Histórico"
 
-#: src/app/main/ui/workspace/sidebar/layers.cljs:838, src/app/main/ui/workspace/sidebar.cljs:154, src/app/main/ui/workspace/sidebar.cljs:157, src/app/main/ui/workspace/sidebar.cljs:164
+#: src/app/main/ui/workspace/sidebar/layers.cljs:838, src/app/main/ui/workspace/sidebar.cljs:156, src/app/main/ui/workspace/sidebar.cljs:159, src/app/main/ui/workspace/sidebar.cljs:166
 msgid "workspace.sidebar.layers"
 msgstr "Camadas"
 
@@ -6186,7 +6189,7 @@ msgstr "Páginas"
 msgid "workspace.sidebar.sitemap.add-page"
 msgstr "Adicionar página"
 
-#: src/app/main/ui/workspace/left_header.cljs:93
+#: src/app/main/ui/workspace/left_header.cljs:121
 msgid "workspace.sitemap"
 msgstr "Mapa do site"
 
@@ -6286,7 +6289,7 @@ msgstr "Ferramentas"
 msgid "workspace.tokens.value-not-valid"
 msgstr "O valor não é válido"
 
-#: src/app/main/ui/workspace/sidebar.cljs:159, src/app/main/ui/workspace/sidebar.cljs:166
+#: src/app/main/ui/workspace/sidebar.cljs:161, src/app/main/ui/workspace/sidebar.cljs:168
 msgid "workspace.toolbar.assets"
 msgstr "Recursos"
 
@@ -6298,35 +6301,35 @@ msgstr "Paleta de cores (%s)"
 msgid "workspace.toolbar.comments"
 msgstr "Comentários (%s)"
 
-#: src/app/main/ui/workspace/top_toolbar.cljs:247, src/app/main/ui/workspace/top_toolbar.cljs:248
+#: src/app/main/ui/workspace/top_toolbar.cljs:69
 msgid "workspace.toolbar.curve"
 msgstr "Curvas (%s)"
 
-#: src/app/main/ui/workspace/top_toolbar.cljs:227, src/app/main/ui/workspace/top_toolbar.cljs:228
+#: src/app/main/ui/workspace/top_toolbar.cljs:63
 msgid "workspace.toolbar.ellipse"
 msgstr "Elipse (%s)"
 
-#: src/app/main/ui/workspace/top_toolbar.cljs:189, src/app/main/ui/workspace/top_toolbar.cljs:210
+#: src/app/main/ui/workspace/top_toolbar.cljs:61
 msgid "workspace.toolbar.frame"
 msgstr "Prancheta (%s)"
 
-#: src/app/main/ui/workspace/top_toolbar.cljs:116, src/app/main/ui/workspace/top_toolbar.cljs:117
+#: src/app/main/ui/workspace/top_toolbar.cljs:68
 msgid "workspace.toolbar.image"
 msgstr "Imagem (%s)"
 
-#: src/app/main/ui/workspace/top_toolbar.cljs:199, src/app/main/ui/workspace/top_toolbar.cljs:200
+#: src/app/main/ui/workspace/top_toolbar.cljs:60, src/app/main/ui/workspace/top_toolbar.cljs:348
 msgid "workspace.toolbar.move"
 msgstr "Mover (%s)"
 
-#: src/app/main/ui/workspace/top_toolbar.cljs:256, src/app/main/ui/workspace/top_toolbar.cljs:257
+#: src/app/main/ui/workspace/top_toolbar.cljs:67
 msgid "workspace.toolbar.path"
 msgstr "Caminho (%s)"
 
-#: src/app/main/ui/workspace/top_toolbar.cljs:267, src/app/main/ui/workspace/top_toolbar.cljs:268
+#: src/app/main/ui/workspace/top_toolbar.cljs:70
 msgid "workspace.toolbar.plugins"
 msgstr "Plugins (%s)"
 
-#: src/app/main/ui/workspace/top_toolbar.cljs:218, src/app/main/ui/workspace/top_toolbar.cljs:219
+#: src/app/main/ui/workspace/top_toolbar.cljs:62
 msgid "workspace.toolbar.rect"
 msgstr "Rectângulo (%s)"
 
@@ -6335,7 +6338,7 @@ msgstr "Rectângulo (%s)"
 msgid "workspace.toolbar.shortcuts"
 msgstr "Atalhos (%s)"
 
-#: src/app/main/ui/workspace/top_toolbar.cljs:236, src/app/main/ui/workspace/top_toolbar.cljs:237
+#: src/app/main/ui/workspace/top_toolbar.cljs:66
 msgid "workspace.toolbar.text"
 msgstr "Texto (%s)"
 
@@ -6343,7 +6346,7 @@ msgstr "Texto (%s)"
 msgid "workspace.toolbar.text-palette"
 msgstr "Tipografias (%s)"
 
-#: src/app/main/ui/workspace/top_toolbar.cljs:289, src/app/main/ui/workspace/top_toolbar.cljs:290
+#: src/app/main/ui/workspace/top_toolbar.cljs:408, src/app/main/ui/workspace/top_toolbar.cljs:409
 msgid "workspace.toolbar.toggle-toolbar"
 msgstr "Alternar barra de ferramentas"
 
@@ -6557,11 +6560,11 @@ msgstr "A carregar..."
 msgid "workspace.versions.restore-warning"
 msgstr "Queres restaurar esta versão?"
 
-#: src/app/main/ui/workspace/sidebar.cljs:256
+#: src/app/main/ui/workspace/sidebar.cljs:258
 msgid "workspace.versions.tab.actions"
 msgstr "Ações"
 
-#: src/app/main/ui/workspace/sidebar.cljs:254
+#: src/app/main/ui/workspace/sidebar.cljs:256
 msgid "workspace.versions.tab.history"
 msgstr "Histórico"
 

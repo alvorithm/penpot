@@ -33,9 +33,10 @@
   :global(.light) & {
     --color-foreground-success: var(--color-accent-success);
     --color-foreground-error: var(--color-accent-error);
+
     // accent-warning is a bright orange that still washes out over the pale
     // warning background; darken it a touch (toward black) so it reads.
-    --color-foreground-warning: color-mix(in srgb, var(--color-accent-warning) 60%, black);
+    --color-foreground-warning: color-mix(in srgb, var(--color-accent-warning) 60%, #000);
     --color-foreground-info: var(--color-accent-info);
   }
 }
@@ -1314,8 +1315,13 @@
   border-radius: deprecated.$s-8;
   border: deprecated.$s-2 solid var(--panel-border-color);
   background-color: var(--color-background-primary);
-  overflow: hidden;
-  z-index: deprecated.$z-index-1;
+
+  // the kebab dropdown opens upwards, past the banner box: it must not
+  // be clipped (the collapsed state hides its content via block-size +
+  // visibility) and it must beat the viewport controls, which are
+  // raised to z-index 1 while a drawing tool is active
+  overflow: visible;
+  z-index: deprecated.$z-index-2;
   transition:
     inset-block-end 0.2s,
     block-size 0.2s;
@@ -1367,9 +1373,25 @@
   align-items: center;
   gap: var(--sp-m);
 
-  // extra top room for the grip handle that overlaps it
+  // extra top room for the grip handle that overlaps it; no overflow
+  // clip, the kebab dropdown opens upwards past the banner edge
   padding: var(--sp-m) var(--sp-m) var(--sp-s);
-  overflow: hidden;
+}
+
+.branch-banner-menu {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+// the banner sits at the bottom of the canvas, so its options menu
+// opens upwards
+.branch-banner-options-dropdown {
+  @extend %menu-dropdown;
+
+  inset-block-end: 100%;
+  inset-inline-end: 0;
+  inline-size: $sz-192;
 }
 
 .branch-banner-icon {

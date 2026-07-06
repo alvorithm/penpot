@@ -23,6 +23,7 @@
    [app.main.data.workspace.edition :as dwe]
    [app.main.data.workspace.layout :as dwly]
    [app.main.data.workspace.libraries :as dwl]
+   [app.main.data.workspace.pull-requests :as dwpr]
    [app.main.data.workspace.texts :as dwt]
    [app.main.router :as rt]
    [app.util.globals :refer [global]]
@@ -42,6 +43,7 @@
 (declare handle-file-deleted)
 (declare handle-file-restored)
 (declare handle-file-merged)
+(declare handle-pull-request-change)
 (declare handle-library-change)
 (declare handle-pointer-send)
 (declare handle-export-update)
@@ -136,6 +138,10 @@
     :file-restored          (handle-file-restored msg)
     :file-merged            (handle-file-merged msg)
     :library-change         (handle-library-change msg)
+    :pull-request-created          (handle-pull-request-change msg)
+    :pull-request-updated          (handle-pull-request-change msg)
+    :pull-request-review-submitted (handle-pull-request-change msg)
+    :pull-request-closed           (handle-pull-request-change msg)
     :notification           (dc/handle-notification msg)
     :team-role-change       (handle-change-team-role msg)
     :team-membership-change (dc/team-membership-change msg)
@@ -326,6 +332,17 @@
     (watch [_ state _]
       (when (= file-id (:current-file-id state))
         (rx/of (ptk/event ::dw/reload-current-file))))))
+
+(defn handle-pull-request-change
+  "A pull request of this file changed (created / edited / reviewed /
+  closed): refresh the sidebar list, and the sandbox banner when it is
+  showing that pull request."
+  [{:keys [pull-request-id] :as _msg}]
+  (ptk/reify ::handle-pull-request-change
+    ptk/WatchEvent
+    (watch [_ _ _]
+      (rx/of (dwpr/fetch-pull-requests)
+             (dwpr/refresh-pull-request-preview-info pull-request-id)))))
 
 (def ^:private schema:handle-library-change
   [:map {:title "handle-library-change"}

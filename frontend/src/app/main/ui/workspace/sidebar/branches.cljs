@@ -13,6 +13,7 @@
    [app.config :as cf]
    [app.main.data.modal :as modal]
    [app.main.data.workspace.branches :as dwb]
+   [app.main.data.workspace.pull-requests :as dwpr]
    [app.main.refs :as refs]
    [app.main.render :as render]
    [app.main.store :as st]
@@ -26,6 +27,7 @@
    [app.main.ui.ds.notifications.context-notification :refer [context-notification*]]
    [app.main.ui.ds.product.avatar :refer [avatar*]]
    [app.main.ui.ds.product.empty-state :refer [empty-state*]]
+   [app.main.ui.workspace.sidebar.pull-requests :refer [pull-requests-section*]]
    [app.util.color :as uc]
    [app.util.dom :as dom]
    [app.util.globals :as globals]
@@ -584,6 +586,14 @@
                      (on-set-menu false)
                      (reset! editing? true)))
 
+        on-request-review
+        (mf/use-fn
+         (mf/deps entry)
+         (fn [event]
+           (dom/stop-propagation event)
+           (on-set-menu false)
+           (modal/show! :create-pull-request {:branch entry})))
+
         on-rename-commit
         (mf/use-fn
          (mf/deps entry)
@@ -676,6 +686,9 @@
        (when (and (not archived?) (pos? behind))
          [:> dropdown-menu-item* {:class (stl/css :menu-option) :on-click on-update}
           (tr "workspace.branches.update")])
+       (when (and (not archived?) (dwpr/enabled?))
+         [:> dropdown-menu-item* {:class (stl/css :menu-option) :on-click on-request-review}
+          (tr "workspace.pull-requests.menu.request-review")])
        (when-not archived?
          [:> dropdown-menu-item* {:class (stl/css :menu-option) :on-click on-start-rename}
           (tr "labels.rename")])
@@ -811,6 +824,9 @@
                                   :profiles profiles
                                   :menu-open? (= open-menu k)
                                   :on-set-menu (partial set-menu k)}]))])
+
+        ;; pull requests over this file's branches (feature-gated inside)
+        [:> pull-requests-section* {}]
 
         (when (seq archived-entries)
           [:div {:class (stl/css :branches-archived)}
@@ -1532,15 +1548,55 @@
         persistence (mf/deref refs/persistence)
         pstatus     (:status persistence)
 
+        ;; with pull requests enabled the merge action moves behind the
+        ;; kebab menu and requesting a review becomes the primary action
+        ;; (or opening the branch's already-open pull request)
+        prs-enabled? (dwpr/enabled?)
+        open-pr      (when prs-enabled?
+                       (->> (:data (mf/deref refs/pull-requests))
+                            (filter #(and (= "open" (:status %))
+                                          (= (:id ctx) (:file-branch-id %))))
+                            (first)))
+
+        menu-open*    (mf/use-state false)
+        menu-open?    (deref menu-open*)
+        on-open-menu  (mf/use-fn
+                       (fn [event]
+                         ;; the dropdown closes itself on any outside
+                         ;; click: the opening one must not reach it
+                         (dom/stop-propagation event)
+                         (reset! menu-open* true)))
+        on-close-menu (mf/use-fn #(reset! menu-open* false))
+
         on-compare   (mf/use-fn (mf/deps ctx) #(modal/show! :branch-compare {:branch ctx}))
         on-update    (mf/use-fn (mf/deps ctx) #(confirm-update! ctx))
-        on-merge     (mf/use-fn (mf/deps ctx) #(confirm-merge! ctx))
         on-open-main (mf/use-fn (mf/deps ctx) #(st/emit! (dwb/open-branch (:source-file-id ctx))))
-        on-resolve   (mf/use-fn (mf/deps ctx) #(modal/show! :branch-conflicts {:branch ctx :mode :merge}))]
+        on-resolve   (mf/use-fn (mf/deps ctx) #(modal/show! :branch-conflicts {:branch ctx :mode :merge}))
+
+        on-merge
+        (mf/use-fn
+         (mf/deps ctx)
+         (fn [_]
+           (reset! menu-open* false)
+           (confirm-merge! ctx)))
+
+        on-request-review
+        (mf/use-fn
+         (mf/deps ctx)
+         #(modal/show! :create-pull-request {:branch ctx}))
+
+        on-open-review
+        (mf/use-fn
+         (mf/deps open-pr)
+         #(st/emit! (dwpr/open-pull-request open-pr)))]
 
     (mf/with-effect [file-id]
       (when (contains? cf/flags :branching)
-        (st/emit! (dwb/fetch-branch-context))))
+        (st/emit! (dwb/fetch-branch-context)))
+      ;; the primary action depends on whether the branch already has an
+      ;; open pull request
+      (when (dwpr/enabled?)
+        (st/emit! (dwpr/fetch-pull-requests))))
 
     ;; refresh the change counts every time a save settles (and when
     ;; returning to the tab, so "main advanced" is surfaced too)
@@ -1615,8 +1671,34 @@
                             :on-click on-update}
                 (tr "workspace.branches.update")]
 
+               ;; with pull requests enabled the primary flow is asking
+               ;; for a review (merging moves behind the kebab menu)
+               (and prs-enabled? (some? open-pr))
+               [:> button* {:variant "primary"
+                            :icon i/git-pull-request-arrow
+                            :on-click on-open-review}
+                (tr "workspace.pull-requests.actions.open-review")]
+
+               (and prs-enabled? (pos? (:ahead ctx)))
+               [:> button* {:variant "primary"
+                            :icon i/git-pull-request-arrow
+                            :on-click on-request-review}
+                (tr "workspace.pull-requests.menu.request-review")]
+
                (pos? (:ahead ctx))
                [:> button* {:variant "primary"
                             :icon i/git-merge
                             :on-click on-merge}
-                (tr "workspace.branches.merge.action")])]))]])))
+                (tr "workspace.branches.merge.action")])
+
+             (when prs-enabled?
+               [:div {:class (stl/css :branch-banner-menu)}
+                [:> icon-button* {:variant "ghost"
+                                  :icon i/menu
+                                  :aria-label (tr "labels.options")
+                                  :on-click on-open-menu}]
+                [:> dropdown-menu* {:show menu-open?
+                                    :on-close on-close-menu
+                                    :class (stl/css :branch-banner-options-dropdown)}
+                 [:> dropdown-menu-item* {:class (stl/css :menu-option) :on-click on-merge}
+                  (tr "workspace.pull-requests.actions.merge")]]])]))]])))

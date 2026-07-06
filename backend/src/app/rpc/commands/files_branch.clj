@@ -140,6 +140,41 @@
                    :file-id source-file-id
                    :deleted-at deleted-at)))
 
+;; --- Helpers: pull requests attached to a branch
+;;
+;; Pull requests live in `app.rpc.commands.files-pull-request`, which
+;; requires THIS namespace (it reuses the diff-count helpers), so the
+;; branch lifecycle hooks below work over the table directly to avoid a
+;; circular dependency.
+
+(def ^:private sql:get-open-branch-pull-requests
+  "SELECT id, source_file_id, review_snapshot_id
+     FROM file_pull_request
+    WHERE file_branch_id = ?
+      AND status = 'open'
+      AND deleted_at IS NULL")
+
+(defn- close-branch-pull-requests!
+  "Close (or mark merged) any open pull request attached to a branch and
+  release its pinned review snapshot: the review sandbox must not
+  outlive the branch. The pull request row itself is kept as history.
+  Must run inside a transaction."
+  [{:keys [::db/conn] :as cfg} branch-id {:keys [profile-id status deleted-at]}]
+  (doseq [pr (db/exec! conn [sql:get-open-branch-pull-requests branch-id])]
+    (let [ts (ct/now)]
+      (db/update! conn :file-pull-request
+                  {:status (or status "closed")
+                   :closed-at ts
+                   :closed-by profile-id
+                   :updated-at ts}
+                  {:id (:id pr)}
+                  {::db/return-keys false})
+      (when-let [snapshot-id (:review-snapshot-id pr)]
+        (fsnap/delete! cfg
+                       :id snapshot-id
+                       :file-id (:source-file-id pr)
+                       :deleted-at deleted-at)))))
+
 ;; --- Helpers: branch deletion (shared by delete-file-branch and merge)
 
 (defn- delete-branch!
@@ -159,6 +194,11 @@
                 {:id id}
                 {::db/return-keys false})
     (release-base-snapshot! cfg branch dt)
+    ;; the review sandbox must not outlive the branch (`status` above is
+    ;; the BRANCH status; a pull request closed this way is just "closed")
+    (close-branch-pull-requests! cfg id {:profile-id profile-id
+                                         :status "closed"
+                                         :deleted-at dt})
     (wrk/submit! {::db/conn conn
                   ::wrk/task :delete-object
                   ::wrk/params {:object :file :deleted-at dt :id branch-file-id}})
@@ -312,7 +352,7 @@
       AND (?::boolean OR fb.status = 'open')
     ORDER BY fb.created_at DESC")
 
-(defn- revn-deltas
+(defn revn-deltas
   "Cheap `[ahead-revn behind-revn]` deltas gating the expensive diff. Each
   side is compared against ITS OWN counter captured when the base was
   (re)positioned: `branch-revn` vs `base-branch-revn` and `source-revn` vs
@@ -330,7 +370,7 @@
   (-> (media-pairs cfg branch-file-id source-file-id)
       (assoc branch-file-id source-file-id)))
 
-(defn- branch-diff-counts
+(defn branch-diff-counts
   "Entity-level `[ahead behind conflicts]` change counts between a branch
   file and its source (main) — the same numbers the compare dialog lists
   (root-frame churn and structural noise filtered out). The revn deltas
@@ -555,12 +595,18 @@
                                 :updated-at ts}
                                {:id branch-id}
                                {::db/return-keys false})
-                   (if keep-branch
-                     (let [team  (teams/get-team conn :profile-id profile-id :file-id main-id)
-                           delay (ldel/get-deletion-delay team)]
-                       (release-base-snapshot! cfg branch (ct/in-future delay)))
-                     (delete-branch! cfg branch {:profile-id profile-id
-                                                 :session-id session-id})))]
+                   (let [team  (teams/get-team conn :profile-id profile-id :file-id main-id)
+                         delay (ldel/get-deletion-delay team)]
+                     ;; an open pull request over this branch has served
+                     ;; its purpose: mark it merged and close its sandbox
+                     (close-branch-pull-requests! cfg branch-id
+                                                  {:profile-id profile-id
+                                                   :status "merged"
+                                                   :deleted-at (ct/in-future delay)})
+                     (if keep-branch
+                       (release-base-snapshot! cfg branch (ct/in-future delay))
+                       (delete-branch! cfg branch {:profile-id profile-id
+                                                   :session-id session-id}))))]
              (cond
                (seq unresolved)
                {:status :conflicts :conflicts conflicts}
@@ -943,6 +989,15 @@
                   {:status status :updated-at (ct/now)}
                   {:id id}
                   {::db/return-keys false})
+      ;; archiving hides the branch from the default flow, so its review
+      ;; sandbox has no reason to stay open either
+      (when (= "archived" status)
+        (let [team (teams/get-team conn :profile-id profile-id
+                                   :file-id (:branch-file-id branch))
+              dt   (ct/in-future (ldel/get-deletion-delay team))]
+          (close-branch-pull-requests! cfg id {:profile-id profile-id
+                                               :status "closed"
+                                               :deleted-at dt})))
       {:id id :status status})))
 
 ;; --- COMMAND: delete-file-branch

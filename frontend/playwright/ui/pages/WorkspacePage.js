@@ -108,8 +108,12 @@ export class WorkspacePage extends BaseWebSocketPage {
 
     async waitForIdle(options) {
       await this.page.evaluate(
-        (options) => new Promise(
-          (resolve) => globalThis.requestIdleCallback(resolve, options)), options);
+        (options) =>
+          new Promise((resolve) =>
+            globalThis.requestIdleCallback(resolve, options),
+          ),
+        options,
+      );
     }
   };
 
@@ -217,9 +221,12 @@ export class WorkspacePage extends BaseWebSocketPage {
     fileId = this.fileId ?? WorkspacePage.anyFileId,
     pageId = this.pageId ?? WorkspacePage.anyPageId,
     pageName = "Page 1",
+    // extra query params appended verbatim, e.g. "&pr-id=<uuid>" for the
+    // pull request review sandbox
+    extraParams = "",
   } = {}) {
     await this.page.goto(
-      `/#/workspace?team-id=${WorkspacePage.anyTeamId}&file-id=${fileId}&page-id=${pageId}`,
+      `/#/workspace?team-id=${WorkspacePage.anyTeamId}&file-id=${fileId}&page-id=${pageId}${extraParams}`,
     );
 
     this.#ws = await this.waitForNotificationsWebSocket();
@@ -229,7 +236,7 @@ export class WorkspacePage extends BaseWebSocketPage {
 
   async #waitForWebSocketReadiness(pageName) {
     // TODO: find a better event to settle whether the app is ready to receive notifications via ws
-    await expect(this.pageName).toHaveText(pageName, { timeout: 30000 })
+    await expect(this.pageName).toHaveText(pageName, { timeout: 30000 });
   }
 
   async sendPresenceMessage(fixture) {

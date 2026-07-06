@@ -170,7 +170,7 @@ msgstr "അക്കൗണ്ട് സൃഷ്ടിക്കുക"
 msgid "auth.sidebar-tagline"
 msgstr "ഡിസൈനിങിനും പ്രോട്ടോടൈപ്പിങിനുമുള്ള ഓപ്പൺ സോഴ്സ് പ്രതിവിധി."
 
-#: src/app/main/ui/auth/register.cljs:251, src/app/main/ui/dashboard/sidebar.cljs:1221, src/app/main/ui/workspace/main_menu.cljs:205
+#: src/app/main/ui/auth/register.cljs:251, src/app/main/ui/dashboard/sidebar.cljs:1244, src/app/main/ui/workspace/main_menu.cljs:207
 msgid "auth.terms-of-service"
 msgstr "ഉപയോഗനിബന്ധനകൾ"
 
@@ -250,7 +250,7 @@ msgstr "പ്രോട്ടോടൈപ്പുകൾ പങ്കുവെ�
 msgid "common.share-link.view-all"
 msgstr "എല്ലാം തിരഞ്ഞെടുക്കുക"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:323, src/app/main/ui/workspace/main_menu.cljs:695
+#: src/app/main/ui/dashboard/file_menu.cljs:335, src/app/main/ui/workspace/main_menu.cljs:709
 msgid "dashboard.add-shared"
 msgstr "പങ്കിട്ട ലൈബ്രറിയായി ചേർക്കുക"
 
@@ -262,27 +262,27 @@ msgstr "ഇമെയിൽ മാറ്റുക"
 msgid "dashboard.copy-suffix"
 msgstr "(പകർത്തുക)"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:439
+#: src/app/main/ui/dashboard/sidebar.cljs:440
 msgid "dashboard.create-new-team"
 msgstr "പുതിയ സംഘം രൂപീകരിക്കുക"
 
-#: src/app/main/ui/components/context_menu_a11y.cljs:300, src/app/main/ui/dashboard/sidebar.cljs:882
+#: src/app/main/ui/components/context_menu_a11y.cljs:300, src/app/main/ui/dashboard/sidebar.cljs:905
 msgid "dashboard.default-team-name"
 msgstr "നിങ്ങളുടെ പെൻപോട്ട്"
 
-#: src/app/main/ui/dashboard/sidebar.cljs:588, src/app/main/ui/dashboard/team_form.cljs:153
+#: src/app/main/ui/dashboard/sidebar.cljs:589, src/app/main/ui/dashboard/team_form.cljs:153
 msgid "dashboard.delete-team"
 msgstr "സംഘത്തെ നീക്കുക"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:305, src/app/main/ui/dashboard/project_menu.cljs:92
+#: src/app/main/ui/dashboard/file_menu.cljs:306, src/app/main/ui/dashboard/project_menu.cljs:92
 msgid "dashboard.duplicate"
 msgstr "പകർപ്പ്"
 
-#: src/app/main/ui/dashboard/file_menu.cljs:272
+#: src/app/main/ui/dashboard/file_menu.cljs:273
 msgid "dashboard.duplicate-multi"
 msgstr "%s ഫയലുകളുടെ പകർപ്പ്"
 
-#: src/app/main/ui/workspace/main_menu.cljs:740
+#: src/app/main/ui/workspace/main_menu.cljs:763
 msgid "dashboard.export-frames"
 msgstr "ആർട്ട്ബോർഡുകൾ പിഡിഎഫായി എക്സ്പോർട്ട് ചെയ്യുക"
 
@@ -294,7 +294,7 @@ msgstr "പിഡിഎഫായി എക്സ്പോർട്ട് ചെ�
 msgid "dashboard.export-multi"
 msgstr "പെൻപോട്ട് %s ഫയലുകൾ എക്സ്പോർട്ട് ചെയ്യുക"
 
-#: src/app/main/ui/workspace/main_menu.cljs:723
+#: src/app/main/ui/workspace/main_menu.cljs:746
 msgid "dashboard.export-shapes"
 msgstr "എക്സ്പോർട്ട്"
 
