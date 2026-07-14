@@ -5,10 +5,7 @@ const PR_ID = "c7ce0794-0992-8105-8004-38f280443999";
 
 test.beforeEach(async ({ page }) => {
   await WorkspacePage.init(page);
-  await WorkspacePage.mockConfigFlags(page, [
-    "enable-branching",
-    "enable-pull-requests",
-  ]);
+  await WorkspacePage.mockConfigFlags(page, ["enable-branching"]);
 });
 
 const setupPullRequestSandbox = async (workspacePage) => {

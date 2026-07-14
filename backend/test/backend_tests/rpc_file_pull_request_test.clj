@@ -19,7 +19,7 @@
 (t/use-fixtures :each th/database-reset)
 
 (def ^:private pr-flags
-  (conj cf/flags :branching :pull-requests))
+  (conj cf/flags :branching))
 
 (defn- apply-change*
   [profile file-id change]
@@ -538,13 +538,13 @@
           (t/is (= 1 (count (:result out))))
           (t/is (= "closed" (-> out :result first :status))))))))
 
-(t/deftest pull-requests-flag-gates-commands
-  (with-redefs [cf/flags (conj cf/flags :branching)]
-    (let [author (th/create-profile* 1 {:is-active true})
-          file   (th/create-file* 1 {:profile-id (:id author)
-                                     :project-id (:default-project-id author)})
-          branch (create-branch* author file "feature")
-          out    (create-pr* author (:id branch) {})
-          error  (:error out)]
-      (t/is (some? error))
-      (t/is (= :pull-requests-disabled (-> error ex-data :code))))))
+(t/deftest branching-flag-gates-pull-request-commands
+  (let [author (th/create-profile* 1 {:is-active true})
+        file   (th/create-file* 1 {:profile-id (:id author)
+                                   :project-id (:default-project-id author)})
+        branch (with-redefs [cf/flags pr-flags]
+                 (create-branch* author file "feature"))
+        out    (create-pr* author (:id branch) {})
+        error  (:error out)]
+    (t/is (some? error))
+    (t/is (= :branching-disabled (-> error ex-data :code)))))

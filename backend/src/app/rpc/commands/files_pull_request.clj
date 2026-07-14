@@ -41,15 +41,14 @@
    [clojure.string :as str]))
 
 (defn check-pull-requests-enabled!
-  "Guard the pull request commands behind the `:pull-requests` product
-  flag (which builds on top of `:branching`). Public: the viewer bundle
-  command guards its pr-id variant with it too."
+  "Guard the pull request commands behind the `:branching` product flag
+  (pull requests are part of the branching feature). Public: the viewer
+  bundle command guards its pr-id variant with it too."
   []
-  (when-not (and (contains? cf/flags :branching)
-                 (contains? cf/flags :pull-requests))
+  (when-not (contains? cf/flags :branching)
     (ex/raise :type :restriction
-              :code :pull-requests-disabled
-              :hint "the pull requests feature is not enabled on this instance")))
+              :code :branching-disabled
+              :hint "the branching feature is not enabled on this instance")))
 
 ;; --- Helpers
 
@@ -880,8 +879,7 @@
   {::doc/added "2.16"
    ::sm/params schema:get-profile-pending-reviews}
   [cfg {:keys [::rpc/profile-id team-id]}]
-  (if-not (and (contains? cf/flags :branching)
-               (contains? cf/flags :pull-requests))
+  (if-not (contains? cf/flags :branching)
     []
     (db/run! cfg
              (fn [{:keys [::db/conn]}]

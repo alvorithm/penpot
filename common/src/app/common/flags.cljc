@@ -173,12 +173,10 @@
     :stroke-path
 
     ;; Enables file branching: isolated file copies ("branches") that
-    ;; can be merged back to their source file. Disabled by default.
-    :branching
-
-    ;; Enables pull requests on top of file branching: review requests
-    ;; over a pinned snapshot of a branch. Requires :branching.
-    :pull-requests})
+    ;; can be merged back to their source file, including pull requests
+    ;; (review requests over a pinned snapshot of a branch). Disabled by
+    ;; default.
+    :branching})
 
 (def all-flags
   (set/union email login varia))

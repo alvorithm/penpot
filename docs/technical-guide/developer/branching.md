@@ -505,8 +505,8 @@ them.
 
 On top of branching, **pull requests** add a review step before the merge:
 the author of a branch asks one or more team members (**reviewers**) to
-evaluate their changes. The feature is gated behind the `:pull-requests`
-product flag (which requires `:branching`) and lives in:
+evaluate their changes. The feature is part of branching and is gated
+behind the same `:branching` product flag; it lives in:
 
 ```text
 backend/src/app/migrations/sql/0153-add-file-pull-request-tables.sql

@@ -26,8 +26,7 @@
 
 (defn enabled?
   []
-  (and (contains? cf/flags :branching)
-       (contains? cf/flags :pull-requests)))
+  (contains? cf/flags :branching))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; PULL REQUEST LIST (sidebar section)
