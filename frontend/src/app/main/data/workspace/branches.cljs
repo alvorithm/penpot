@@ -54,6 +54,7 @@
 
 (declare fetch-branches)
 (declare fetch-branch-context)
+(declare show-branches-panel)
 
 (defn init-branches-state
   []
@@ -162,10 +163,11 @@
 (defn create-branch
   "Create a branch from a file. With no `file-id`, branches the currently
   open file (force-persisting first so the merge base captures the latest
-  edits) and refreshes the panel. With an explicit `file-id` (e.g. from
-  the dashboard, where the file is not open), creates it directly and
-  opens the new branch. Errors surface as a toast; the caller closes the
-  dialog."
+  edits) and jumps into the new branch, keeping the branches panel open
+  so the user lands on the branch with full context. With an explicit
+  `file-id` (e.g. from the dashboard, where the file is not open),
+  creates it directly and opens the new branch. Errors surface as a
+  toast; the caller closes the dialog."
   ([name description] (create-branch nil name description))
   ([file-id name description]
    (assert (string? name) "expected string for `name`")
@@ -200,7 +202,13 @@
                   (rx/concat
                    (rx/of (ntf/success (tr "workspace.branches.create.success" name)))
                    (if from-ws?
-                     (rx/of (fetch-branches))
+                     ;; jump into the new branch keeping the branches
+                     ;; panel open (the layout survives in-app navigation;
+                     ;; show-branches-panel pins the tab selection), and
+                     ;; refresh the list so the new branch is included
+                     (rx/of (open-branch branch-file-id)
+                            (show-branches-panel)
+                            (fetch-branches))
                      ;; from dashboard: jump into the new branch
                      (rx/of (dcm/go-to-workspace :file-id branch-file-id))))))
                (rx/catch
