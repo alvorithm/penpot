@@ -539,6 +539,7 @@
            :workspace-wasm-editor-styles
            :workspace-media-objects
            :workspace-persistence
+           :workspace-pr-preview
            :workspace-presence
            :workspace-tokens
            :workspace-undo

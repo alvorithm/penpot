@@ -52,6 +52,7 @@
 (def ^:icon-id arrow "arrow")
 (def ^:icon-id arrow-down "arrow-down")
 (def ^:icon-id arrow-left "arrow-left")
+(def ^:icon-id arrow-long-right "arrow-long-right")
 (def ^:icon-id arrow-right "arrow-right")
 (def ^:icon-id arrow-up "arrow-up")
 (def ^:icon-id arrow-up-right "arrow-up-right")

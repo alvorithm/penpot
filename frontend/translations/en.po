@@ -9415,7 +9415,7 @@ msgstr "TRY PLUGIN"
 
 #: src/app/main/ui/workspace/sidebar/pull_requests.cljs:426, src/app/main/ui/workspace/sidebar/pull_requests.cljs:505, src/app/main/ui/workspace/sidebar/pull_requests.cljs:564
 msgid "workspace.pull-requests.actions.close"
-msgstr "Close pull request"
+msgstr "Cancel pull request"
 
 #: src/app/main/ui/workspace/sidebar/pull_requests.cljs:440, src/app/main/ui/workspace/sidebar/pull_requests.cljs:561, src/app/main/ui/workspace/sidebar/pull_requests.cljs:754
 msgid "workspace.pull-requests.actions.merge"
@@ -9460,12 +9460,12 @@ msgstr "Reviewing pull request"
 #: src/app/main/ui/workspace/sidebar/pull_requests.cljs:504
 msgid "workspace.pull-requests.close.message"
 msgstr ""
-"The review sandbox of \"%s\" will disappear. The branch itself is not "
-"affected."
+"The review of \"%s\" will be cancelled. The branch is not deleted: it "
+"goes back to being a normal branch."
 
 #: src/app/main/ui/workspace/sidebar/pull_requests.cljs:503
 msgid "workspace.pull-requests.close.title"
-msgstr "Close pull request"
+msgstr "Cancel pull request"
 
 #: src/app/main/data/workspace/pull_requests.cljs:142, src/app/main/data/workspace/pull_requests.cljs:255
 msgid "workspace.pull-requests.create.already-exists"
@@ -9581,6 +9581,10 @@ msgstr "Publish latest changes"
 #: src/app/main/ui/workspace/sidebar/branches.cljs:691
 msgid "workspace.pull-requests.menu.request-review"
 msgstr "Request review"
+
+#: src/app/main/ui/workspace/sidebar/branches.cljs:700
+msgid "workspace.pull-requests.menu.review-details"
+msgstr "Review details"
 
 #: src/app/main/ui/workspace/sidebar/pull_requests.cljs:618
 msgid "workspace.pull-requests.new"

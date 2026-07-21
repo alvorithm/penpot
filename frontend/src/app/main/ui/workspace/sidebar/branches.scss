@@ -159,6 +159,22 @@
   text-overflow: ellipsis;
 }
 
+.branch-entry-badges {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  color: var(--color-foreground-secondary);
+}
+
+.branch-pr-approvals {
+  @include t.use-typography("body-small");
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-xxs);
+  color: var(--color-foreground-secondary);
+}
+
 .branch-entry-aside {
   position: relative;
   display: flex;

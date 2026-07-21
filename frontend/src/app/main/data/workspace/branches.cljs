@@ -216,13 +216,26 @@
                   (rx/of (ntf/error (tr "workspace.branches.create.error"))))))))))))
 
 (defn open-branch
-  "Navigate to the branch file as a normal workspace file."
+  "Navigate to the branch file as a normal workspace file. Switching
+  branch must never lose the branches panel: the layout flag survives
+  in-app navigation, but side effects of the transition can still close
+  it (e.g. the version-history interrupt watcher armed by the header
+  button), which makes the switch confusing. So once the target
+  workspace finishes initializing, the panel + Branches tab are
+  re-asserted; when they are already open this is an idempotent no-op."
   [branch-file-id]
   (assert (uuid? branch-file-id) "expected valid uuid for `branch-file-id`")
   (ptk/reify ::open-branch
     ptk/WatchEvent
-    (watch [_ _ _]
-      (rx/of (dcm/go-to-workspace :file-id branch-file-id)))))
+    (watch [_ _ stream]
+      (rx/merge
+       (rx/of (dcm/go-to-workspace :file-id branch-file-id))
+       ;; keyword literal to avoid requiring the whole app.main.data.workspace ns
+       (->> stream
+            (rx/filter (ptk/type? :app.main.data.workspace/workspace-initialized))
+            (rx/take 1)
+            (rx/mapcat (fn [_] (rx/of (show-branches-panel)
+                                      (fetch-branches)))))))))
 
 (def history-sidebar-tab-key
   "Storage + broadcast key for the selected tab of the version-history

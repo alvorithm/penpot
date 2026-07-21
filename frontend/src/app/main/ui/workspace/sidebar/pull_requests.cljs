@@ -5,9 +5,12 @@
 ;; Copyright (c) KALEIDOS INC Sucursal en España SL
 
 (ns app.main.ui.workspace.sidebar.pull-requests
-  "Pull request UI: the sidebar section listing a file's pull requests,
-  the creation / review / details modals and the review-sandbox banner.
-  Follows the visual patterns of `app.main.ui.workspace.sidebar.branches`."
+  "Pull request UI. A pull request is presented as a STATE of its branch
+  (one branch → at most one open pull request), so there is no separate
+  pull request list: the branch entries in the sidebar surface the review
+  state (see `app.main.ui.workspace.sidebar.branches`), and this namespace
+  provides the shared pieces — state badge, action helpers, the creation /
+  review / details modals and the review-sandbox banner."
   (:require-macros [app.main.style :as stl])
   (:require
    [app.common.data.macros :as dm]
@@ -29,11 +32,7 @@
    [app.util.dom :as dom]
    [app.util.i18n :refer [tr]]
    [cuerdas.core :as str]
-   [okulary.core :as l]
    [rumext.v2 :as mf]))
-
-(def ^:private branch-context
-  (l/derived #(get-in % [:workspace-branch-context :info]) st/state))
 
 ;; --- Derived display state
 
@@ -59,7 +58,6 @@
    :closed            "workspace.pull-requests.state.closed"})
 
 (mf/defc pr-state-badge*
-  {::mf/private true}
   [{:keys [pr]}]
   (let [state (display-state pr)]
     [:span {:class (stl/css-case :pr-badge true
@@ -71,7 +69,7 @@
                                  :badge-closed (= state :closed))}
      (tr (get state->label state))]))
 
-(defn- current-approvals
+(defn current-approvals
   "[current-approvals total-reviewers] of a pull request; stale verdicts
   do not count."
   [{:keys [reviews]}]
@@ -90,14 +88,14 @@
    :behind (:behind pr)
    :conflicts (:conflicts pr)})
 
-(defn- open-compare!
+(defn open-compare!
   "Open the branching compare dialog on the pull request's branch, so the
   proposed changes can be inspected. Like merging, it diffs the LIVE
   branch against main."
   [pr]
   (modal/show! :branch-compare {:branch (pr->branch pr)}))
 
-(defn- confirm-merge!
+(defn confirm-merge!
   "Open the branching merge dialog for the pull request's branch:
   accepting a pull request goes through the exact same integration flow
   (confirmation, conflict resolution, safety snapshot) as merging the
@@ -106,10 +104,10 @@
   [pr]
   (modal/show! :merge-branch {:branch (pr->branch pr)}))
 
-(defn- confirm-close!
-  "Ask for confirmation before closing (discarding) a pull request: its
-  review sandbox stops existing. Same confirmation pattern as deleting
-  a branch."
+(defn confirm-close!
+  "Ask for confirmation before cancelling a pull request: the review is
+  discarded and the branch simply goes back to being a normal branch
+  (it is NOT deleted)."
   [pr]
   (st/emit! (modal/show {:type :confirm
                          :title (tr "workspace.pull-requests.close.title")
@@ -331,6 +329,10 @@
         can-merge? (boolean (get-in team [:permissions :can-edit]))
         open?     (= "open" (:status pr))
         closed?   (= "closed" (:status pr))
+        ;; already inside this pull request's review sandbox: offering to
+        ;; open it again would be a no-op
+        reviewing? (= (:id pr)
+                      (:pr-id (mf/deref refs/pull-request-preview)))
         [approvals total] (current-approvals pr)
 
         on-close
@@ -374,7 +376,10 @@
         [:div {:class (stl/css :modal-subtitle-row)}
          [:> pr-state-badge* {:pr pr}]
          [:span {:class (stl/css :modal-subtitle)}
-          (dm/str (:branch-name pr) " → " (:target-name pr))]
+          ;; the route reads branch → target BRANCH (reviews always merge
+          ;; into main); the target file name would be redundant here,
+          ;; inside the file itself
+          (dm/str (:branch-name pr) " → " (tr "workspace.branches.main"))]
          (when (and open? (:outdated pr))
            [:span {:class (stl/css :pr-badge :badge-outdated)}
             (tr "workspace.pull-requests.badge.outdated")])
@@ -458,7 +463,7 @@
          [:> button* {:variant "secondary"
                       :on-click on-reopen-pr}
           (tr "workspace.pull-requests.actions.reopen")])
-       (when open?
+       (when (and open? (not reviewing?))
          [:> button* {:variant "primary"
                       :icon i/arrow-up-right
                       :on-click on-open-review}
@@ -468,222 +473,6 @@
                       :icon i/git-merge
                       :on-click on-merge}
           (tr "workspace.pull-requests.actions.merge")])]]]))
-
-;; --- Pull request entry (sidebar card)
-
-(mf/defc pr-entry*
-  {::mf/private true}
-  [{:keys [pr profiles menu-open? on-set-menu]}]
-  (let [profile  (mf/deref refs/profile)
-        team     (mf/deref refs/team)
-        author   (get profiles (:created-by pr))
-        author?  (= (:created-by pr) (:id profile))
-        admin?   (boolean (get-in team [:permissions :is-admin]))
-        can-merge? (boolean (get-in team [:permissions :can-edit]))
-        open?    (= "open" (:status pr))
-        closed?  (= "closed" (:status pr))
-        [approvals total] (current-approvals pr)
-
-        on-open
-        (mf/use-fn
-         (mf/deps pr open?)
-         (fn [_]
-           (if open?
-             (st/emit! (dwpr/open-pull-request pr))
-             (modal/show! :pull-request-info {:pr pr}))))
-
-        on-merge
-        (mf/use-fn
-         (mf/deps pr)
-         (fn [event]
-           (dom/stop-propagation event)
-           (on-set-menu false)
-           (confirm-merge! pr)))
-
-        on-compare
-        (mf/use-fn
-         (mf/deps pr)
-         (fn [event]
-           (dom/stop-propagation event)
-           (on-set-menu false)
-           (open-compare! pr)))
-
-        on-open-menu
-        (mf/use-fn (mf/deps on-set-menu)
-                   (fn [event]
-                     (dom/stop-propagation event)
-                     (on-set-menu true)))
-        on-close-menu (mf/use-fn (mf/deps on-set-menu) #(on-set-menu false))
-
-        on-info
-        (mf/use-fn
-         (mf/deps pr)
-         (fn [event]
-           (dom/stop-propagation event)
-           (on-set-menu false)
-           (modal/show! :pull-request-info {:pr pr})))
-
-        on-publish
-        (mf/use-fn
-         (mf/deps pr)
-         (fn [event]
-           (dom/stop-propagation event)
-           (on-set-menu false)
-           (st/emit! (dwpr/update-pull-request-snapshot (:id pr)))))
-
-        on-close-pr
-        (mf/use-fn
-         (mf/deps pr)
-         (fn [event]
-           (dom/stop-propagation event)
-           (on-set-menu false)
-           (confirm-close! pr)))
-
-        on-reopen-pr
-        (mf/use-fn
-         (mf/deps pr)
-         (fn [event]
-           (dom/stop-propagation event)
-           (on-set-menu false)
-           (st/emit! (dwpr/reopen-pull-request (:id pr)))))]
-
-    [:li {:class (stl/css-case :pr-entry true
-                               :is-finished (not open?)
-                               :is-menu-open menu-open?)
-          :role "button"
-          :on-click on-open}
-     [:div {:class (stl/css :pr-entry-icon)}
-      [:> i/icon* {:icon-id i/git-merge}]]
-
-     [:div {:class (stl/css :pr-entry-body)}
-      [:span {:class (stl/css :pr-entry-title)} (:title pr)]
-      [:div {:class (stl/css :pr-entry-meta)}
-       (when author [:> avatar* {:profile author :variant "S"}])
-       [:span {:class (stl/css :pr-entry-route)}
-        (dm/str (:branch-name pr) " → " (:target-name pr))]]
-      [:div {:class (stl/css :pr-entry-badges)}
-       [:> pr-state-badge* {:pr pr}]
-       (when (and open? (:outdated pr))
-         [:span {:class (stl/css :pr-badge :badge-outdated)}
-          (tr "workspace.pull-requests.badge.outdated")])
-       (when (and open? (pos? (or (:conflicts pr) 0)))
-         [:span {:class (stl/css :pr-badge :badge-conflicts)}
-          (tr "workspace.pull-requests.badge.conflicts" (dm/str (:conflicts pr)))])]]
-
-     [:div {:class (stl/css :pr-entry-aside)}
-      (when (pos? total)
-        [:span {:class (stl/css :pr-entry-approvals)
-                :title (tr "workspace.pull-requests.info.approvals")}
-         [:> i/icon* {:icon-id i/tick :size "s"}]
-         (dm/str approvals "/" total)])
-
-      [:> icon-button* {:variant "ghost"
-                        :icon i/menu
-                        :aria-label (tr "labels.options")
-                        :on-click on-open-menu}]
-
-      [:> dropdown-menu* {:show menu-open?
-                          :on-close on-close-menu
-                          :class (stl/css :pr-options-dropdown)}
-       [:> dropdown-menu-item* {:class (stl/css :menu-option) :on-click on-info}
-        (tr "workspace.pull-requests.menu.info")]
-       (when open?
-         [:> dropdown-menu-item* {:class (stl/css :menu-option) :on-click on-compare}
-          (tr "workspace.branches.compare")])
-       (when (and open? author?)
-         [:> dropdown-menu-item* {:class (stl/css :menu-option) :on-click on-publish}
-          (tr "workspace.pull-requests.menu.publish")])
-       (when (and open? can-merge?)
-         [:> dropdown-menu-item* {:class (stl/css :menu-option) :on-click on-merge}
-          (tr "workspace.pull-requests.actions.merge")])
-       (when (and open? (or author? admin?))
-         [:> dropdown-menu-item* {:class (stl/css :menu-option) :on-click on-close-pr}
-          (tr "workspace.pull-requests.actions.close")])
-       (when (and closed? (or author? admin?))
-         [:> dropdown-menu-item* {:class (stl/css :menu-option) :on-click on-reopen-pr}
-          (tr "workspace.pull-requests.actions.reopen")])]]]))
-
-;; --- Sidebar section (rendered inside the Branches tab)
-
-(mf/defc pull-requests-section*
-  []
-  (let [profiles   (mf/deref refs/profiles)
-        branch-ctx (mf/deref branch-context)
-
-        {:keys [data]} (mf/deref refs/pull-requests)
-
-        open-prs     (filterv #(= "open" (:status %)) data)
-        finished-prs (filterv #(not= "open" (:status %)) data)
-
-        show-finished* (mf/use-state false)
-
-        ;; only one entry's options dropdown may be open at a time
-        open-menu*  (mf/use-state nil)
-        open-menu   (deref open-menu*)
-        set-menu    (mf/use-fn (fn [k open?] (reset! open-menu* (when open? k))))
-
-        ;; a pull request is created FROM a branch: the button only shows
-        ;; while the open file is an open branch without one
-        can-create? (and (some? branch-ctx)
-                         (= "open" (:status branch-ctx))
-                         (not-any? #(and (= "open" (:status %))
-                                         (= (:id branch-ctx) (:file-branch-id %)))
-                                   data))
-
-        on-toggle-finished
-        (mf/use-fn #(swap! show-finished* not))
-
-        on-create
-        (mf/use-fn
-         (mf/deps branch-ctx)
-         (fn [_]
-           (modal/show! :create-pull-request {:branch branch-ctx})))]
-
-    (mf/with-effect []
-      (st/emit! (dwpr/init-pull-requests-state)))
-
-    (when (dwpr/enabled?)
-      [:div {:class (stl/css :pr-section)}
-       [:div {:class (stl/css :pr-section-header)}
-        [:span (tr "workspace.pull-requests.section.title")]
-        (when (seq open-prs)
-          [:span {:class (stl/css :pr-section-count)} (dm/str (count open-prs))])
-        (when can-create?
-          [:> button* {:variant "secondary"
-                       :icon i/git-pull-request-arrow
-                       :on-click on-create}
-           (tr "workspace.pull-requests.new")])]
-
-       (when (seq open-prs)
-         [:ul {:class (stl/css :pr-entries)}
-          (for [pr open-prs]
-            (let [k (dm/str (:id pr))]
-              [:> pr-entry* {:key k
-                             :pr pr
-                             :profiles profiles
-                             :menu-open? (= open-menu k)
-                             :on-set-menu (partial set-menu k)}]))])
-
-       (when (and (empty? open-prs) (empty? finished-prs))
-         [:span {:class (stl/css :pr-section-empty)}
-          (tr "workspace.pull-requests.section.empty")])
-
-       (when (seq finished-prs)
-         [:div {:class (stl/css :pr-finished)}
-          [:button {:class (stl/css :pr-finished-toggle)
-                    :on-click on-toggle-finished}
-           [:> i/icon* {:icon-id (if (deref show-finished*) i/arrow-down i/arrow-right) :size "s"}]
-           [:span (tr "workspace.pull-requests.section.history")]
-           [:span {:class (stl/css :pr-section-count)} (dm/str (count finished-prs))]]
-          (when (deref show-finished*)
-            [:ul {:class (stl/css :pr-entries)}
-             (for [pr finished-prs]
-               (let [k (dm/str (:id pr))]
-                 [:> pr-entry* {:key k
-                                :pr pr
-                                :profiles profiles
-                                :menu-open? (= open-menu k)
-                                :on-set-menu (partial set-menu k)}]))])])])))
 
 ;; --- Review sandbox banner (replaces the branch banner inside a sandbox)
 
@@ -774,7 +563,7 @@
           (tr "workspace.pull-requests.banner.reviewing")]
          [:span {:class (stl/css :pr-banner-name)} (:title pr)]
          [:span {:class (stl/css :pr-banner-route)}
-          (dm/str (:branch-name pr) " → " (:target-name pr))]]
+          (dm/str (:branch-name pr) " → " (tr "workspace.branches.main"))]]
 
         [:div {:class (stl/css :pr-banner-badges)}
          [:> pr-state-badge* {:pr pr}]

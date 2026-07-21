@@ -27,7 +27,7 @@
    [app.main.ui.ds.notifications.context-notification :refer [context-notification*]]
    [app.main.ui.ds.product.avatar :refer [avatar*]]
    [app.main.ui.ds.product.empty-state :refer [empty-state*]]
-   [app.main.ui.workspace.sidebar.pull-requests :refer [pull-requests-section*]]
+   [app.main.ui.workspace.sidebar.pull-requests :as prui :refer [pr-state-badge*]]
    [app.util.color :as uc]
    [app.util.dom :as dom]
    [app.util.globals :as globals]
@@ -533,12 +533,23 @@
 
 (mf/defc branch-entry*
   {::mf/private true}
-  [{:keys [entry profiles current menu-open? on-set-menu]}]
+  [{:keys [entry profiles current pr menu-open? on-set-menu]}]
   (let [author    (get profiles (:created-by entry))
         ahead     (:ahead entry)
         behind    (:behind entry)
         main?     (:is-main entry)
         archived? (contains? #{"archived" "merged"} (:status entry))
+
+        ;; `pr` is the branch's open pull request (nil when none): the
+        ;; review is a STATE of the branch, so the entry surfaces it as a
+        ;; badge and swaps "Request review" for the review actions
+        profile    (mf/deref refs/profile)
+        team       (mf/deref refs/team)
+        author?    (and pr (= (:created-by pr) (:id profile)))
+        admin?     (boolean (get-in team [:permissions :is-admin]))
+        can-merge? (boolean (get-in team [:permissions :can-edit]))
+
+        [approvals total] (if pr (prui/current-approvals pr) [0 0])
 
         editing?   (mf/use-state false)
 
@@ -593,6 +604,46 @@
            (dom/stop-propagation event)
            (on-set-menu false)
            (modal/show! :create-pull-request {:branch entry})))
+
+        on-open-review
+        (mf/use-fn
+         (mf/deps pr)
+         (fn [event]
+           (dom/stop-propagation event)
+           (on-set-menu false)
+           (st/emit! (dwpr/open-pull-request pr))))
+
+        on-review-details
+        (mf/use-fn
+         (mf/deps pr)
+         (fn [event]
+           (dom/stop-propagation event)
+           (on-set-menu false)
+           (modal/show! :pull-request-info {:pr pr})))
+
+        on-publish-review
+        (mf/use-fn
+         (mf/deps pr)
+         (fn [event]
+           (dom/stop-propagation event)
+           (on-set-menu false)
+           (st/emit! (dwpr/update-pull-request-snapshot (:id pr)))))
+
+        on-merge-review
+        (mf/use-fn
+         (mf/deps entry)
+         (fn [event]
+           (dom/stop-propagation event)
+           (on-set-menu false)
+           (confirm-merge! entry)))
+
+        on-cancel-review
+        (mf/use-fn
+         (mf/deps pr)
+         (fn [event]
+           (dom/stop-propagation event)
+           (on-set-menu false)
+           (prui/confirm-close! pr)))
 
         on-rename-commit
         (mf/use-fn
@@ -657,7 +708,16 @@
        [:span {:class (stl/css :branch-entry-author)}
         (if main?
           (tr "workspace.branches.main-subtitle")
-          (:fullname author))]]]
+          (:fullname author))]]
+      (when (some? pr)
+        [:div {:class (stl/css :branch-entry-badges)}
+         [:> i/icon* {:icon-id i/git-pull-request-arrow :size "s"}]
+         [:> pr-state-badge* {:pr pr}]
+         (when (pos? total)
+           [:span {:class (stl/css :branch-pr-approvals)
+                   :title (tr "workspace.pull-requests.info.approvals")}
+            [:> i/icon* {:icon-id i/tick :size "s"}]
+            (dm/str approvals "/" total)])])]
 
      [:div {:class (stl/css :branch-entry-aside)}
       (when (and (not archived?) (not main?))
@@ -686,9 +746,28 @@
        (when (and (not archived?) (pos? behind))
          [:> dropdown-menu-item* {:class (stl/css :menu-option) :on-click on-update}
           (tr "workspace.branches.update")])
-       (when (and (not archived?) (dwpr/enabled?))
+       ;; review lifecycle: a branch without an open pull request offers to
+       ;; request one; with it, the review actions take its place (the
+       ;; review either ends merging the branch or is cancelled, leaving
+       ;; the branch as a normal branch again)
+       (when (and (not archived?) (dwpr/enabled?) (nil? pr))
          [:> dropdown-menu-item* {:class (stl/css :menu-option) :on-click on-request-review}
           (tr "workspace.pull-requests.menu.request-review")])
+       (when (some? pr)
+         [:> dropdown-menu-item* {:class (stl/css :menu-option) :on-click on-open-review}
+          (tr "workspace.pull-requests.actions.open-review")])
+       (when (some? pr)
+         [:> dropdown-menu-item* {:class (stl/css :menu-option) :on-click on-review-details}
+          (tr "workspace.pull-requests.menu.review-details")])
+       (when (and (some? pr) author?)
+         [:> dropdown-menu-item* {:class (stl/css :menu-option) :on-click on-publish-review}
+          (tr "workspace.pull-requests.menu.publish")])
+       (when (and (some? pr) can-merge?)
+         [:> dropdown-menu-item* {:class (stl/css :menu-option) :on-click on-merge-review}
+          (tr "workspace.pull-requests.actions.merge")])
+       (when (and (some? pr) (or author? admin?))
+         [:> dropdown-menu-item* {:class (stl/css :menu-option) :on-click on-cancel-review}
+          (tr "workspace.pull-requests.actions.close")])
        (when-not archived?
          [:> dropdown-menu-item* {:class (stl/css :menu-option) :on-click on-start-rename}
           (tr "labels.rename")])
@@ -710,6 +789,15 @@
 
         {:keys [status data] :as _state}
         (mf/deref branches)
+
+        ;; a pull request is a state OF its branch: index the open ones by
+        ;; branch id so each entry can surface its review state inline
+        prs-by-branch
+        (when (dwpr/enabled?)
+          (->> (:data (mf/deref refs/pull-requests))
+               (filter #(= "open" (:status %)))
+               (map (juxt :file-branch-id identity))
+               (into {})))
 
         ;; make sure the current user resolves as an author (e.g. for the
         ;; synthetic Main entry and branches the user created)
@@ -778,7 +866,9 @@
            (modal/show! :create-branch {:file-name (:name file)})))]
 
     (mf/with-effect []
-      (st/emit! (dwb/init-branches-state)))
+      (st/emit! (dwb/init-branches-state))
+      (when (dwpr/enabled?)
+        (st/emit! (dwpr/init-pull-requests-state))))
 
     [:div {:class (stl/css :branches-toolbox)}
      [:div {:class (stl/css :branches-header)}
@@ -808,6 +898,7 @@
            [:> branch-entry* {:entry current-entry
                               :profiles profiles
                               :current true
+                              :pr (get prs-by-branch (:id current-entry))
                               :menu-open? (= open-menu k)
                               :on-set-menu (partial set-menu k)}])]
 
@@ -822,11 +913,9 @@
                [:> branch-entry* {:key k
                                   :entry entry
                                   :profiles profiles
+                                  :pr (get prs-by-branch (:id entry))
                                   :menu-open? (= open-menu k)
                                   :on-set-menu (partial set-menu k)}]))])
-
-        ;; pull requests over this file's branches (feature-gated inside)
-        [:> pull-requests-section* {}]
 
         (when (seq archived-entries)
           [:div {:class (stl/css :branches-archived)}
@@ -928,7 +1017,7 @@
              [:span {:class (stl/css :prop-name)} (attr-label attr)]
              [:div {:class (stl/css :prop-values)}
               [:> compare-value-chip* {:value main :tone :main}]
-              [:> i/icon* {:icon-id i/arrow-up-right :size "s"}]
+              [:> i/icon* {:icon-id i/arrow-long-right :size "s"}]
               [:> compare-value-chip* {:value branch :tone :branch}]]])]
          [:p {:class (stl/css :compare-detail-hint)}
           (tr "workspace.branches.compare.no-props")])])))
@@ -1013,7 +1102,7 @@
                        :title (tr "workspace.branches.compare.swap")
                        :aria-label (tr "workspace.branches.compare.swap")
                        :on-click on-swap}
-              [:> i/icon* {:icon-id i/arrow-up-right :size "s"}]]
+              [:> i/icon* {:icon-id i/arrow-long-right :size "s"}]]
              [:span {:class (stl/css :breadcrumb-branch)}
               [:> i/icon* {:icon-id i/git-branch :size "s"}]
               (:name branch)]]
@@ -1025,7 +1114,7 @@
                        :title (tr "workspace.branches.compare.swap")
                        :aria-label (tr "workspace.branches.compare.swap")
                        :on-click on-swap}
-              [:> i/icon* {:icon-id i/arrow-up-right :size "s"}]]
+              [:> i/icon* {:icon-id i/arrow-long-right :size "s"}]]
              [:span {:class (stl/css :breadcrumb-main)}
               [:> i/icon* {:icon-id i/git-commit-vertical :size "s"}]
               (tr "workspace.branches.main")]])]]]

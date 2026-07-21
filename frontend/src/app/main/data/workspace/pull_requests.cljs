@@ -302,14 +302,20 @@
 (defn refresh-pull-request-preview-info
   "Refetch the pull request row backing the active sandbox (verdicts,
   counts, outdated flag). No-op when the sandbox is not active or shows
-  another pull request."
+  another pull request. If the pull request finished meanwhile (merged
+  or cancelled), the review context is dropped: the branch is a normal
+  branch again."
   [id]
   (ptk/reify ::refresh-pull-request-preview-info
     ptk/WatchEvent
     (watch [_ state _]
       (when (= id (get-in state [:workspace-pr-preview :pr-id]))
         (->> (rp/cmd! :get-pull-request {:id id})
-             (rx/map #(set-pull-request-preview {:info %}))
+             (rx/mapcat
+              (fn [info]
+                (if (not= "open" (:status info))
+                  (rx/of (exit-pull-request-preview))
+                  (rx/of (set-pull-request-preview {:info info})))))
              (rx/catch (fn [_] (rx/empty))))))))
 
 (defn exit-pull-request-preview
@@ -350,10 +356,19 @@
         (->> (rp/cmd! :get-pull-request {:id pr-id})
              (rx/mapcat
               (fn [info]
-                (if (not= file-id (:source-file-id info))
+                (cond
                   ;; a stale pr-id param carried over a navigation (e.g.
                   ;; landing on main after merging from the review)
+                  (not= file-id (:source-file-id info))
                   (rx/of (exit-pull-request-preview))
+
+                  ;; the pull request already finished (merged or
+                  ;; cancelled): the branch is a normal branch again, so
+                  ;; there is no review context to restore
+                  (not= "open" (:status info))
+                  (rx/of (exit-pull-request-preview))
+
+                  :else
                   (rx/of (set-pull-request-preview {:status :loaded :info info})))))
              (rx/catch
               (fn [_]
