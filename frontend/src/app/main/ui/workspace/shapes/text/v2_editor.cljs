@@ -2,7 +2,7 @@
 ;; License, v. 2.0. If a copy of the MPL was not distributed with this
 ;; file, You can obtain one at http://mozilla.org/MPL/2.0/.
 ;;
-;; Copyright (c) KALEIDOS INC Sucursal en España SL
+;; Copyright (c) KALEIDOS SUBSIDIARY SL
 
 (ns app.main.ui.workspace.shapes.text.v2-editor
   (:require-macros [app.main.style :as stl])
@@ -86,9 +86,11 @@
         canvas-node
         (mf/ref-val canvas-ref)
 
-        ;; Gets the default font from the workspace refs.
+        ;; Gets the default font from the workspace refs. Ignore it when the
+        ;; remembered font is no longer installed, falling back to the built-in
+        ;; default so a new text shape never inherits a missing font.
         default-font
-        (deref refs/default-font)
+        (fonts/valid-default-font (deref refs/default-font))
 
         style-defaults
         (styles/get-style-defaults

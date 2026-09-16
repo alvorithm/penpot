@@ -1350,6 +1350,18 @@ export interface Context {
    * @return The variant container created
    */
   createVariantFromComponents(shapes: Board[]): VariantContainer;
+
+  /**
+   * This method returns a promise that will be resolved when all the
+   * pending layout updates have finished and the components have synchronized.
+   * If no layout work is pending the promise resolves immediately.
+   * @param timeout Maximum time to wait, in milliseconds. If the timeout
+   * elapses before the layout settles, the promise is rejected. Defaults to
+   * 30000; the promise never waits indefinitely.
+   * @return The promise to be resolved when the layout is updated. It is
+   * rejected with an Error, both on timeout and on an invalid timeout value.
+   */
+  waitForLayoutUpdate(timeout?: number): Promise<void>;
 }
 
 /**
@@ -1634,19 +1646,24 @@ export interface File extends PluginData {
    * - `'penpot'` will create a *.penpot file with a binary representation of the file
    * - `'zip'` will create a *.zip with the file exported in several SVG files with some JSON metadata
    * @param `libraryExportType` indicates what to do with the linked libraries of the file when
-   * exporting it. Defaults to `all` if not sent.
-   * - `'all'` will include the libraries as external files that will be exported in a single bundle
-   * - `'merge'` will add all the assets into the main file and only one file will be imported
-   * - `'detach'` will unlink all the external assets and no libraries will be imported
+   * exporting it. Defaults to `'include-libraries'` if not sent.
+   * - `'include-libraries'` will include the libraries as external files that will be exported in a single bundle
+   * - `'merge-libraries'` will add all the assets into the main file and only one file will be imported
+   * - `'detach-libraries'` will unlink all the external assets and no libraries will be imported
+   * - `'link-later'` will preserve component metadata so instances can be relinked on import
    *
    * @example
    * ```js
-   * const exportedData = await file.export('penpot', 'all');
+   * const exportedData = await file.export('penpot', 'include-libraries');
    * ```
    */
   export(
     exportType: 'penpot' | 'zip',
-    libraryExportType?: 'all' | 'merge' | 'detach',
+    libraryExportType?:
+      | 'include-libraries'
+      | 'merge-libraries'
+      | 'detach-libraries'
+      | 'link-later',
   ): Promise<Uint8Array>;
 
   /**
@@ -4096,6 +4113,18 @@ export interface ShapeBase extends PluginData {
    * Removes the shape from its parent.
    */
   remove(): void;
+
+  /**
+   * This method returns a promise that will be resolved when all the
+   * pending layout updates have finished and the components have synchronized.
+   * If no layout work is pending the promise resolves immediately.
+   * @param timeout Maximum time to wait, in milliseconds. If the timeout
+   * elapses before the shape's layout settles, the promise is rejected.
+   * Defaults to 30000; the promise never waits indefinitely.
+   * @return The promise to be resolved when the shape's layout is updated. It
+   * is rejected with an Error, both on timeout and on an invalid timeout value.
+   */
+  waitForLayoutUpdate(timeout?: number): Promise<void>;
 }
 
 /**
@@ -4180,6 +4209,10 @@ export interface Stroke {
    * The optional gradient stroke defined by a Gradient object.
    */
   strokeColorGradient?: Gradient;
+  /**
+   * The optional image stroke defined by an ImageData object.
+   */
+  strokeImage?: ImageData;
 }
 
 /**

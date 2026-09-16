@@ -2,7 +2,7 @@
 ;; License, v. 2.0. If a copy of the MPL was not distributed with this
 ;; file, You can obtain one at http://mozilla.org/MPL/2.0/.
 ;;
-;; Copyright (c) KALEIDOS INC Sucursal en España SL
+;; Copyright (c) KALEIDOS SUBSIDIARY SL
 
 (ns app.util.dom
   (:require
@@ -244,6 +244,16 @@
         height   (.-clientHeight scroll-node)]
     (/ distance height)))
 
+(defn scroll-to-row
+  [node index]
+  (when (and (some? node) (number? index))
+    (.scrollToRow ^js node index)))
+
+(defn scroll-to-position
+  [node offset]
+  (when (and (some? node) (number? offset))
+    (.scrollToPosition ^js node offset)))
+
 (def get-target-val (comp get-value get-target))
 
 (def get-target-scroll (comp get-scroll-position get-target))
@@ -360,6 +370,13 @@
   (when (some? el)
     (.appendChild ^js el child))
   el)
+
+(defn import-node
+  "Import `node` (e.g. parsed in another document) into the current document so
+  it can be inserted. Deep clone unless `deep?` is false."
+  ([^js node] (import-node node true))
+  ([^js node deep?]
+   (.importNode globals/document node deep?)))
 
 (defn insert-after!
   [^js el ^js ref child]
@@ -700,6 +717,13 @@
   (when (some? node)
     (.setAttribute node attr value)))
 
+(defn focus-and-untabbable!
+  [^js node]
+  (when (some? node)
+    (set-attribute! node "tabindex" "0")
+    (focus! node)
+    (set-attribute! node "tabindex" "-1")))
+
 (defn set-style!
   [^js node ^string style value]
   (when (some? node)
@@ -788,10 +812,8 @@
 (defn trigger-download
   [filename blob]
   (let [uri (wapi/create-uri blob)]
-    (try
-      (trigger-download-uri filename (.-type ^js blob) uri)
-      (finally
-        (wapi/revoke-uri uri)))))
+    (trigger-download-uri filename (.-type ^js blob) uri)
+    (js/setTimeout #(wapi/revoke-uri uri) 1000)))
 
 (defn event
   "Create an instance of DOM Event"
@@ -863,35 +885,17 @@
   [url]
   (.replaceState (.-history globals/window) nil "" url))
 
-(defn- update-query-params
-  "Apply `f` to the query-params map of `url`, returning the updated URL string.
-  Handles both plain query strings and fragment-based (hash) URLs."
-  [url f]
-  (let [transform (fn [parsed]
-                    (update parsed :query
-                            (fn [q]
-                              (-> (u/query-string->map (or q ""))
-                                  f
-                                  u/map->query-string))))
-        parsed    (u/uri url)
-        fragment  (:fragment parsed)]
-    (if (str/blank? fragment)
-      (str (transform parsed))
-      (-> parsed
-          (assoc :fragment (str (transform (u/parse fragment))))
-          str))))
-
 (defn append-query-param
   "Return a new URL string with the given query parameter added or replaced.
   Handles both plain query strings and fragment-based (hash) URLs."
   [url key value]
-  (update-query-params url #(assoc % key value)))
+  (u/append-query-param url key value))
 
 (defn remove-query-param
   "Return a new URL string with the given query parameter removed.
   Handles both plain query strings and fragment-based (hash) URLs."
   [url key]
-  (update-query-params url #(dissoc % key)))
+  (u/remove-query-param url key))
 
 (defn reload-current-window
   ([]
@@ -944,6 +948,36 @@
 
     {:ascent (.-fontBoundingBoxAscent measure)
      :descent (.-fontBoundingBoxDescent measure)}))
+
+(defn measure-text-metrics
+  "Measure the font-wide (bounding-box) and glyph-ink vertical metrics of `text`
+  at `font-size` px for the given font.
+
+  Returns `{:font-ascent :font-descent :ink-ascent :ink-descent}` in px, or nil
+  when the browser doesn't expose the bounding-box metrics. The font-wide
+  values track what CSS uses for the line box, while the ink ones track the
+  visible glyphs, which is what an optical centering shift needs."
+  ([family weight style]
+   (measure-text-metrics family weight style "Ag" 16))
+  ([family weight style text font-size]
+   (let [element (.createElement globals/document "canvas")
+         context (.getContext element "2d")
+         _       (set! (.-font context)
+                       (dm/str (or weight "400") " " (or style "normal") " "
+                               font-size "px \"" family "\""))
+         measure ^js (.measureText context (str text))
+         font-ascent  (.-fontBoundingBoxAscent measure)
+         font-descent (.-fontBoundingBoxDescent measure)
+         ink-ascent   (.-actualBoundingBoxAscent measure)
+         ink-descent  (.-actualBoundingBoxDescent measure)]
+     (when (and (number? font-ascent)
+                (number? font-descent)
+                (number? ink-ascent)
+                (number? ink-descent))
+       {:font-ascent  font-ascent
+        :font-descent font-descent
+        :ink-ascent   ink-ascent
+        :ink-descent  ink-descent}))))
 
 (defn clone-node
   ([^js node]

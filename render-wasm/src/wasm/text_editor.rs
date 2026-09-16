@@ -1,14 +1,13 @@
 use macros::{wasm_error, ToJs};
 
 use crate::globals::{get_render_state, get_text_editor_state};
-use crate::math::{Matrix, Point, Rect};
+use crate::math::{Matrix, Point};
 use crate::mem;
-use crate::render::text_editor as text_editor_render;
-use crate::render::SurfaceId;
-use crate::shapes::{Shape, TextAlign, TextContent, TextPositionWithAffinity, Type, VerticalAlign};
-use crate::state::{TextEditorEvent, TextSelection};
+use crate::shapes::{TextAlign, TextContent, TextPositionWithAffinity, Type, VerticalAlign};
+use crate::state::{State, TextEditorEvent, TextEditorState};
 use crate::utils::uuid_from_u32_quartet;
 use crate::utils::uuid_to_u32_quartet;
+use crate::uuid::Uuid;
 use crate::wasm::fills::RawFillData;
 use crate::wasm::text::{
     helpers as text_helpers, RawTextAlign, RawTextDecoration, RawTextDirection, RawTextTransform,
@@ -32,12 +31,17 @@ pub enum CursorDirection {
 // STATE MANAGEMENT
 // ============================================================================
 
+/// Apply the editor theme. When `invert` is true the caret is painted with a
+/// Difference blend mode (pass white as `cursor_color` to always show the
+/// inverted color of the background); otherwise it is painted with the given
+/// solid `cursor_color`.
 #[no_mangle]
-pub extern "C" fn text_editor_apply_theme(selection_color: u32, cursor_color: u32) {
+pub extern "C" fn text_editor_apply_theme(selection_color: u32, cursor_color: u32, invert: bool) {
     // NOTE: In the future could be interesting to fill al this data from
     // a structure pointer.
     get_text_editor_state().theme.selection_color = Color::new(selection_color);
     get_text_editor_state().theme.cursor_color = Color::new(cursor_color);
+    get_text_editor_state().theme.cursor_invert = invert;
 }
 
 #[no_mangle]
@@ -127,8 +131,10 @@ pub extern "C" fn text_editor_select_all() -> bool {
     })
 }
 
-#[no_mangle]
-pub extern "C" fn text_editor_select_word_boundary(x: f32, y: f32) {
+fn with_active_text_at_point<F>(x: f32, y: f32, apply: F)
+where
+    F: FnOnce(&mut TextEditorState, &TextContent, &TextPositionWithAffinity),
+{
     with_state!(state, {
         if !get_text_editor_state().has_focus {
             return;
@@ -148,8 +154,30 @@ pub extern "C" fn text_editor_select_word_boundary(x: f32, y: f32) {
 
         let point = Point::new(x, y);
         if let Some(position) = text_content.get_caret_position_from_shape_coords(&point) {
-            get_text_editor_state().select_word_boundary(text_content, &position);
+            apply(get_text_editor_state(), text_content, &position);
         }
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn text_editor_select_word_boundary(x: f32, y: f32) {
+    with_active_text_at_point(x, y, |editor, text_content, position| {
+        editor.select_word_boundary(text_content, position)
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn text_editor_select_paragraph(x: f32, y: f32) {
+    // A drag that produced a range must survive the trailing click; a jitter
+    // that left the caret collapsed must not suppress the paragraph select.
+    let editor = get_text_editor_state();
+    if editor.is_click_event_skipped && editor.selection.is_selection() {
+        editor.is_click_event_skipped = false;
+        return;
+    }
+
+    with_active_text_at_point(x, y, |editor, text_content, position| {
+        editor.select_paragraph(text_content, position)
     })
 }
 
@@ -181,6 +209,35 @@ pub extern "C" fn text_editor_pointer_down(x: f32, y: f32) {
         get_text_editor_state().start_pointer_selection();
         if let Some(position) = text_content.get_caret_position_from_shape_coords(&point) {
             get_text_editor_state().set_caret_from_position(&position);
+            get_text_editor_state().update_styles(text_content);
+        }
+    });
+}
+
+/// Like `text_editor_pointer_down`, but keeps the current anchor and moves the
+/// focus to the pointer instead of collapsing the caret there (Shift+click).
+#[no_mangle]
+pub extern "C" fn text_editor_pointer_down_extend(x: f32, y: f32) {
+    with_state!(state, {
+        if !get_text_editor_state().has_focus {
+            return;
+        }
+        let Some(shape_id) = get_text_editor_state().active_shape_id else {
+            return;
+        };
+        let Some(shape) = state.shapes.get(&shape_id) else {
+            return;
+        };
+        let Type::Text(text_content) = &shape.shape_type else {
+            return;
+        };
+        let point = Point::new(x, y);
+        get_text_editor_state().start_pointer_selection();
+        if let Some(position) = text_content.get_caret_position_from_shape_coords(&point) {
+            get_text_editor_state().extend_selection_from_position(&position);
+            // The click after pointerup would collapse the caret and drop the
+            // selection we just extended.
+            get_text_editor_state().is_click_event_skipped = true;
             get_text_editor_state().update_styles(text_content);
         }
     });
@@ -361,8 +418,7 @@ pub extern "C" fn text_editor_composition_end() -> Result<()> {
             get_text_editor_state().selection.set_caret(new_cursor);
         }
 
-        text_content.layout.paragraphs.clear();
-        text_content.layout.paragraph_builders.clear();
+        text_content.layout.clear();
 
         get_text_editor_state().reset_blink();
         get_text_editor_state().push_event(crate::state::TextEditorEvent::ContentChanged);
@@ -413,8 +469,7 @@ pub extern "C" fn text_editor_composition_update() -> Result<()> {
         let cursor = get_text_editor_state().selection.focus;
         text_helpers::insert_text_with_newlines(text_content, &cursor, &text);
 
-        text_content.layout.paragraphs.clear();
-        text_content.layout.paragraph_builders.clear();
+        text_content.layout.clear();
 
         get_text_editor_state().reset_blink();
         get_text_editor_state().push_event(crate::state::TextEditorEvent::ContentChanged);
@@ -482,8 +537,7 @@ pub extern "C" fn text_editor_insert_text() -> Result<()> {
             get_text_editor_state().selection.set_caret(new_cursor);
         }
 
-        text_content.layout.paragraphs.clear();
-        text_content.layout.paragraph_builders.clear();
+        text_content.layout.clear();
 
         get_text_editor_state().reset_blink();
         get_text_editor_state().push_event(TextEditorEvent::ContentChanged);
@@ -607,40 +661,6 @@ pub extern "C" fn text_editor_move_cursor(
 // ============================================================================
 // RENDERING & EXPORT
 // ============================================================================
-
-#[no_mangle]
-pub extern "C" fn text_editor_get_cursor_rect() -> *mut u8 {
-    with_state!(state, {
-        if !get_text_editor_state().has_focus || !get_text_editor_state().cursor_visible {
-            return std::ptr::null_mut();
-        }
-
-        let Some(shape_id) = get_text_editor_state().active_shape_id else {
-            return std::ptr::null_mut();
-        };
-
-        let Some(shape) = state.shapes.get(&shape_id) else {
-            return std::ptr::null_mut();
-        };
-
-        let Type::Text(text_content) = &shape.shape_type else {
-            return std::ptr::null_mut();
-        };
-
-        let cursor = &get_text_editor_state().selection.focus;
-
-        if let Some(rect) = get_cursor_rect(text_content, cursor, shape) {
-            let mut bytes = vec![0u8; 16];
-            bytes[0..4].copy_from_slice(&rect.left().to_le_bytes());
-            bytes[4..8].copy_from_slice(&rect.top().to_le_bytes());
-            bytes[8..12].copy_from_slice(&rect.width().to_le_bytes());
-            bytes[12..16].copy_from_slice(&rect.height().to_le_bytes());
-            return mem::write_bytes(bytes);
-        }
-
-        std::ptr::null_mut()
-    })
-}
 
 #[no_mangle]
 pub extern "C" fn text_editor_get_current_styles() -> *mut u8 {
@@ -804,85 +824,48 @@ pub extern "C" fn text_editor_get_current_styles() -> *mut u8 {
 }
 
 #[no_mangle]
-pub extern "C" fn text_editor_get_selection_rects() -> *mut u8 {
-    with_state!(state, {
-        if !get_text_editor_state().has_focus {
-            return std::ptr::null_mut();
-        }
-
-        if get_text_editor_state().selection.is_collapsed() {
-            return std::ptr::null_mut();
-        }
-
-        let Some(shape_id) = get_text_editor_state().active_shape_id else {
-            return std::ptr::null_mut();
-        };
-
-        let Some(shape) = state.shapes.get(&shape_id) else {
-            return std::ptr::null_mut();
-        };
-
-        let Type::Text(text_content) = &shape.shape_type else {
-            return std::ptr::null_mut();
-        };
-
-        let selection = &get_text_editor_state().selection;
-        let rects = get_selection_rects(text_content, selection, shape);
-        if rects.is_empty() {
-            return std::ptr::null_mut();
-        }
-
-        let mut bytes = Vec::with_capacity(4 + rects.len() * 16);
-        bytes.extend_from_slice(&(rects.len() as u32).to_le_bytes());
-        for rect in rects {
-            bytes.extend_from_slice(&rect.left().to_le_bytes());
-            bytes.extend_from_slice(&rect.top().to_le_bytes());
-            bytes.extend_from_slice(&rect.width().to_le_bytes());
-            bytes.extend_from_slice(&rect.height().to_le_bytes());
-        }
-        mem::write_bytes(bytes)
-    })
-}
-
-#[no_mangle]
 pub extern "C" fn text_editor_update_blink(timestamp_ms: f32) {
     get_text_editor_state().update_blink(timestamp_ms);
 }
 
+/// Refresh a text shape's layout if the editor marked it dirty, so the
+/// caret/selection overlay is measured against up-to-date glyph geometry.
+fn update_text_layout_if_needed(state: &mut State, shape_id: Uuid) {
+    let Some(shape) = state.shapes.get_mut(&shape_id) else {
+        return;
+    };
+
+    let selrect = shape.selrect();
+
+    let Type::Text(text_content) = &mut shape.shape_type else {
+        return;
+    };
+
+    if text_content.needs_update_layout() {
+        text_content.update_layout(selrect);
+    }
+}
+
+/// Repaint the caret/selection over the last fully rendered frame.
+///
+/// Re-composes Target from the Backbuffer (which still holds the last complete
+/// render); the compose step draws the editor overlay itself.
+///
+/// This exists because the caret blink must erase the previous caret, which
+/// means restoring the pixels underneath it. Doing that via `render_from_cache`
+/// rebuilds the frame from the document atlas, and that atlas is capped at
+/// scale <= 1.0 — on a zoomed-in view it gets blitted heavily upscaled, so the
+/// blink alternates between the crisp render and a softer approximation, which
+/// reads as a flash. Reusing the Backbuffer is pixel-identical at any zoom.
 #[no_mangle]
-pub extern "C" fn text_editor_render_overlay() {
+pub extern "C" fn text_editor_render_caret() {
     with_state!(state, {
         let Some(shape_id) = get_text_editor_state().active_shape_id else {
             return;
         };
 
-        if let Some(shape) = state.shapes.get(&shape_id) {
-            if let Type::Text(text_content) = &shape.shape_type {
-                if text_content.needs_update_layout() {
-                    let selrect = shape.selrect();
-                    if let Some(shape) = state.shapes.get_mut(&shape_id) {
-                        if let Type::Text(text_content) = &mut shape.shape_type {
-                            text_content.update_layout(selrect);
-                        }
-                    }
-                }
-            }
-        }
-
-        let Some(shape) = state.shapes.get(&shape_id) else {
-            return;
-        };
-
-        let canvas = get_render_state().surfaces.canvas(SurfaceId::Target);
-        let viewbox = get_render_state().viewbox;
-        text_editor_render::render_overlay(
-            canvas,
-            &viewbox,
-            &get_render_state().options,
-            get_text_editor_state(),
-            shape,
-        );
-        get_render_state().flush_and_submit();
+        update_text_layout_if_needed(state, shape_id);
+        get_render_state().present_frame(&state.shapes);
     });
 }
 
@@ -897,11 +880,11 @@ pub extern "C" fn text_editor_export_content() -> *mut u8 {
             return std::ptr::null_mut();
         };
 
-        let Some(shape) = state.shapes.get(&shape_id) else {
+        let Some(shape) = state.shapes.get_mut(&shape_id) else {
             return std::ptr::null_mut();
         };
 
-        let Type::Text(text_content) = &shape.shape_type else {
+        let Type::Text(text_content) = &mut shape.shape_type else {
             return std::ptr::null_mut();
         };
 
@@ -916,11 +899,18 @@ pub extern "C" fn text_editor_export_content() -> *mut u8 {
                     .replace('\n', "\\n")
                     .replace('\r', "\\r")
                     .replace('\t', "\\t");
-                span_parts.push(format!("\"{}\"", escaped_text));
+                span_parts.push(format!(
+                    "{{\"p\":{},\"s\":{},\"t\":\"{}\"}}",
+                    span.paragraph_position, span.span_position, escaped_text
+                ));
             }
             json_parts.push(format!("[{}]", span_parts.join(",")));
         }
         let json = format!("[{}]", json_parts.join(","));
+
+        // The host rebuilds its content tree out of this JSON, so the current
+        // positions are what the next call has to report against.
+        text_content.reset_span_positions();
 
         let mut bytes = json.into_bytes();
         bytes.push(0);
@@ -1008,151 +998,38 @@ pub extern "C" fn text_editor_export_selection() -> *mut u8 {
 
 #[no_mangle]
 pub extern "C" fn text_editor_get_selection(buffer_ptr: *mut u32) -> bool {
-    if !get_text_editor_state().selection.is_selection() {
-        return false;
-    }
-    let sel = &get_text_editor_state().selection;
-    unsafe {
-        *buffer_ptr = sel.anchor.paragraph as u32;
-        *buffer_ptr.add(1) = sel.anchor.offset as u32;
-        *buffer_ptr.add(2) = sel.focus.paragraph as u32;
-        *buffer_ptr.add(3) = sel.focus.offset as u32;
-    }
-    true
-}
-
-// ============================================================================
-// HELPERS: Cursor & Selection
-// ============================================================================
-
-fn get_cursor_rect(
-    text_content: &TextContent,
-    cursor: &TextPositionWithAffinity,
-    shape: &Shape,
-) -> Option<Rect> {
-    let paragraphs = text_content.paragraphs();
-    if cursor.paragraph >= paragraphs.len() {
-        return None;
-    }
-
-    let layout_paragraphs: Vec<_> = text_content.layout.paragraphs.iter().flatten().collect();
-
-    let total_height: f32 = layout_paragraphs.iter().map(|p| p.height()).sum();
-    let valign_offset = match shape.vertical_align() {
-        VerticalAlign::Center => (shape.selrect().height() - total_height) / 2.0,
-        VerticalAlign::Bottom => shape.selrect().height() - total_height,
-        _ => 0.0,
-    };
-
-    let mut y_offset = valign_offset;
-    for (idx, laid_out_para) in layout_paragraphs.iter().enumerate() {
-        if idx == cursor.paragraph {
-            let char_pos = cursor.offset;
-
-            use skia_safe::textlayout::{RectHeightStyle, RectWidthStyle};
-            let rects = laid_out_para.get_rects_for_range(
-                char_pos..char_pos,
-                RectHeightStyle::Tight,
-                RectWidthStyle::Tight,
-            );
-
-            let (x, height) = if !rects.is_empty() {
-                (rects[0].rect.left(), rects[0].rect.height())
-            } else {
-                let pos = laid_out_para.get_glyph_position_at_coordinate((0.0, 0.0));
-                let height = laid_out_para.height();
-                (pos.position as f32, height)
-            };
-
-            let selrect = shape.selrect();
-            let base_x = selrect.x();
-            let base_y = selrect.y() + y_offset;
-
-            return Some(Rect::from_xywh(base_x + x, base_y, 1.0, height));
-        }
-        y_offset += laid_out_para.height();
-    }
-
-    None
-}
-
-/// Get selection rectangles for a given selection.
-fn get_selection_rects(
-    text_content: &TextContent,
-    selection: &TextSelection,
-    shape: &Shape,
-) -> Vec<Rect> {
-    let mut rects = Vec::new();
-
-    let start = selection.start();
-    let end = selection.end();
-
-    let paragraphs = text_content.paragraphs();
-    let layout_paragraphs: Vec<_> = text_content.layout.paragraphs.iter().flatten().collect();
-
-    let selrect = shape.selrect();
-
-    let total_height: f32 = layout_paragraphs.iter().map(|p| p.height()).sum();
-    let valign_offset = match shape.vertical_align() {
-        VerticalAlign::Center => (selrect.height() - total_height) / 2.0,
-        VerticalAlign::Bottom => selrect.height() - total_height,
-        _ => 0.0,
-    };
-
-    let mut y_offset = valign_offset;
-
-    for (para_idx, laid_out_para) in layout_paragraphs.iter().enumerate() {
-        let para_height = laid_out_para.height();
-
-        if para_idx < start.paragraph || para_idx > end.paragraph {
-            y_offset += para_height;
-            continue;
+    with_state!(state, {
+        if get_text_editor_state().active_shape_id.is_none() {
+            return false;
         }
 
-        if para_idx >= paragraphs.len() {
-            y_offset += para_height;
-            continue;
-        }
+        let sel = get_text_editor_state().selection;
 
-        let para = &paragraphs[para_idx];
-        let para_char_count: usize = para
-            .children()
-            .iter()
-            .map(|span| span.text.chars().count())
-            .sum();
-        let range_start = if para_idx == start.paragraph {
-            start.offset
-        } else {
-            0
-        };
-
-        let range_end = if para_idx == end.paragraph {
-            end.offset
-        } else {
-            para_char_count
-        };
-
-        if range_start < range_end {
-            use skia_safe::textlayout::{RectHeightStyle, RectWidthStyle};
-            let text_boxes = laid_out_para.get_rects_for_range(
-                range_start..range_end,
-                RectHeightStyle::Tight,
-                RectWidthStyle::Tight,
-            );
-
-            for text_box in text_boxes {
-                let r = text_box.rect;
-                rects.push(Rect::from_xywh(
-                    selrect.x() + r.left(),
-                    selrect.y() + y_offset + r.top(),
-                    r.width(),
-                    r.height(),
-                ));
+        // The frontend indexes these offsets into JS strings, which are UTF-16.
+        let (anchor_offset, focus_offset) = match get_text_editor_state()
+            .active_shape_id
+            .and_then(|shape_id| state.shapes.get(&shape_id))
+            .map(|shape| &shape.shape_type)
+        {
+            Some(Type::Text(text_content)) => {
+                let paragraphs = text_content.paragraphs();
+                let to_utf16 = |position: TextPositionWithAffinity| {
+                    paragraphs
+                        .get(position.paragraph)
+                        .map(|para| para.char_offset_to_utf16(position.offset))
+                        .unwrap_or(position.offset)
+                };
+                (to_utf16(sel.anchor), to_utf16(sel.focus))
             }
+            _ => (sel.anchor.offset, sel.focus.offset),
+        };
+
+        unsafe {
+            *buffer_ptr = sel.anchor.paragraph as u32;
+            *buffer_ptr.add(1) = anchor_offset as u32;
+            *buffer_ptr.add(2) = sel.focus.paragraph as u32;
+            *buffer_ptr.add(3) = focus_offset as u32;
         }
-
-        y_offset += para_height;
-    }
-
-    rects
+        true
+    })
 }

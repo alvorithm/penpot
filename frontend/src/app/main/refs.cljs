@@ -2,7 +2,7 @@
 ;; License, v. 2.0. If a copy of the MPL was not distributed with this
 ;; file, You can obtain one at http://mozilla.org/MPL/2.0/.
 ;;
-;; Copyright (c) KALEIDOS INC Sucursal en España SL
+;; Copyright (c) KALEIDOS SUBSIDIARY SL
 
 (ns app.main.refs
   "A collection of derived refs."
@@ -19,6 +19,7 @@
    [app.main.store :as st]
    [app.main.streams :as ms]
    [beicon.v2.core :as rx]
+   [clojure.string :as str]
    [okulary.core :as l]))
 
 ;; ---- Global refs
@@ -31,6 +32,9 @@
 
 (def profile
   (l/derived (l/key :profile) st/state))
+
+(def custom-shortcuts
+  (l/derived (fn [state] (get-in state [:profile :props :custom-shortcuts])) st/state))
 
 (def current-page-id
   (l/derived (l/key :current-page-id) st/state))
@@ -237,6 +241,9 @@
 (def selected-edition
   (l/derived :edition workspace-local))
 
+(def workspace-edit-path
+  (l/derived :edit-path workspace-local))
+
 (def current-transform
   (l/derived :transform workspace-local))
 
@@ -270,6 +277,10 @@
 ;; page item that it is being edited
 (def editing-page-item
   (l/derived :page-item workspace-local))
+
+;; set of pages selected in the sitemap (multi-selection)
+(def selected-pages
+  (l/derived :selected-pages workspace-local))
 
 (def current-hover-ids
   (l/derived :hover-ids context-menu))
@@ -594,13 +605,22 @@
                (dm/get-in state [:viewer-local :zoom-type]))
              st/state))
 
+(defn- resolved-uri?
+  "Returns true if the uri is already a fully resolved URI (blob or data)."
+  [uri]
+  (and (string? uri)
+       (or (str/starts-with? uri "blob:")
+           (str/starts-with? uri "data:"))))
+
 (defn workspace-thumbnail-by-id
   [object-id]
   (l/derived
    (fn [state]
      (when-let [entry (dm/get-in state [:thumbnails object-id])]
        (cond-> entry
-         (:uri entry) (update :uri cf/resolve-media))))
+         (and (:uri entry)
+              (not (resolved-uri? (:uri entry))))
+         (update :uri cf/resolve-media))))
    st/state))
 
 (def workspace-text-modifier
@@ -666,9 +686,6 @@
 
 (def updating-library
   (l/derived :updating-library st/state))
-
-(def persistence-state
-  (l/derived (comp :status :persistence) st/state))
 
 (def progress
   (l/derived :progress st/state))

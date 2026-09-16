@@ -49,7 +49,7 @@ The feature spans the three subsystems. The core, shared logic lives in
 ```text
 common/src/app/common/files/branch_merge.cljc          ; three-way diff + merge->changes engine
 backend/src/app/rpc/commands/files_branch.clj          ; RPC commands (create/list/diff/merge/update)
-backend/src/app/migrations/sql/0152-add-file-branch-table.sql  ; schema (file_branch table + is_branch)
+backend/src/app/migrations/sql/0155-add-file-branch-table.sql  ; schema (file_branch table + is_branch)
 frontend/src/app/main/data/workspace/branches.cljs     ; frontend state + RPC calls (ptk events)
 frontend/src/app/main/ui/workspace/sidebar/branches.cljs       ; panels & dialogs
 frontend/src/app/main/ui/dashboard/branches_popover.cljs       ; dashboard file-card popover
@@ -509,7 +509,7 @@ evaluate their changes. The feature is part of branching and is gated
 behind the same `:branching` product flag; it lives in:
 
 ```text
-backend/src/app/migrations/sql/0153-add-file-pull-request-tables.sql
+backend/src/app/migrations/sql/0156-add-file-pull-request-tables.sql
 backend/src/app/rpc/commands/files_pull_request.clj
 frontend/src/app/main/data/workspace/pull_requests.cljs
 frontend/src/app/main/ui/workspace/sidebar/pull_requests.cljs

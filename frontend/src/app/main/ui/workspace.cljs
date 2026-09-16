@@ -2,7 +2,7 @@
 ;; License, v. 2.0. If a copy of the MPL was not distributed with this
 ;; file, You can obtain one at http://mozilla.org/MPL/2.0/.
 ;;
-;; Copyright (c) KALEIDOS INC Sucursal en España SL
+;; Copyright (c) KALEIDOS SUBSIDIARY SL
 
 (ns app.main.ui.workspace
   (:require-macros [app.main.style :as stl])
@@ -15,6 +15,7 @@
    [app.main.data.workspace :as dw]
    [app.main.data.workspace.pull-requests :as dwpr]
    [app.main.features :as features]
+   [app.main.fonts :as fonts]
    [app.main.refs :as refs]
    [app.main.router :as-alias rt]
    [app.main.store :as st]
@@ -24,6 +25,7 @@
    [app.main.ui.hooks.resize :refer [use-resize-observer]]
    [app.main.ui.modal :refer [modal-container*]]
    [app.main.ui.workspace.colorpicker]
+   [app.main.ui.workspace.components-debugger :refer [components-debugger*]]
    [app.main.ui.workspace.context-menu :refer [context-menu*]]
    [app.main.ui.workspace.coordinates :as coordinates]
    [app.main.ui.workspace.libraries]
@@ -47,7 +49,6 @@
    [app.main.ui.workspace.webgl-unavailable-modal]
    [app.util.debug :as dbg]
    [app.util.dom :as dom]
-   [app.util.globals :as globals]
    [app.util.i18n :as i18n :refer [tr]]
    [goog.events :as events]
    [okulary.core :as l]
@@ -190,7 +191,7 @@
 
     (mf/with-effect []
       (let [focus-out #(st/emit! (dw/workspace-focus-lost))
-            key       (events/listen globals/window "blur" focus-out)]
+            key       (events/listen js/window "blur" focus-out)]
         (partial events/unlistenByKey key)))
 
     (mf/with-effect [file-id page-id]
@@ -209,10 +210,7 @@
   {::mf/wrap [mf/memo]}
   [{:keys [team-id project-id file-id page-id pr-id layout-name]}]
 
-  (let [file-id          (hooks/use-equal-memo file-id)
-        page-id          (hooks/use-equal-memo page-id)
-
-        layout           (mf/deref refs/workspace-layout)
+  (let [layout           (mf/deref refs/workspace-layout)
         wglobal          (mf/deref refs/workspace-global)
 
         team-ref         (mf/with-memo [team-id]
@@ -242,6 +240,9 @@
     (mf/with-effect []
       (st/emit! (dps/initialize-persistence)
                 (dpl/update-plugins-permissions-peek)))
+
+    (mf/with-effect []
+      (fonts/prefetch-preview-sprite!))
 
     ;; Setting the layout preset by its name
     (mf/with-effect [layout-name]
@@ -277,7 +278,7 @@
       (let [handle-wasm-render
             (fn [_]
               (reset! first-frame-rendered? true))
-            listener-key (events/listen globals/document "penpot:wasm:render" handle-wasm-render)]
+            listener-key (events/listen js/document "penpot:wasm:render" handle-wasm-render)]
         (fn []
           (events/unlistenByKey listener-key))))
 
@@ -287,6 +288,7 @@
        [:> (mf/provider ctx/design-tokens) {:value design-tokens?}
         [:> (mf/provider ctx/workspace-read-only?) {:value read-only?}
          [:> modal-container*]
+         [:> components-debugger*]
          [:section {:class (stl/css :workspace)
                     :style {:background-color background-color
                             :touch-action "none"
@@ -309,6 +311,11 @@
 
 (mf/defc workspace-page*
   {::mf/lazy-load true}
-  [props]
-  [:> workspace* props])
+  [{:keys [file-id page-id] :as props}]
+  (let [file-id (hooks/use-equal-memo file-id)
+        page-id (hooks/use-equal-memo page-id)
+        props   (mf/spread-props props {:file-id file-id
+                                        :page-id page-id})]
 
+    (when (uuid? file-id)
+      [:> workspace* props])))

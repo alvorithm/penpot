@@ -2,7 +2,7 @@
 ;; License, v. 2.0. If a copy of the MPL was not distributed with this
 ;; file, You can obtain one at http://mozilla.org/MPL/2.0/.
 ;;
-;; Copyright (c) KALEIDOS INC Sucursal en España SL
+;; Copyright (c) KALEIDOS SUBSIDIARY SL
 
 (ns app.main.ui.forms
   (:require-macros [app.main.style :as stl])
@@ -117,14 +117,15 @@
         on-paste
         (mf/use-fn
          (fn [event]
-           (let [paste-data (-> event .-clipboardData (.getData "text"))]
-             (when (and (string? paste-data)
-                        (re-find #"[,\s]" paste-data))
-               (dom/prevent-default event)
-               (dom/stop-propagation event)
+           (when-let [clipboard-data (.-clipboardData event)]
+             (let [paste-data (.getData clipboard-data "text")]
+               (when (and (string? paste-data)
+                          (re-find #"[,\s]" paste-data))
+                 (dom/prevent-default event)
+                 (dom/stop-propagation event)
 
-               ;; Mark as touched
-               (swap! form assoc-in [:touched name] true)
+                 ;; Mark as touched
+                 (swap! form assoc-in [:touched name] true))
 
                ;; Split pasted text by commas and/or whitespace, add each valid part
                (let [parts (->> (str/split paste-data #",|\s+")
@@ -203,7 +204,17 @@
 
         props
         (mf/spread-props props {:on-change handle-change
-                                :value value})]
+                                :value value})
+
+        ;; select* resets its label to `default-selected` whenever its
+        ;; options change identity, and callers usually build the options
+        ;; inline, so every re-render snapped the label back to the default
+        ;; while the form kept the picked value. Pass the form value as the
+        ;; default so that reset lands on the picked option.
+        props
+        (if (and (string? value) (not (str/blank? value)))
+          (mf/spread-props props {:default-selected value})
+          props)]
 
     [:> select* props]))
 

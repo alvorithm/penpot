@@ -2,7 +2,7 @@
 ;; License, v. 2.0. If a copy of the MPL was not distributed with this
 ;; file, You can obtain one at http://mozilla.org/MPL/2.0/.
 ;;
-;; Copyright (c) KALEIDOS INC Sucursal en España SL
+;; Copyright (c) KALEIDOS SUBSIDIARY SL
 
 (ns backend-tests.email-sending-test
   (:require
@@ -42,15 +42,15 @@
    :token "test-token"
    :organization organization})
 
-(t/deftest invite-to-org-includes-sso-notice-when-active
-  (let [result (emails/render emails/invite-to-org
+(t/deftest invite-to-organization-includes-sso-notice-when-active
+  (let [result (emails/render emails/invite-to-organization
                               (invite-email-params {:name "Acme Inc"
                                                     :sso-active true}))]
     (t/is (str/includes? (email-text-body result) sso-notice-snippet))
     (t/is (str/includes? (get-in result [:body "text/html"]) sso-notice-snippet))))
 
-(t/deftest invite-to-org-omits-sso-notice-when-inactive
-  (let [result (emails/render emails/invite-to-org
+(t/deftest invite-to-organization-omits-sso-notice-when-inactive
+  (let [result (emails/render emails/invite-to-organization
                               (invite-email-params {:name "Acme Inc"
                                                     :sso-active false}))]
     (t/is (not (str/includes? (email-text-body result) sso-notice-snippet)))

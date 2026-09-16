@@ -2,7 +2,7 @@
 ;; License, v. 2.0. If a copy of the MPL was not distributed with this
 ;; file, You can obtain one at http://mozilla.org/MPL/2.0/.
 ;;
-;; Copyright (c) KALEIDOS INC Sucursal en España SL
+;; Copyright (c) KALEIDOS SUBSIDIARY SL
 
 (ns app.main.ui.comments
   (:require-macros [app.main.style :as stl])
@@ -23,9 +23,9 @@
    [app.main.ui.components.dropdown :refer [dropdown]]
    [app.main.ui.ds.buttons.button :refer [button*]]
    [app.main.ui.ds.buttons.icon-button :refer [icon-button*]]
+   [app.main.ui.ds.controls.checkbox :refer [checkbox*]]
    [app.main.ui.ds.foundations.assets.icon :refer [icon*] :as i]
    [app.main.ui.hooks :as h]
-   [app.main.ui.icons :as deprecated-icon]
    [app.util.dom :as dom]
    [app.util.i18n :as i18n :refer [tr]]
    [app.util.keyboard :as kbd]
@@ -925,11 +925,9 @@
       (tr "labels.comment") " " [:span {:class (stl/css :grayed-text)} "#" (:seqn thread)]]
      [:div {:class (stl/css :floating-thread-header-right)}
       (when (some? thread)
-        [:div {:class (stl/css :checkbox-wrapper)
-               :title (tr "labels.comment.mark-as-solved")
-               :on-click toggle-resolved}
-         [:span {:class (stl/css-case :checkbox true
-                                      :global/checked (:is-resolved thread))} deprecated-icon/tick]])
+        [:> checkbox* {:class (stl/css :checkbox-wrapper)
+                       :checked (:is-resolved thread)
+                       :on-change toggle-resolved}])
       (when (= (:id profile) (:id owner))
         [:> icon-button* {:variant "ghost"
                           :aria-label (tr "labels.options")
@@ -1065,6 +1063,14 @@
          (fn [content]
            (st/emit! (dcm/add-comment thread content))))
 
+        on-key-down
+        (mf/use-fn
+         (fn [event]
+           (when (kbd/esc? event)
+             (dom/prevent-default event)
+             (dom/stop-propagation event)
+             (st/emit! (dcm/close-thread)))))
+
         on-cancel
         (mf/use-fn #(st/emit! (dcm/close-thread)))]
 
@@ -1088,6 +1094,7 @@
               :style {:left (str pos-x "px")
                       :top (str pos-y "px")
                       "--comment-height" (str max-height "px")}
+              :on-key-down on-key-down
               :on-click dom/stop-propagation}
 
         [:div {:class (stl/css :floating-thread-header)}
